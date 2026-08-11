@@ -81,9 +81,24 @@ will be updated as gates produce evidence.
 
 ## 11. Audio
 
-- musyx through SDL3 audio on macOS; on iOS, verify route handling, interrupts,
-  and lifecycle suspend/resume. Test music, ambience, weapons, voice/SFX,
-  transitions, extended play.
+- **Current state (verified 2026-08-11):** the musyx library (AxioDL fork of the
+  GameCube audio engine) is vendored and complete, but the **host integration is
+  missing** — the amuse/boo voice-engine calls are commented out in
+  `CSfxManager.cpp`, `CStreamAudioManager.cpp`, `CMidiManager.cpp`, `CMain.cpp`,
+  and there is no audio output device anywhere in the tree (KI-003). This is an
+  upstream mid-refactor gap.
+- **Implementation plan:**
+  1. Add a minimal audio device module (SDL3 audio — aurora already links SDL3
+     with CoreAudio on macOS and the AudioToolbox/CoreAudio stack on iOS).
+  2. Restore the DSP stream path in `CStreamAudioManager` (DSPADPCM → PCM decode
+     via musyx's decoder; feed the ring buffers to the device).
+  3. Initialize musyx (`sndInit`) and connect the game's audio systems
+     (`CSfxManager`/`CAudioSys`/`CMidiManager`) to it (group sets already load).
+  4. Wire the per-frame mix pump to the device callback.
+  5. Verify: music, ambience, weapons, voice/SFX, transitions, suspend/resume on
+     macOS, then iOS Simulator and device.
+- This is the last major Gate 1 item; the rest of Gate 1 is proven (build,
+  Metal, rendering, title flow, input, saves/config paths).
 
 ## 12. Saves
 
