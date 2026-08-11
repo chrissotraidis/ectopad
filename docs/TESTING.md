@@ -43,5 +43,9 @@ Last updated: 2026-08-11
 - Artifacts: logs `/tmp/metaforce-run.log`, `/tmp/metaforce-fe.log`,
   `/tmp/metaforce-warp.log`; crash `~/Library/Logs/DiagnosticReports/
   Metaforce-2026-08-11-152126.ips`; screenshots `/tmp/metaforce-*.png`.
+- Frontend investigation: frontend state machine verified (OpenCredits 10 s →
+  Title 30 s → Attract cycle; per-second state logs), THP YUV decode verified
+  correct by dumping decoded frames; movie rendering defect characterized as
+  KI-001 (small garbled corner strip). See [KNOWN_ISSUES.md](KNOWN_ISSUES.md).
 
 To be appended with dated entries for later phases.

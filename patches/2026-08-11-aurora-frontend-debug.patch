@@ -1,0 +1,85 @@
+diff --git a/lib/aurora.cpp b/lib/aurora.cpp
+index dc5ae5b..3ec13e0 100644
+--- a/lib/aurora.cpp
++++ b/lib/aurora.cpp
+@@ -237,6 +237,16 @@ void end_frame() noexcept {
+   const auto viewport = webgpu::calculate_present_viewport(webgpu::g_graphicsConfig.surfaceConfiguration.width,
+                                                            webgpu::g_graphicsConfig.surfaceConfiguration.height,
+                                                            presentSource.size.width, presentSource.size.height);
++  {
++    static int s_dbgPresent = 0;
++    if (s_dbgPresent < 10) {
++      Log.info("DBG present: surface={}x{} source={}x{} viewport={},{},{}x{}",
++               webgpu::g_graphicsConfig.surfaceConfiguration.width,
++               webgpu::g_graphicsConfig.surfaceConfiguration.height, presentSource.size.width,
++               presentSource.size.height, viewport.left, viewport.top, viewport.width, viewport.height);
++      ++s_dbgPresent;
++    }
++  }
+ 
+   wgpu::BindGroup rmlBindGroup;
+ #if AURORA_ENABLE_RMLUI
+diff --git a/lib/gfx/common.cpp b/lib/gfx/common.cpp
+index eff0c65..087c464 100644
+--- a/lib/gfx/common.cpp
++++ b/lib/gfx/common.cpp
+@@ -538,6 +538,11 @@ Vec2<uint32_t> get_render_target_size() noexcept {
+ 
+ void set_viewport(const Viewport& cmd) noexcept {
+   if (cmd != g_cachedViewport) {
++    static int s_dbgViewport = 0;
++    if (s_dbgViewport < 200) {
++      Log.info("DBG viewport: x={} y={} w={} h={}", cmd.left, cmd.top, cmd.width, cmd.height);
++      ++s_dbgViewport;
++    }
+     push_command(CommandType::SetViewport, Command::Data{.setViewport = cmd});
+     g_cachedViewport = cmd;
+   }
+@@ -545,6 +550,11 @@ void set_viewport(const Viewport& cmd) noexcept {
+ 
+ void set_scissor(const ClipRect& cmd) noexcept {
+   if (cmd != g_cachedScissor) {
++    static int s_dbgScissor = 0;
++    if (s_dbgScissor < 200) {
++      Log.info("DBG scissor: x={} y={} w={} h={}", cmd.x, cmd.y, cmd.width, cmd.height);
++      ++s_dbgScissor;
++    }
+     push_command(CommandType::SetScissor, Command::Data{.setScissor = cmd});
+     g_cachedScissor = cmd;
+   }
+@@ -1253,6 +1263,16 @@ static void render(wgpu::CommandEncoder& cmd, FramePacket& frame, RenderPass& pa
+     return;
+   }
+ 
++  {
++    static int s_dbgPass = 0;
++    if (s_dbgPass < 10) {
++      Log.info("DBG pass: idx={} target={}x{} colorView={} resolveTarget={} offscreen={} observable={}",
++               passIndex, passInfo.targetSize.width, passInfo.targetSize.height, passInfo.colorView != nullptr,
++               passInfo.resolveTarget != nullptr, passInfo.offscreen, passInfo.observable);
++      ++s_dbgPass;
++    }
++  }
++
+   for (const auto& conv : passInfo.paletteConvs) {
+     tex_palette_conv::run(cmd, conv);
+   }
+diff --git a/lib/gx/command_processor.cpp b/lib/gx/command_processor.cpp
+index 9748556..15e782d 100644
+--- a/lib/gx/command_processor.cpp
++++ b/lib/gx/command_processor.cpp
+@@ -250,6 +250,14 @@ static bool copy_xf_data(u32 addr, const u8* data, u32 len, bool bigEndian) {
+     for (u32 i = 0; i < len; i++) {
+       flat[i] = read_f32(data + i * 4, bigEndian);
+     }
++    {
++      static int s_dbgMtx = 0;
++      if (s_dbgMtx < 8) {
++        Log.info("DBG posmtx {}: {},{},{},{},{},{},{},{},{},{},{},{}", mtxIdx, flat[0], flat[1], flat[2], flat[3],
++                 flat[4], flat[5], flat[6], flat[7], flat[8], flat[9], flat[10], flat[11]);
++        ++s_dbgMtx;
++      }
++    }
+     g_gxState.stateDirty = true;
+   } else if (addr < 0x0F0) {
+     // Texture matrices (0x078-0x0EF)

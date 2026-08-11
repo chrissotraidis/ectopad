@@ -65,10 +65,13 @@ Last updated: 2026-08-11
 
 ### Partially proven
 
-- **Frontend/title flow:** the frontend state machine runs (OpenCredits → Title,
-    THP intro movie playing) but the movie/frame presents as a small top-left
-    fragment instead of filling the window; believed to be an upstream WIP
-    presentation issue (see KNOWN_ISSUES). Not yet classified as blocked.
+- **Frontend/title flow:** the frontend state machine runs correctly
+    (OpenCredits → Title → Attract cycles with correct timings, verified via
+    per-second state logging), but THP movies render as a small garbled strip in
+    the upper-left (KI-001, upstream WIP rendering bug, not Apple-specific).
+- **Input:** keyboard/Enter did not visibly advance the frontend; requires
+    verification once the movie rendering is fixed (the frontend may simply be
+    waiting on its movie-based transition which depends on the broken draw path).
 
 ### Blocked
 

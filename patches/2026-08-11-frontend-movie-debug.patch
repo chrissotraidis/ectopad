@@ -1,0 +1,97 @@
+diff --git a/Runtime/Graphics/CMoviePlayer.cpp b/Runtime/Graphics/CMoviePlayer.cpp
+index 34bed54..c9e231d 100644
+--- a/Runtime/Graphics/CMoviePlayer.cpp
++++ b/Runtime/Graphics/CMoviePlayer.cpp
+@@ -7,6 +7,8 @@
+ #include "Graphics/CGX.hpp"
+ #include "GameGlobalObjects.hpp"
+ 
++#include <spdlog/spdlog.h>
++
+ // #include <amuse/DSPCodec.hpp>
+ #include <turbojpeg.h>
+ 
+@@ -16,13 +18,13 @@ static void MyTHPYuv2RgbTextureSetup(void* dataY, void* dataU, void* dataV, u16
+   TGXTexObj texV;
+   TGXTexObj texU;
+   TGXTexObj texY;
+-  GXInitTexObj(&texY, dataY, width, height, static_cast<GXTexFmt>(GX_TF_R8_PC), GX_CLAMP, GX_CLAMP, false);
++  GXInitTexObj(&texY, dataY, width, height, static_cast<GXTexFmt>(GX_TF_I8), GX_CLAMP, GX_CLAMP, false);
+   GXInitTexObjLOD(&texY, GX_NEAR, GX_NEAR, 0.0, 0.0, 0.0, false, false, GX_ANISO_1);
+   GXLoadTexObj(&texY, GX_TEXMAP0);
+-  GXInitTexObj(&texU, dataU, width / 2, height / 2, static_cast<GXTexFmt>(GX_TF_R8_PC), GX_CLAMP, GX_CLAMP, false);
++  GXInitTexObj(&texU, dataU, width / 2, height / 2, static_cast<GXTexFmt>(GX_TF_I8), GX_CLAMP, GX_CLAMP, false);
+   GXInitTexObjLOD(&texU, GX_NEAR, GX_NEAR, 0.0, 0.0, 0.0, false, false, GX_ANISO_1);
+   GXLoadTexObj(&texU, GX_TEXMAP1);
+-  GXInitTexObj(&texV, dataV, width / 2, height / 2, static_cast<GXTexFmt>(GX_TF_R8_PC), GX_CLAMP, GX_CLAMP, false);
++  GXInitTexObj(&texV, dataV, width / 2, height / 2, static_cast<GXTexFmt>(GX_TF_I8), GX_CLAMP, GX_CLAMP, false);
+   GXInitTexObjLOD(&texV, GX_NEAR, GX_NEAR, 0.0, 0.0, 0.0, false, false, GX_ANISO_1);
+   GXLoadTexObj(&texV, GX_TEXMAP2);
+   CTexture::InvalidateTexMap(GX_TEXMAP0);
+@@ -457,6 +459,29 @@ bool CMoviePlayer::DrawVideo() {
+   const s32 vpWidth = CGraphics::GetViewportWidth();
+   const s32 vpTop = CGraphics::GetViewportTop();
+   const s32 vpLeft = CGraphics::GetViewportLeft();
++  static int s_dbgOnce = 0;
++  if (s_dbgOnce < 5) {
++    spdlog::info("DBG movie draw: vp=({},{})x({}x{}) video={}x{} scale={} curLoad={} preLoad={} queue={} numFrames={} playMode={}",
++                 vpLeft, vpTop, vpWidth, vpHeight, x6c_videoInfo.width, x6c_videoInfo.height,
++                 std::min(static_cast<float>(vpWidth) / 640.0f, static_cast<float>(vpHeight) / 448.0f),
++                 xc0_curLoadFrame, xf0_preLoadFrames, xa0_bufferQueue.size(), x28_thpHead.numFrames,
++                 static_cast<int>(xe0_playMode));
++    ++s_dbgOnce;
++  }
++  {
++    static int s_dbgDumpCount = 0;
++    if (s_dbgDumpCount == 200 && m_yuvBuf) {
++      FILE* f = fopen("/tmp/mf-yuv.raw", "wb");
++      if (f) {
++        const u32 plane = x6c_videoInfo.width * x6c_videoInfo.height;
++        fwrite(m_yuvBuf.get(), 1, plane * 3 / 2, f);
++        fclose(f);
++        spdlog::info("DBG dumped YUV {}x{} {} bytes", x6c_videoInfo.width, x6c_videoInfo.height,
++                     plane * 3 / 2);
++      }
++    }
++    ++s_dbgDumpCount;
++  }
+ #ifdef AURORA
+   // Scale to full size, maintaining aspect ratio
+   const float scale = std::min(static_cast<float>(CGraphics::GetViewportWidth()) / 640.0f,
+diff --git a/Runtime/MP1/CFrontEndUI.cpp b/Runtime/MP1/CFrontEndUI.cpp
+index 012c71d..0b5a265 100644
+--- a/Runtime/MP1/CFrontEndUI.cpp
++++ b/Runtime/MP1/CFrontEndUI.cpp
+@@ -30,6 +30,8 @@
+ #include "Runtime/MP1/CSlideShow.hpp"
+ #include "Runtime/MP1/MP1.hpp"
+ 
++#include <spdlog/spdlog.h>
++
+ namespace metaforce::MP1 {
+ namespace {
+ #define FE_USE_SECONDS_IN_ELAPSED 1
+@@ -2168,6 +2170,17 @@ CIOWin::EMessageReturn CFrontEndUI::Update(float dt, CArchitectureQueue& queue)
+ 
+   case EPhase::DisplayFrontEnd:
+   case EPhase::ToPlayGame:
++    {
++      static int s_dbgFe = 0;
++      if ((s_dbgFe % 60) == 0) {
++        spdlog::info("DBG FE: phase={} screen={} next={} fade={} attractCount={} moviePlayed={} movieTotal={}",
++                     static_cast<int>(x14_phase), static_cast<int>(x50_curScreen),
++                     static_cast<int>(x54_nextScreen), x58_fadeBlackTimer, xc0_attractCount,
++                     xcc_curMoviePtr ? xcc_curMoviePtr->GetPlayedSeconds() : -1.f,
++                     xcc_curMoviePtr ? xcc_curMoviePtr->GetTotalSeconds() : -1.f);
++      }
++      ++s_dbgFe;
++    }
+     /* Displaying frontend to user */
+     if (xec_emuFrme) {
+       /* Update just the emulator if active */
+diff --git a/extern/aurora b/extern/aurora
+--- a/extern/aurora
++++ b/extern/aurora
+@@ -1 +1 @@
+-Subproject commit 514339438178ef2bed1b14e5149d90ece0c6e0cc
++Subproject commit 514339438178ef2bed1b14e5149d90ece0c6e0cc-dirty

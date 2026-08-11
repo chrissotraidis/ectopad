@@ -214,8 +214,10 @@ will be updated as gates produce evidence.
 
 ## 35. Known upstream blockers
 
-- None proven yet. Candidate watch items: metaforce alpha-state churn; Dawn
-  prebuilt package deployment-target compatibility; SDL3 iOS backend maturity.
+- None proven fundamental. Watch items: metaforce alpha-state churn; Dawn
+  prebuilt package deployment-target compatibility; SDL3 iOS backend maturity;
+  frontend THP movie rendering defect (KI-001) — an upstream WIP bug, not
+  Apple-port-specific; audio output unwired upstream (KI-003).
 
 ## 36. Go / no-go criteria
 
@@ -243,4 +245,3 @@ will be updated as gates produce evidence.
 2. Fix current-tree build problems as found.
 3. Extract/validate game data; launch; verify Metal/frame/title/input/audio/saves.
 4. Reproduce the iOS arm64 build locally; then device install (Gate 2).
-
