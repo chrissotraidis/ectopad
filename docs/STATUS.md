@@ -21,7 +21,7 @@ Last updated: 2026-08-11
 | Architecture investigation | **Proven** | Current tree renders via Aurora GX-on-WebGPU (Dawn) → Metal on Apple; see [ARCHITECTURE.md](ARCHITECTURE.md) |
 | macOS ARM64 build of current Metaforce | **Proven** | Clean RelWithDebInfo build, 862/862 steps, arm64 Mach-O, 2026-08-11 |
 | Metaforce launch on macOS (Metal, frame, title flow) | **Proven** | Launches; Dawn initializes Metal (Apple M2 IntegratedGPU); 60 FPS; **frontend renders full-frame (title screen "METROID PRIME" logo + emblem verified)**; in-game warp renders fully (1752 draw calls, HUD) — after the KI-001 scissor/viewport fix |
-| Input on macOS (keyboard/mouse/controller) | **Not yet tested** | Abstraction present (CFinalInput/CKeyboardMouseController, aurora PAD over SDL_Gamepad); no end-to-end test yet |
+| Input on macOS (keyboard/mouse/controller) | **Proven (keyboard, local patch)** | Keyboard/mouse wired locally (was disabled upstream via `#if 0`); verified: Enter=Start advances title → save dialog, arrows/S navigate menus, D-pad/stick state reflected in the input overlay; gamepad path untested (no controller connected) |
 | Audio on macOS | **Blocked (upstream)** | No audio output device code in the current upstream tree; playback plumbing commented out mid-refactor; see KNOWN_ISSUES |
 | HECL/game-data extraction from supplied ISO | **Proven** | Disc identified and all assets loaded from ISO at runtime ("Metroid Prime USA (Build v1.111 3/10/2003 17:56:21)"); raw ISO, no conversion required |
 | iOS/iPadOS ARM64 device build | **Not yet tested** | Upstream CI builds iOS `.app`; not yet reproduced locally |
@@ -65,12 +65,8 @@ Last updated: 2026-08-11
     segfault (see KNOWN_ISSUES).
 
 ### Partially proven
-- **Input:** keyboard/Enter did not visibly advance the frontend; requires
-    verification once the movie rendering is fixed (the frontend may simply be
-    waiting on its movie-based transition which depends on the broken draw path).
-    **Update:** keyboard/mouse input is **disabled upstream** (`#if 0` in
-    `CInputGenerator::Update`); only gamepad (aurora PAD → SDL_Gamepad) generates
-    input. No gamepad connected to test with yet.
+- **Gamepad input:** wired via aurora PAD → SDL_Gamepad (untested — no controller
+    connected). Keyboard/mouse is now wired locally (see above).
 
 ### Blocked
 
@@ -92,6 +88,13 @@ Last updated: 2026-08-11
     in sync (`CGraphics::SetViewport` also calls `GXSetViewport`), and disabling
     culling for the movie draw. Title screen and attract movies now render
     full-frame; in-game rendering verified unaffected.
+- **Keyboard/mouse input enabled:** upstream disabled the kbm path
+    (`#if 0` in `CInputGenerator::Update` and an unfinished kbm `CFinalInput`
+    constructor). Implemented a working path: SDL key/mouse/text events →
+    `CKeyboardMouseControllerData` (in CMain) → kbm `CFinalInput` (WASD left
+    stick, IJKL right stick, J/K/I/U/H/Q/E = A/B/X/Y/Z/L/R, Enter = Start,
+    arrows = D-pad) pushed when no gamepad is connected. Verified: Enter at the
+    title opens the save/memory-card dialog; arrows/S navigate menus.
 
 ### Simulator-only
 

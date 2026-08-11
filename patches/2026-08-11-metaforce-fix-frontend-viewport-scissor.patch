@@ -61,9 +61,3 @@ index 34bed54..a992586 100644
    CGX::SetZMode(true, GX_ALWAYS, false);
    CGX::SetBlendMode(GX_BM_NONE, GX_BL_ONE, GX_BL_ZERO, GX_LO_CLEAR);
    CGX::SetNumChans(0);
-diff --git a/extern/aurora b/extern/aurora
---- a/extern/aurora
-+++ b/extern/aurora
-@@ -1 +1 @@
--Subproject commit 514339438178ef2bed1b14e5149d90ece0c6e0cc
-+Subproject commit 514339438178ef2bed1b14e5149d90ece0c6e0cc-dirty

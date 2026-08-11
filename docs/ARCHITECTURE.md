@@ -42,6 +42,13 @@ Key findings (all verified in the cloned tree, 2026-08-11):
 7. **Input abstraction:** Retro-style `Runtime/Input` + aurora PAD layer over
    `SDL_Gamepad`; GameCube controller semantics (see IMPLEMENTATION_PLAN for the
    Prime-native control design work).
+   - **Keyboard/mouse (local patch):** upstream disabled the kbm path
+     (`#if 0` in `CInputGenerator::Update`; the kbm `CFinalInput` constructor was
+     unfinished). We implemented it: CMain sources SDL key/mouse/text events into
+     `CKeyboardMouseControllerData` (`g_kbmData`), and `CInputGenerator` pushes a
+     kbm `CFinalInput` (WASD/IJKL sticks, J/K/I/U/H/Q/E buttons, Enter=Start,
+     arrows=D-pad) whenever no gamepad is connected. Mapping constants live in
+     `CFinalInput.cpp`; easy to remap for the Prime-native control design.
 8. **Saves:** `CMemoryCardSys*` (OSX/Nix/Win variants) — CARD-compatible save
    handling via kabufuda; layout to be documented once exercised.
 9. **Android exists in-tree** (`android/` dir, presets) but is not our target; we

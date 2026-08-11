@@ -57,5 +57,12 @@ Last updated: 2026-08-11
   sync + `GX_CULL_NONE` for the movie quad. Verified: title screen renders
   full-frame (gold "METROID PRIME" logo + emblem, 60 FPS), attract footage
   full-frame, in-game warp renders correctly (1,752 draw calls, HUD).
+- **Keyboard input enabled (local patch):** implemented the kbm path upstream
+  disabled. Verified end-to-end: holding Enter at the title screen advances the
+  frontend to the save/memory-card dialog ("No Memory Card found in Slot A");
+  Down arrow and S move the selection between "Continue Without Saving" and
+  "Retry"; input overlay reflects key state; `config.yaml` written to the store
+  root (configuration persistence). Patch:
+  `patches/2026-08-11-metaforce-enable-keyboard-mouse-input.patch`.
 
 To be appended with dated entries for later phases.
