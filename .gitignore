@@ -1,0 +1,16 @@
+# macOS
+.DS_Store
+
+# User-owned game data and anything derived from it — never commit.
+# ref/ contains the user's legally obtained Metroid Prime dump and public reference
+# repositories. Game-derived data, converted images, extractions, saves, and logs
+# must stay local and ignored.
+ref/
+
+# Private staging / generated data (defense in depth)
+.private/
+private/
+
+# Build directories
+build/
+
