@@ -64,5 +64,12 @@ Last updated: 2026-08-11
   "Retry"; input overlay reflects key state; `config.yaml` written to the store
   root (configuration persistence). Patch:
   `patches/2026-08-11-metaforce-enable-keyboard-mouse-input.patch`.
+- **iOS Simulator (iPad Pro 13-inch M5, iOS 26.5):** built the app for
+  `SIMULATORARM64` after fixing Dawn cross-compile obstacles (built a host
+  protoc from the vendored protobuf 33 for the codegen tool; disabled GLFW which
+  is macOS-only). Installed via `simctl`, copied the user's ISO to the app
+  container as `game.iso`, launched, and the app rendered the **Metroid Prime
+  title screen** (gold "METROID PRIME" logo + emblem + [PRESS START], 4:3
+  letterboxed). Live cycle confirmed; one simulator used, then shut down.
 
 To be appended with dated entries for later phases.

@@ -100,6 +100,10 @@ nod-backed `CDvdFile` — **no HECL extraction step exists in the current flow**
 - Store root (`SDL_GetPrefPath("AxioDL", "metaforce")`):
   `~/Library/Application Support/AxioDL/metaforce/` — contains `dawn_cache.db`,
   `pipeline_cache.db`, `imgui.ini`.
+- **iOS Simulator (2026-08-11):** copied the ISO to the app container at
+  `Library/Application Support/axioDL/metaforce/game.iso` (the SDL pref path on
+  iOS); the app loaded it and rendered the title screen. Confirms the iOS data
+  path: place/validate the user's ISO at the store root.
 
 ## Privacy boundaries
 

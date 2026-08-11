@@ -24,8 +24,9 @@ Last updated: 2026-08-11
 | Input on macOS (keyboard/mouse/controller) | **Proven (keyboard, local patch)** | Keyboard/mouse wired locally (was disabled upstream via `#if 0`); verified: Enter=Start advances title → save dialog, arrows/S navigate menus, D-pad/stick state reflected in the input overlay; gamepad path untested (no controller connected) |
 | Audio on macOS | **Blocked (upstream)** | No audio output device code in the current upstream tree; playback plumbing commented out mid-refactor; see KNOWN_ISSUES |
 | HECL/game-data extraction from supplied ISO | **Proven** | Disc identified and all assets loaded from ISO at runtime ("Metroid Prime USA (Build v1.111 3/10/2003 17:56:21)"); raw ISO, no conversion required |
-| iOS/iPadOS ARM64 device build | **Not yet tested** | Upstream CI builds iOS `.app`; not yet reproduced locally |
-| Dawn/WebGPU reaching Metal on iOS device | **Not yet tested** | Principal technical unknown (Gate 2) |
+| iOS/iPadOS ARM64 device build | **Proven** | Local ARM64 iOS build succeeded (`build/install/Metaforce.app`, platform 2/iOS, minos 14.0) after fixing an upstream zstd link issue (Homebrew macOS dylib leaking into the iOS link) |
+| iOS Simulator (iPad) execution | **Proven** | iOS Simulator build succeeded (after fixing Dawn cross-compile host-tool issues: host protoc + GLFW disabled); installed and launched on iPad Pro 13-inch (M5) Simulator; loaded the user's ISO from the app container and rendered the **Metroid Prime title screen** (gold logo + [PRESS START], 4:3) via Dawn/WebGPU |
+| Dawn/WebGPU reaching Metal on iOS device | **Not yet tested** | Principal technical unknown (Gate 2); simulator rendering (host GPU/Metal path) works — physical-device verification pending signing identity + hardware |
 | Touch controls (iPhone/iPad layouts) | **Not yet tested** | |
 | GameController support | **Not yet tested** | |
 | Save/reload behavior | **Not yet tested** | |
