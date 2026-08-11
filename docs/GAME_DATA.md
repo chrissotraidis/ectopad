@@ -59,7 +59,9 @@ new hashes here.
 
 ## Extraction / preparation (HECL)
 
-Not yet started. Expected flow:
+Expected flow (macOS runtime currently reads the ISO directly via nod-backed
+`CDvdFile` — default path is `<store root>/game.iso`, or pass the ISO path as a
+CLI argument):
 
 1. Validate image (above).
 2. Run Metaforce/HECL extraction tooling to produce the prepared game package
@@ -70,9 +72,18 @@ Not yet started. Expected flow:
 Details will be recorded here and in [IMPLEMENTATION_PLAN.md](IMPLEMENTATION_PLAN.md)
 as the pipeline is proven. All extracted/generated data stays local and git-ignored.
 
+### Runtime evidence (2026-08-11)
+
+- `Metaforce -l <iso>` opened the ISO via nod and identified
+  **"Metroid Prime USA (Build v1.111 3/10/2003 17:56:21)"**; thousands of assets
+  (STRG/TXTR/CMDL/CSKR/ANIM/EVNT/PART/SWHC/DGRP/AGSC/SAVW/HINT/ATBL/DPSC/CRSC/
+  WPSC/ELSC/SCAN/FONT/FRME...) built from the disc at runtime with no errors.
+- Store root (`SDL_GetPrefPath("AxioDL", "metaforce")`):
+  `~/Library/Application Support/AxioDL/metaforce/` — contains `dawn_cache.db`,
+  `pipeline_cache.db`, `imgui.ini`.
+
 ## Privacy boundaries
 
 - The ISO, converted images, extracted Nintendo assets, generated game-derived
   data, and saves are **never** committed, packaged, or redistributed.
 - The app must only ever import data the user supplies.
-

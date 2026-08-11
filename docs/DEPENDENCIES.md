@@ -33,13 +33,17 @@ references.
 
 | Dependency | Pinned version/ref | Provider options |
 | --- | --- | --- |
-| Dawn (WebGPU) | version `v20260807.225922` (encounter/dawn releases), ref `1155e0ed531126f33a1279afa029349651ca1c93` | auto / vendor / system / package |
+| Dawn (WebGPU) | operative pin in metaforce's aurora submodule (`5143394`): version `v20260603.191052`, prebuilt from `encounter/dawn-build` releases. (Newer standalone aurora defaults to `v20260807.225922` from `encounter/dawn`.) | auto / vendor / system / package |
 | SDL3 | `3.4.10` (`refs/tags/release-3.4.10`) | auto / vendor / system / package |
 | nod | `v2.0.0-alpha.10` | (bundled) |
 
 Prebuilt Dawn packages exist for: `windows-{amd64,arm64}`, `linux-{x86_64,aarch64}`,
 `darwin-{arm64,x86_64}`, `ios-arm64`, `android-aarch64` — including the two we need
 for Gate 1 (macOS ARM64) and Gate 2 (iOS device).
+
+Build-time note (2026-08-11, macOS): `AURORA_DAWN_PROVIDER=package` resolved to the
+prebuilt Dawn package; `AURORA_SDL3_PROVIDER=system` resolved to Homebrew SDL3 3.4.12
+and is linked **shared** (aurora warns that static SDL3 is unavailable via Homebrew).
 
 ## Build environment (this machine, 2026-08-11)
 
@@ -65,4 +69,3 @@ for Gate 1 (macOS ARM64) and Gate 2 (iOS device).
 | ios-cmake (`ios.toolchain.cmake`) | BSD-3 |
 
 Full texts live inside each repository. Verify before any redistribution.
-

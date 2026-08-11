@@ -47,6 +47,13 @@ Key findings (all verified in the cloned tree, 2026-08-11):
 9. **Android exists in-tree** (`android/` dir, presets) but is not our target; we
    reuse its toolchain patterns where useful and do not assume its assumptions
    hold on iOS.
+10. **Audio is mid-refactor upstream:** the boo voice engine and amuse/musyx
+    playback calls are commented out in the pinned tree; no audio output device
+    code exists yet (KI-003). The port will need to (re)wire output — SDL3 audio
+    via aurora (macOS + iOS), or CoreAudio/AVAudioSession directly.
+11. **Disc access is Rust-backed:** nod (Rust, via corrosion + nod-ffi) reads the
+    ISO; the iOS build targets `aarch64-apple-ios` (rustup target added
+    2026-08-11).
 
 ## Target Apple rendering path
 
@@ -62,4 +69,3 @@ Confirm empirically on macOS (Gate 1) and iOS device (Gate 2); see
   informs the Apple app shell, UX, packaging, input, diagnostics, game-data
   handling, testing discipline, and release boundaries only.
 - PrimeDecomp/prime is a research/accuracy reference, not a build dependency.
-

@@ -31,5 +31,17 @@ Last updated: 2026-08-11
 
 ## Evidence ledger
 
-To be appended with dated entries (commands, logs, screenshots, video).
+### 2026-08-11 — macOS ARM64 (Gate 1)
 
+- Build: `cmake --preset macos-default-relwithdebinfo` +
+  `cmake --build --preset macos-default-relwithdebinfo` → 862/862 steps OK,
+  `Binaries/Metaforce.app` (arm64 Mach-O, Metal.framework weak-linked, 25 MB).
+- Boot (no dev console): `Metaforce -l <iso>` — Metal selected, 60.1 FPS,
+  disc identified, assets loaded, no errors.
+- In-game: `Metaforce -l --warp 2 2 +debugOverlay.* <iso>` — full-screen scene +
+  HUD, 1760 draw calls, 60 FPS; then ImGui segfault (KI-002).
+- Artifacts: logs `/tmp/metaforce-run.log`, `/tmp/metaforce-fe.log`,
+  `/tmp/metaforce-warp.log`; crash `~/Library/Logs/DiagnosticReports/
+  Metaforce-2026-08-11-152126.ips`; screenshots `/tmp/metaforce-*.png`.
+
+To be appended with dated entries for later phases.
