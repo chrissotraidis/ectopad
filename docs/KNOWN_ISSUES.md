@@ -57,6 +57,23 @@ path. The CPU-side decode is perfect; the GPU-side content is garbage. Next step
 a minimal aurora repro (single R8/I8 full-frame textured quad) with a shader
 debug view, or capture the EFB via Xcode GPU frame capture.
 
+Round 3 (same day):
+
+- **Cull experiment:** added `GXSetCullMode(GX_CULL_NONE)` to the movie draw
+  setup (`MyTHPGXYuv2RgbSetup`). This **changed the on-screen garbage into real
+  movie content** (a circular instrument/gauge from the attract footage became
+  visible) — so the per-frame `CullMode::Front` was partially culling the movie's
+  CW-wound triangles. Saved as
+  `patches/2026-08-11-metaforce-movie-cull-experiment.patch`; kept in the working
+  tree as a candidate fix, still not a full fix (geometry remains wrong).
+- **EFB readback (validated, no crash):** re-ran the readback with the normal
+  present flow intact (no early return). At frame 600 the EFB is **still 100%
+  black** while the window shows movie content — the visible content is not in
+  `g_frameBuffer`. Combined with the surface dump (black + ImGui), the presented
+  frames are black, yet the window shows garbage — pointing to an inconsistency
+  in the aurora GX WebGPU present/draw path that needs Xcode GPU frame capture to
+  pin down. This is a current-tree upstream defect affecting all platforms.
+
 Experimental changes that altered behavior but did not fix geometry:
 
 - `GX_TF_R8_PC` → `GX_TF_I8` for the Y/U/V movie textures (the game's own code in

@@ -1,0 +1,18 @@
+diff --git a/Runtime/Graphics/CMoviePlayer.cpp b/Runtime/Graphics/CMoviePlayer.cpp
+index 34bed54..a992586 100644
+--- a/Runtime/Graphics/CMoviePlayer.cpp
++++ b/Runtime/Graphics/CMoviePlayer.cpp
+@@ -35,6 +35,7 @@ const std::array<u8, 32> InterlaceTex{
+     0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0, 0, 0, 0, 0, 0, 0, 0,
+ };
+ static void MyTHPGXYuv2RgbSetup(bool interlaced2ndFrame, bool fieldFlip) {
++  GXSetCullMode(GX_CULL_NONE);
+   CGX::SetZMode(true, GX_ALWAYS, false);
+   CGX::SetBlendMode(GX_BM_NONE, GX_BL_ONE, GX_BL_ZERO, GX_LO_CLEAR);
+   CGX::SetNumChans(0);
+diff --git a/extern/aurora b/extern/aurora
+--- a/extern/aurora
++++ b/extern/aurora
+@@ -1 +1 @@
+-Subproject commit 514339438178ef2bed1b14e5149d90ece0c6e0cc
++Subproject commit 514339438178ef2bed1b14e5149d90ece0c6e0cc-dirty
