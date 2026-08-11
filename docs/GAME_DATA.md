@@ -57,20 +57,39 @@ directly), so **no conversion is required**. If a future image arrives as
 `dolphin-tool convert` or NKit tooling, keep the result ignored, and record the
 new hashes here.
 
-## Extraction / preparation (HECL)
+## How the runtime consumes game data (verified 2026-08-11)
 
-Expected flow (macOS runtime currently reads the ISO directly via nod-backed
-`CDvdFile` — default path is `<store root>/game.iso`, or pass the ISO path as a
-CLI argument):
+The current Metaforce tree reads the user's **disc image file directly** via
+nod-backed `CDvdFile` — **no HECL extraction step exists in the current flow**:
 
-1. Validate image (above).
-2. Run Metaforce/HECL extraction tooling to produce the prepared game package
-   (PAK data etc.) from the ISO.
-3. Validate the prepared package.
-4. Stage privately, then activate atomically on-device.
+- `CDvdFile::Initialize(path)` opens the path with SDL and hands it to
+  `nod_disc_open_stream` (nod supports ISO/GCM/RVZ/CISO etc.). Verified: our raw
+  ISO opens and all assets load from it.
+- Disc-path sources:
+  - **iOS/tvOS:** `CMain.cpp` sets `m_deferredProject = <store root>/game.iso`
+    (`SDL_GetPrefPath` = the app container). The app is expected to place the
+    user's ISO there.
+  - **Desktop (macOS):** a CLI positional arg (existing file path), a drag-and-drop
+    onto the window (`SDL_EVENT_DROP_FILE` → `m_gameDiscSelected`), or the ImGui
+    disc-selection flow — all funnel into `m_deferredProject` and open on the next
+    idle tick when no game is loaded.
+  - `content://` URIs are handled (Android pattern; cleared from `lastDiscPath`
+    on failure).
 
-Details will be recorded here and in [IMPLEMENTATION_PLAN.md](IMPLEMENTATION_PLAN.md)
-as the pipeline is proven. All extracted/generated data stays local and git-ignored.
+### Consequences for the port
+
+- **No HECL/asset-preparation pipeline is required for the base flow.** The
+  "prepare privately → stage → activate" workflow reduces to: validate the user's
+  ISO → copy it into private storage as `game.iso` (staging + atomic rename) →
+  point the runtime at it. This matches the goal's preference to not force HECL
+  into iOS when the architecture doesn't need it.
+- **iOS data design (planned):** `••• → Game Data & Saves` → Files picker
+  (security-scoped URL) → validate (size, game ID `GM8E01`, revision byte `0x02`,
+  SHA-1) → copy to `<store root>/game.iso` via staging → atomic activation →
+  runtime loads it. Saves/config remain in separate containers. A failed import
+  leaves the previous `game.iso` untouched.
+- **Validation** before activation uses the procedure above; the canonical
+  integrity reference is SHA-1 `1a737910b55b59c6ad91be9e3e3c43517fd52efb`.
 
 ### Runtime evidence (2026-08-11)
 

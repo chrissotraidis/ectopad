@@ -1,0 +1,51 @@
+diff --git a/lib/aurora.cpp b/lib/aurora.cpp
+index dc5ae5b..398d807 100644
+--- a/lib/aurora.cpp
++++ b/lib/aurora.cpp
+@@ -181,8 +181,8 @@ void shutdown() noexcept {
+   rmlui::shutdown();
+ #endif
+ #ifdef AURORA_ENABLE_GX
+-  imgui::shutdown();
+   gfx::shutdown();
++  imgui::shutdown();
+   webgpu::shutdown();
+ #endif
+   input::shutdown();
+diff --git a/lib/imgui.cpp b/lib/imgui.cpp
+index 02adbe1..227f35d 100644
+--- a/lib/imgui.cpp
++++ b/lib/imgui.cpp
+@@ -28,6 +28,7 @@ static float g_scale;
+ static std::string g_imguiSettings{};
+ static std::string g_imguiLog{};
+ static bool g_useSdlRenderer = false;
++static bool g_initialized = false;
+ 
+ static std::vector<SDL_Texture*> g_sdlTextures;
+ static std::vector<wgpu::Texture> g_wgpuTextures;
+@@ -49,6 +50,7 @@ void create_context() noexcept {
+ 
+ void initialize() noexcept {
+   ZoneScoped;
++  g_initialized = true;
+   SDL_Renderer* renderer = window::get_sdl_renderer();
+   ImGui_ImplSDL3_InitForSDLRenderer(window::get_sdl_window(), renderer);
+   g_useSdlRenderer = renderer != nullptr;
+@@ -64,6 +66,7 @@ void initialize() noexcept {
+ 
+ void shutdown() noexcept {
+   ZoneScoped;
++  g_initialized = false;
+   if (g_useSdlRenderer) {
+     ImGui_ImplSDLRenderer3_Shutdown();
+   } else {
+@@ -184,7 +187,7 @@ void render(const wgpu::RenderPassEncoder& pass, const DrawData& drawData) noexc
+     return;
+   }
+   auto* data = &drawData.m_impl->drawData;
+-  if (data->CmdListsCount == 0) {
++  if (!g_initialized || data->CmdListsCount == 0) {
+     return;
+   }
+   if (g_useSdlRenderer) {

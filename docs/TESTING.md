@@ -47,5 +47,9 @@ Last updated: 2026-08-11
   Title 30 s → Attract cycle; per-second state logs), THP YUV decode verified
   correct by dumping decoded frames; movie rendering defect characterized as
   KI-001 (small garbled corner strip). See [KNOWN_ISSUES.md](KNOWN_ISSUES.md).
+- ImGui shutdown crash (KI-002/005) root-caused from the user's crash report
+  (`Metaforce-2026-08-11-165907.ips`): shutdown order bug in `aurora::shutdown`.
+  Fix applied (gfx drain before imgui teardown + render guard); two consecutive
+  quits verified exit 0 with no crash report.
 
 To be appended with dated entries for later phases.

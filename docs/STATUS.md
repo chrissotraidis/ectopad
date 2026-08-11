@@ -15,6 +15,7 @@ Last updated: 2026-08-11
 
 | Item | Status | Evidence |
 | --- | --- | --- |
+| ImGui shutdown crash (KI-002/005: every quit segfaulted) | **Proven (fixed)** | Reordered aurora shutdown (gfx drain before imgui teardown) + guard; app now exits code 0, no crash report; patch saved |
 | Game data validated (GM8E01, Rev 2, CRC 61592372) | **Proven** | Hashes match Redump "(USA) (Rev 2)" entry exactly; see [GAME_DATA.md](GAME_DATA.md) |
 | Reference repos cloned/pinned | **Proven** | metaforce @ `621ee0f`, aurora @ `5143394` (pin used by metaforce), prime @ `72e31c7`, sunpad @ `7d84cec`; see [DEPENDENCIES.md](DEPENDENCIES.md) |
 | Architecture investigation | **Proven** | Current tree renders via Aurora GX-on-WebGPU (Dawn) → Metal on Apple; see [ARCHITECTURE.md](ARCHITECTURE.md) |
@@ -79,6 +80,13 @@ Last updated: 2026-08-11
     code (no CoreAudio/SDL-audio/AudioQueue anywhere; musyx playback calls in
     CSfxManager are commented out). This is an upstream mid-refactor gap, not an
     Apple-port problem. Audio assets load without error.
+
+### Fixed this session
+
+- **ImGui shutdown crash (KI-002/005):** every app exit segfaulted in
+    `ImGui_ImplWGPU_RenderDrawData` because `imgui::shutdown()` nulled the backend
+    before `gfx::shutdown()` drained the render worker. Fixed locally by
+    reordering shutdown and guarding `imgui::render`; verified clean exits.
 
 ### Simulator-only
 

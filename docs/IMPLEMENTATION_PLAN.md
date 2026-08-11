@@ -38,13 +38,16 @@ will be updated as gates produce evidence.
 
 ## 5. HECL / game-data preparation
 
-- Investigate the current HECL/asset pipeline in the pinned tree (it now lives
-  partly inside aurora/nod tooling). Determine whether on-device preparation is
-  viable or whether a Mac-side preparation tool produces a private importable
-  package first.
-- Whichever path wins: validate → stage privately → validate result → atomic
-  activation; a failed import leaves the previous installation intact; original
-  data can be removed without touching saves unless the user explicitly asks.
+- **Verified (2026-08-11): the current tree does not use HECL extraction.** The
+  runtime reads the user's disc image directly via nod-backed `CDvdFile` (ISO/GCM/
+  RVZ/CISO supported). On iOS/tvOS the app expects `<store root>/game.iso`; desktop
+  accepts a CLI path, file drop, or ImGui selection.
+- Therefore the "preparation" pipeline is: **validate → stage privately → atomic
+  activation of `game.iso`**. No extraction of Nintendo assets is needed for the
+  base flow, which also minimizes copyrighted-data exposure. Keep the app
+  architecture ready for a future extracted-assets path if upstream introduces one.
+- A failed import leaves the previous `game.iso` intact; original data can be
+  removed without touching saves unless the user explicitly asks.
 
 ## 6. Private staging and activation
 

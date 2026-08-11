@@ -4,11 +4,11 @@ Last updated: 2026-08-11
 
 | ID | Area | Issue | Status | Evidence |
 | --- | --- | --- | --- | --- |
-| KI-001 | Frontend presentation | Intro/title/attract THP movies render as a small, garbled, horizontally-banded strip in the upper-left corner instead of filling the window (FPS 60, 1-2 draw calls). The frontend state machine itself works: OpenCredits(10 s intro) → Title(30 s loop + press-start) → Attract cycles correctly (verified via logs). | Open — upstream WIP rendering bug in the THP/movie path, NOT Apple-specific (platform-independent aurora GX code) | 2026-08-11 macOS run; logs `/tmp/metaforce-*.log`; screenshots |
-| KI-002 | Diagnostics (ImGui) | With `+developer=1`, `ImGui_ImplWGPU_RenderDrawData` can segfault (null backend data) on aurora's render worker thread; happened during a `--warp` run after ~55 s (Frame 3291). Plain (non-developer) runs were stable for minutes. | Open — upstream bug | Crash: `Metaforce-2026-08-11-152126.ips`; EXC_BAD_ACCESS at 0xb0 |
+| KI-001 | Frontend presentation | Intro/title/attract THP movies render as a full-width, vertically-compressed band near the top of the window with a grid/checker artifact, instead of filling the window (FPS 60, 1-3 draw calls). The decoded frame is pixel-perfect on the CPU; the GPU shows garbage. The frontend state machine itself works: OpenCredits(10 s intro) → Title(30 s loop + press-start) → Attract cycles correctly (verified via logs). | Open — upstream WIP rendering bug in aurora's GX WebGPU texture/draw path, NOT Apple-specific | 2026-08-11 macOS run; logs + screenshots; EFB readback evidence |
+| KI-002 | Diagnostics (ImGui) | `ImGui_ImplWGPU_RenderDrawData` segfaults (null backend data, EXC_BAD_ACCESS at 0xb0) on aurora's render worker thread. Root cause: shutdown order — `imgui::shutdown()` (nulls `BackendRendererUserData`) ran before `gfx::shutdown()` drained the render worker's pending end-frame callbacks, which still call `imgui::render`. This made **every app exit segfault** (exit 139) and generated a crash dialog each time. | **FIXED (2026-08-11, local patch)** — reorder `aurora::shutdown()` to `gfx::shutdown()` before `imgui::shutdown()`, plus a `g_initialized` guard in `aurora::imgui::render`. Verified: two consecutive app quits exit code 0, no crash report generated. Patch: `patches/2026-08-11-aurora-fix-imgui-shutdown-crash.patch` | User crash report `Metaforce-2026-08-11-165907.ips` (shutdown path: `aurora_shutdown → gfx::shutdown → render_worker::synchronize` vs worker in `ImGui_ImplWGPU_RenderDrawData`) |
 | KI-003 | Audio | No audio output device code in the current tree (CoreAudio/SDL-audio/AudioQueue absent; musyx playback calls commented out in `CSfxManager.cpp`; `boo` voice engine commented out in `CMain.cpp`). Audio assets load without error. | Open — upstream mid-refactor gap | Tree inspection 2026-08-11 |
 | KI-004 | Version string | Window title shows "UNKNOWN-VERSION" — `METAFORCE_VERSION_STRING` empty (git describe fails on shallow clone). Cosmetic; build-time only. | Open — local clone artifact | 2026-08-11 |
-| KI-005 | Shutdown | Sending SIGINT to the running app terminated with SIGSEGV (exit 139) on one occasion. Unclear if shutdown-path bug or ImGui interplay. | Open — investigate | 2026-08-11 session 57908 |
+| KI-005 | Shutdown | Sending SIGINT to the running app terminated with SIGSEGV (exit 139) on every quit. | **FIXED** — same root cause and fix as KI-002 (ImGui shutdown ordering) | 2026-08-11; verified exit 0 after fix |
 
 ## Upstream notes
 
@@ -34,6 +34,28 @@ Deep-dived the movie rendering bug. All of the following were verified correct:
   quad (x, 0, z) → view (x, z, 0) → ortho → full screen, correct depth.
 - TEV formula in aurora (`mix(a,b,c)+d`) matches the GC hardware equation
   (TevOut = A*(1-C) + B*C + D) — verified against the published equation.
+
+Round 2 (GPU-side evidence, same day):
+
+- **EFB readback:** copied the game framebuffer (`g_frameBuffer`, 2560x1920,
+  BGRA8, CopySrc) to a staging buffer via `CopyTextureToBuffer` + `MapAsync`
+  (`AllowSpontaneous`). Result at movie-draw time: **100% black** — the movie
+  never reaches the EFB.
+- **Surface readback:** copying the swapchain texture crashed the app
+  (AGX `copyTextureToBuffer` EXC_BAD_ACCESS — CAMetalLayer drawables are not
+  CopySrc). One valid dump (before the crash) showed the surface = black EFB +
+  the ImGui overlay — i.e. the presented content matches the black EFB.
+- **On-screen analysis (clean window-only capture, no dialogs):** the visible
+  content is a **full-width band ~240 px tall near the top** with a subtle
+  grid/checker texture — it does **not** match the correctly-decoded frame, so
+  the GPU texture content is corrupted somewhere between upload and sampling.
+- The EFB pass is `observable=true` (not skipped), target 2560x1920, and the
+  `GXSetCopyFilter` vfilter is a no-op in aurora (not the cause).
+
+Conclusion: the defect is inside aurora's GX WebGPU texture upload / EFB draw
+path. The CPU-side decode is perfect; the GPU-side content is garbage. Next step:
+a minimal aurora repro (single R8/I8 full-frame textured quad) with a shader
+debug view, or capture the EFB via Xcode GPU frame capture.
 
 Experimental changes that altered behavior but did not fix geometry:
 
