@@ -1,0 +1,69 @@
+diff --git a/Runtime/Graphics/CCubeRenderer.cpp b/Runtime/Graphics/CCubeRenderer.cpp
+index f8805d9..9c2e5ef 100644
+--- a/Runtime/Graphics/CCubeRenderer.cpp
++++ b/Runtime/Graphics/CCubeRenderer.cpp
+@@ -1133,6 +1133,7 @@ void CCubeRenderer::SetViewport(s32 left, s32 bottom, s32 width, s32 height) {
+ void CCubeRenderer::BeginScene() {
+   CGraphics::SetUseVideoFilter(true);
+   CGraphics::SetViewport(0, 0, CGraphics::mRenderModeObj.fbWidth, CGraphics::mRenderModeObj.xfbHeight);
++  CGraphics::SetScissor(0, 0, CGraphics::mRenderModeObj.fbWidth, CGraphics::mRenderModeObj.efbHeight);
+ 
+   CGraphics::SetClearColor(zeus::skClear);
+   CGraphics::SetCullMode(ERglCullMode::Front);
+diff --git a/Runtime/Graphics/CGraphics.cpp b/Runtime/Graphics/CGraphics.cpp
+index 0a50d6d..5862269 100644
+--- a/Runtime/Graphics/CGraphics.cpp
++++ b/Runtime/Graphics/CGraphics.cpp
+@@ -225,6 +225,7 @@ void CGraphics::SetCullMode(ERglCullMode cullMode) {
+ void CGraphics::ClearBackAndDepthBuffers() {
+   GXInvalidateTexAll();
+   GXSetViewportRender(0.f, 0.f, mRenderModeObj.fbWidth, mRenderModeObj.xfbHeight, 0.f, 1.f);
++  GXSetViewport(0.f, 0.f, mRenderModeObj.fbWidth, mRenderModeObj.xfbHeight, 0.f, 1.f);
+   GXInvalidateVtxCache();
+ }
+ 
+@@ -633,6 +634,8 @@ void CGraphics::SetViewport(int left, int bottom, int width, int height) {
+   GXSetViewportRender(static_cast<float>(mViewport.mLeft), static_cast<float>(mViewport.mTop),
+                       static_cast<float>(mViewport.mWidth), static_cast<float>(mViewport.mHeight), mDepthNear,
+                       mDepthFar);
++  GXSetViewport(static_cast<float>(mViewport.mLeft), static_cast<float>(mViewport.mTop),
++                static_cast<float>(mViewport.mWidth), static_cast<float>(mViewport.mHeight), mDepthNear, mDepthFar);
+ }
+ 
+ void CGraphics::SetScissor(int left, int bottom, int width, int height) {
+@@ -645,6 +648,8 @@ void CGraphics::SetDepthRange(float nearPlane, float farPlane) {
+   GXSetViewportRender(static_cast<float>(mViewport.mLeft), static_cast<float>(mViewport.mTop),
+                       static_cast<float>(mViewport.mWidth), static_cast<float>(mViewport.mHeight), mDepthNear,
+                       mDepthFar);
++  GXSetViewport(static_cast<float>(mViewport.mLeft), static_cast<float>(mViewport.mTop),
++                static_cast<float>(mViewport.mWidth), static_cast<float>(mViewport.mHeight), mDepthNear, mDepthFar);
+ }
+ 
+ float CGraphics::GetSecondsMod900() {
+@@ -1066,6 +1071,8 @@ void CGraphics::ConfigureFrameBuffer(/*const COsContext& osContext*/) {
+   mpCurrenFrameBuf = mpFrameBuf2;
+   GXSetViewportRender(0.f, 0.f, static_cast<float>(mRenderModeObj.fbWidth),
+                       static_cast<float>(mRenderModeObj.efbHeight), 0.f, 1.f);
++  GXSetViewport(0.f, 0.f, static_cast<float>(mRenderModeObj.fbWidth), static_cast<float>(mRenderModeObj.efbHeight),
++                0.f, 1.f);
+   GXSetScissorRender(0, 0, mRenderModeObj.fbWidth, mRenderModeObj.efbHeight);
+   GXSetDispCopySrc(0, 0, mRenderModeObj.fbWidth, mRenderModeObj.efbHeight);
+   GXSetDispCopyDst(mRenderModeObj.fbWidth, mRenderModeObj.efbHeight);
+diff --git a/Runtime/Graphics/CMoviePlayer.cpp b/Runtime/Graphics/CMoviePlayer.cpp
+index 34bed54..a992586 100644
+--- a/Runtime/Graphics/CMoviePlayer.cpp
++++ b/Runtime/Graphics/CMoviePlayer.cpp
+@@ -35,6 +35,7 @@ const std::array<u8, 32> InterlaceTex{
+     0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0, 0, 0, 0, 0, 0, 0, 0,
+ };
+ static void MyTHPGXYuv2RgbSetup(bool interlaced2ndFrame, bool fieldFlip) {
++  GXSetCullMode(GX_CULL_NONE);
+   CGX::SetZMode(true, GX_ALWAYS, false);
+   CGX::SetBlendMode(GX_BM_NONE, GX_BL_ONE, GX_BL_ZERO, GX_LO_CLEAR);
+   CGX::SetNumChans(0);
+diff --git a/extern/aurora b/extern/aurora
+--- a/extern/aurora
++++ b/extern/aurora
+@@ -1 +1 @@
+-Subproject commit 514339438178ef2bed1b14e5149d90ece0c6e0cc
++Subproject commit 514339438178ef2bed1b14e5149d90ece0c6e0cc-dirty

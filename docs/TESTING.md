@@ -51,5 +51,11 @@ Last updated: 2026-08-11
   (`Metaforce-2026-08-11-165907.ips`): shutdown order bug in `aurora::shutdown`.
   Fix applied (gfx drain before imgui teardown + render guard); two consecutive
   quits verified exit 0 with no crash report.
+- **KI-001 fixed:** frontend movies were clipped to a 640×480 region because the
+  per-frame `BeginScene` never set the scissor (aurora refresh used the stale
+  logical 640×480 scissor). Fix: full-frame scissor per frame + logical viewport
+  sync + `GX_CULL_NONE` for the movie quad. Verified: title screen renders
+  full-frame (gold "METROID PRIME" logo + emblem, 60 FPS), attract footage
+  full-frame, in-game warp renders correctly (1,752 draw calls, HUD).
 
 To be appended with dated entries for later phases.

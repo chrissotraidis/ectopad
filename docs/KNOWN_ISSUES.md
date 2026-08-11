@@ -4,7 +4,7 @@ Last updated: 2026-08-11
 
 | ID | Area | Issue | Status | Evidence |
 | --- | --- | --- | --- | --- |
-| KI-001 | Frontend presentation | Intro/title/attract THP movies render as a full-width, vertically-compressed band near the top of the window with a grid/checker artifact, instead of filling the window (FPS 60, 1-3 draw calls). The decoded frame is pixel-perfect on the CPU; the GPU shows garbage. The frontend state machine itself works: OpenCredits(10 s intro) → Title(30 s loop + press-start) → Attract cycles correctly (verified via logs). | Open — upstream WIP rendering bug in aurora's GX WebGPU texture/draw path, NOT Apple-specific | 2026-08-11 macOS run; logs + screenshots; EFB readback evidence |
+| KI-001 | Frontend presentation | Intro/title/attract THP movies rendered clipped/garbled (band/block in a corner) instead of filling the window. | **FIXED (2026-08-11, local patch)** — root cause: the game's per-frame `BeginScene` set the viewport but **never set the scissor**, and aurora's frame-start refresh derives the draw scissor from the GX logical state (stale 640×480) — so all frontend draws clipped to a 640×480 region. Fixes: (1) `CCubeRenderer::BeginScene` now sets a full-frame scissor every frame; (2) `CGraphics::SetViewport`/`ConfigureFrameBuffer`/`ClearBackAndDepthBuffers`/`SetDepthRange` also call the standard `GXSetViewport` so the logical viewport stays in sync; (3) movie draw sets `GX_CULL_NONE` (CW-wound triangles were culled by the per-frame `CullMode::Front`). **Verified: title screen renders full-frame ("METROID PRIME" gold logo + emblem at 60 FPS); attract footage renders full-frame; in-game warp renders correctly (1,752 draw calls).** Patch: `patches/2026-08-11-metaforce-fix-frontend-viewport-scissor.patch` | Screenshots `/tmp/mf-fixed-view.jpg`, `/tmp/mf-verify3-view.jpg` (title), `/tmp/mf-warp2-view.jpg` (in-game) |
 | KI-002 | Diagnostics (ImGui) | `ImGui_ImplWGPU_RenderDrawData` segfaults (null backend data, EXC_BAD_ACCESS at 0xb0) on aurora's render worker thread. Root cause: shutdown order — `imgui::shutdown()` (nulls `BackendRendererUserData`) ran before `gfx::shutdown()` drained the render worker's pending end-frame callbacks, which still call `imgui::render`. This made **every app exit segfault** (exit 139) and generated a crash dialog each time. | **FIXED (2026-08-11, local patch)** — reorder `aurora::shutdown()` to `gfx::shutdown()` before `imgui::shutdown()`, plus a `g_initialized` guard in `aurora::imgui::render`. Verified: two consecutive app quits exit code 0, no crash report generated. Patch: `patches/2026-08-11-aurora-fix-imgui-shutdown-crash.patch` | User crash report `Metaforce-2026-08-11-165907.ips` (shutdown path: `aurora_shutdown → gfx::shutdown → render_worker::synchronize` vs worker in `ImGui_ImplWGPU_RenderDrawData`) |
 | KI-003 | Audio | No audio output device code in the current tree (CoreAudio/SDL-audio/AudioQueue absent; musyx playback calls commented out in `CSfxManager.cpp`; `boo` voice engine commented out in `CMain.cpp`). Audio assets load without error. | Open — upstream mid-refactor gap | Tree inspection 2026-08-11 |
 | KI-004 | Version string | Window title shows "UNKNOWN-VERSION" — `METAFORCE_VERSION_STRING` empty (git describe fails on shallow clone). Cosmetic; build-time only. | Open — local clone artifact | 2026-08-11 |
@@ -73,6 +73,22 @@ Round 3 (same day):
   frames are black, yet the window shows garbage — pointing to an inconsistency
   in the aurora GX WebGPU present/draw path that needs Xcode GPU frame capture to
   pin down. This is a current-tree upstream defect affecting all platforms.
+
+Round 4 — ROOT CAUSE FOUND AND FIXED (same day):
+
+- The frame-start refresh in aurora (`gfx/common.cpp`, `begin_frame`) sets the
+  cached draw scissor from the GX **logical** scissor. The game's per-frame
+  `CCubeRenderer::BeginScene` set only the viewport, never the scissor — so the
+  logical scissor (stale 640×480, the GX default) was used for every frontend
+  draw, clipping everything to a 640×480 region. Same for the logical viewport
+  (metaforce used only the aurora `GXSetViewportRender` override, which the
+  refresh then clobbered).
+- Fixes applied in the working tree (see table above). Verified on macOS:
+  frontend movies full-frame, title screen correct, in-game warp correct.
+- Earlier EFB-black readbacks were reading the correct texture but at moments
+  where the movie was clipped away by the 640×480 scissor; the "garbage" on
+  screen was the tiny clipped fragment. All rounds of evidence are consistent
+  with the scissor/viewport root cause.
 
 Experimental changes that altered behavior but did not fix geometry:
 

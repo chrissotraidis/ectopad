@@ -20,7 +20,7 @@ Last updated: 2026-08-11
 | Reference repos cloned/pinned | **Proven** | metaforce @ `621ee0f`, aurora @ `5143394` (pin used by metaforce), prime @ `72e31c7`, sunpad @ `7d84cec`; see [DEPENDENCIES.md](DEPENDENCIES.md) |
 | Architecture investigation | **Proven** | Current tree renders via Aurora GX-on-WebGPU (Dawn) → Metal on Apple; see [ARCHITECTURE.md](ARCHITECTURE.md) |
 | macOS ARM64 build of current Metaforce | **Proven** | Clean RelWithDebInfo build, 862/862 steps, arm64 Mach-O, 2026-08-11 |
-| Metaforce launch on macOS (Metal, frame, title flow) | **Proven** | Launches; Dawn initializes Metal (Apple M2 IntegratedGPU); 60 FPS; frontend runs (intro movie state) but presents small — see KNOWN_ISSUES; in-game warp renders fully (1760 draw calls, HUD) |
+| Metaforce launch on macOS (Metal, frame, title flow) | **Proven** | Launches; Dawn initializes Metal (Apple M2 IntegratedGPU); 60 FPS; **frontend renders full-frame (title screen "METROID PRIME" logo + emblem verified)**; in-game warp renders fully (1752 draw calls, HUD) — after the KI-001 scissor/viewport fix |
 | Input on macOS (keyboard/mouse/controller) | **Not yet tested** | Abstraction present (CFinalInput/CKeyboardMouseController, aurora PAD over SDL_Gamepad); no end-to-end test yet |
 | Audio on macOS | **Blocked (upstream)** | No audio output device code in the current upstream tree; playback plumbing commented out mid-refactor; see KNOWN_ISSUES |
 | HECL/game-data extraction from supplied ISO | **Proven** | Disc identified and all assets loaded from ISO at runtime ("Metroid Prime USA (Build v1.111 3/10/2003 17:56:21)"); raw ISO, no conversion required |
@@ -65,14 +65,12 @@ Last updated: 2026-08-11
     segfault (see KNOWN_ISSUES).
 
 ### Partially proven
-
-- **Frontend/title flow:** the frontend state machine runs correctly
-    (OpenCredits → Title → Attract cycles with correct timings, verified via
-    per-second state logging), but THP movies render as a small garbled strip in
-    the upper-left (KI-001, upstream WIP rendering bug, not Apple-specific).
 - **Input:** keyboard/Enter did not visibly advance the frontend; requires
     verification once the movie rendering is fixed (the frontend may simply be
     waiting on its movie-based transition which depends on the broken draw path).
+    **Update:** keyboard/mouse input is **disabled upstream** (`#if 0` in
+    `CInputGenerator::Update`); only gamepad (aurora PAD → SDL_Gamepad) generates
+    input. No gamepad connected to test with yet.
 
 ### Blocked
 
@@ -87,6 +85,13 @@ Last updated: 2026-08-11
     `ImGui_ImplWGPU_RenderDrawData` because `imgui::shutdown()` nulled the backend
     before `gfx::shutdown()` drained the render worker. Fixed locally by
     reordering shutdown and guarding `imgui::render`; verified clean exits.
+- **Frontend movie rendering (KI-001):** root cause was the game never setting
+    the per-frame scissor, so aurora's frame-start refresh used the stale 640×480
+    logical scissor, clipping every frontend draw. Fixed by setting a full-frame
+    scissor per frame (`CCubeRenderer::BeginScene`), keeping the logical viewport
+    in sync (`CGraphics::SetViewport` also calls `GXSetViewport`), and disabling
+    culling for the movie draw. Title screen and attract movies now render
+    full-frame; in-game rendering verified unaffected.
 
 ### Simulator-only
 
