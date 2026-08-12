@@ -85,11 +85,18 @@ will be updated as gates produce evidence.
   GameCube audio engine) is vendored and complete, but the **host integration is
   missing** — the amuse/boo voice-engine calls are commented out in
   `CSfxManager.cpp`, `CStreamAudioManager.cpp`, `CMidiManager.cpp`, `CMain.cpp`,
-  and there is no audio output device anywhere in the tree (KI-003). This is an
+  and there was no audio output device anywhere in the tree (KI-003). This is an
   upstream mid-refactor gap.
+- **Progress (2026-08-11, macOS):** a minimal SDL3 audio output module now
+  exists in aurora (`aurora_audio_open/pump/close`), and the frontend static
+  audio path (`CStaticAudioPlayer` + `CFrontEndUI`) is restored — the title/
+  attract music decodes (G721) and plays through the default device at 60 FPS
+  with a steady stream buffer. Patch:
+  `patches/2026-08-11-metaforce-enable-audio-output.patch`. The musyx-driven
+  game path (steps 2–3 below) is still the open item for in-game audio.
 - **Implementation plan:**
-  1. Add a minimal audio device module (SDL3 audio — aurora already links SDL3
-     with CoreAudio on macOS and the AudioToolbox/CoreAudio stack on iOS).
+  1. ~~Add a minimal audio device module (SDL3 audio — aurora already links SDL3
+     with CoreAudio on macOS and the AudioToolbox/CoreAudio stack on iOS).~~ **Done**
   2. Restore the DSP stream path in `CStreamAudioManager` (DSPADPCM → PCM decode
      via musyx's decoder; feed the ring buffers to the device).
   3. Initialize musyx (`sndInit`) and connect the game's audio systems

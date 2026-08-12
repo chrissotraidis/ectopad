@@ -1,0 +1,502 @@
+APPLY NOTE: patch applies to the metaforce checkout (commit 621ee0f).
+The first three file entries (cmake/aurora_core.cmake, include/aurora/audio.h,
+lib/audio.cpp) live in the extern/aurora submodule — apply those with
+  git -C extern/aurora apply <patch>
+and the Runtime/ files with:
+  git apply <patch>
+-----
+diff --git a/Runtime/CMain.cpp b/Runtime/CMain.cpp
+index 7f10e8a..01880b2 100644
+--- a/Runtime/CMain.cpp
++++ b/Runtime/CMain.cpp
+@@ -32,10 +33,11 @@
+ // #include <fenv.h>
+ // #pragma STDC FENV_ACCESS ON
+ 
+ #include <aurora/event.h>
+ #include <aurora/main.h>
++#include <aurora/audio.h>
+ #include <dolphin/vi.h>
+ #include <SDL3/SDL_log.h>
+ #include <SDL3/SDL_messagebox.h>
+ #if defined(ANDROID)
+ #include <spdlog/sinks/android_sink.h>
+@@ -383,10 +452,11 @@ public:
+   void onAppPostDraw() noexcept {
+     // OPTICK_EVENT("PostDraw");
+ //    if (m_voiceEngine) {
+ //      m_voiceEngine->pumpAndMixVoices();
+ //    }
++    aurora_audio_pump();
+ #ifdef EMSCRIPTEN
+     CDvdFile::DoWork();
+ #endif
+     CGraphics::TickRenderTimings();
+   }
+@@ -416,10 +486,11 @@ public:
+     m_imGuiConsole.Shutdown();
+     //    if (m_voiceEngine) {
+     //      m_voiceEngine->unlockPump();
+     //      m_voiceEngine->stopPump();
+     //    }
++    aurora_audio_close();
+     if (g_mainMP1) {
+       g_mainMP1->Shutdown();
+     }
+     g_mainMP1.reset();
+     m_cvarManager.serialize();
+diff --git a/cmake/aurora_core.cmake b/cmake/aurora_core.cmake
+index 774c52a..414937d 100644
+--- a/cmake/aurora_core.cmake
++++ b/cmake/aurora_core.cmake
+@@ -1,5 +1,6 @@
+ add_library(aurora_core STATIC
+         lib/aurora.cpp
++        lib/audio.cpp
+         lib/device.cpp
+         lib/device.hpp
+         lib/input.cpp
+diff --git a/include/aurora/audio.h b/include/aurora/audio.h
+new file mode 100644
+index 0000000..aa21b1c
+--- /dev/null
++++ b/include/aurora/audio.h
+@@ -0,0 +1,33 @@
++#pragma once
++
++#ifdef __cplusplus
++extern "C" {
++#endif
++
++/**
++ * Minimal SDL3-backed audio output device for Metaforce.
++ *
++ * The host supplies interleaved stereo float samples (sample rate set at open
++ * time, default 32000 Hz) via the supply callback. The callback is invoked
++ * from the main thread inside aurora_audio_pump(), once per frame.
++ */
++typedef void (*AuroraAudioSupplyCallback)(float* data, int frames);
++
++/** Opens the default audio device. Returns false on failure. */
++bool aurora_audio_open(int sampleRate, AuroraAudioSupplyCallback cb);
++
++/** Feeds the device with audio; call once per frame from the main thread. */
++void aurora_audio_pump(void);
++
++/** Closes the audio device (idempotent). */
++void aurora_audio_close(void);
++
++/** True if the device is currently open. */
++bool aurora_audio_is_open(void);
++
++/** Convenience: silence a buffer (used by hosts that have nothing to play). */
++void aurora_audio_fill_silence(float* data, int frames);
++
++#ifdef __cplusplus
++}
++#endif
+diff --git a/lib/audio.cpp b/lib/audio.cpp
+new file mode 100644
+index 0000000..f6e7c7f
+--- /dev/null
++++ b/lib/audio.cpp
+@@ -0,0 +1,124 @@
++#include <aurora/audio.h>
++
++#include <SDL3/SDL.h>
++#include <SDL3/SDL_audio.h>
++
++#include "logging.hpp"
++
++#include <atomic>
++#include <cstring>
++#include <vector>
++
++namespace {
++aurora::Module Log("aurora::audio");
++
++SDL_AudioDeviceID g_device = 0;
++SDL_AudioStream* g_stream = nullptr;
++AuroraAudioSupplyCallback g_cb = nullptr;
++std::atomic<bool> g_running{false};
++int g_sampleRate = 32000;
++bool g_initialFill = true;
++uint64_t g_pumpCount = 0;
++} // namespace
++
++bool aurora_audio_open(int sampleRate, AuroraAudioSupplyCallback cb) {
++  if (g_running.exchange(true, std::memory_order_acq_rel)) {
++    return true;
++  }
++  if (!SDL_InitSubSystem(SDL_INIT_AUDIO)) {
++    Log.error("SDL_InitSubSystem(SDL_INIT_AUDIO) failed: {}", SDL_GetError());
++    g_running.store(false, std::memory_order_release);
++    return false;
++  }
++  g_sampleRate = sampleRate > 0 ? sampleRate : 32000;
++  const SDL_AudioSpec spec{
++      .format = SDL_AUDIO_F32,
++      .channels = 2,
++      .freq = g_sampleRate,
++  };
++  g_device = SDL_OpenAudioDevice(SDL_AUDIO_DEVICE_DEFAULT_PLAYBACK, &spec);
++  if (g_device == 0) {
++    Log.error("SDL_OpenAudioDevice failed: {}", SDL_GetError());
++    SDL_QuitSubSystem(SDL_INIT_AUDIO);
++    g_running.store(false, std::memory_order_release);
++    return false;
++  }
++  SDL_AudioSpec actual{};
++  int sampleFrames = 0;
++  if (SDL_GetAudioDeviceFormat(g_device, &actual, &sampleFrames)) {
++    Log.info("Audio device opened: format={} channels={} freq={} sampleFrames={}",
++             static_cast<int>(actual.format), actual.channels, actual.freq, sampleFrames);
++  } else {
++    Log.warn("Audio device opened but SDL_GetAudioDeviceFormat failed: {}", SDL_GetError());
++  }
++  // src = the format we push via SDL_PutAudioStreamData (F32 stereo).
++  // dst = nullptr; binding to the device sets the output format, and SDL
++  // converts between the two automatically.
++  g_stream = SDL_CreateAudioStream(&spec, nullptr);
++  if (g_stream == nullptr || !SDL_BindAudioStream(g_device, g_stream)) {
++    Log.error("SDL audio stream create/bind failed: {}", SDL_GetError());
++    if (g_stream != nullptr) {
++      SDL_DestroyAudioStream(g_stream);
++    }
++    SDL_CloseAudioDevice(g_device);
++    g_device = 0;
++    SDL_QuitSubSystem(SDL_INIT_AUDIO);
++    g_running.store(false, std::memory_order_release);
++    return false;
++  }
++  g_cb = cb;
++  g_initialFill = true;
++  g_pumpCount = 0;
++  Log.info("aurora_audio_open: sampleRate={}", g_sampleRate);
++  return true;
++}
++
++void aurora_audio_pump(void) {
++  if (!g_running.load(std::memory_order_acquire) || g_cb == nullptr || g_stream == nullptr) {
++    return;
++  }
++  // Steady state: supply one 60 Hz frame's worth of audio per pump (fractional
++  // accumulator keeps the long-run average exactly sampleRate/60). On the
++  // first call, burst extra frames so the device does not underrun at startup.
++  static double s_frameAccum = 0.0;
++  s_frameAccum += static_cast<double>(g_sampleRate) / 60.0;
++  int frames = static_cast<int>(s_frameAccum);
++  s_frameAccum -= frames;
++  if (g_initialFill) {
++    frames += g_sampleRate / 20;
++    g_initialFill = false;
++  }
++  static std::vector<float> buf;
++  buf.resize(static_cast<size_t>(frames) * 2);
++  g_cb(buf.data(), frames);
++  if (!SDL_PutAudioStreamData(g_stream, buf.data(), static_cast<int>(buf.size() * sizeof(float)))) {
++    Log.warn("SDL_PutAudioStreamData failed: {}", SDL_GetError());
++  }
++  if (++g_pumpCount % 300 == 0) {
++    Log.info("Audio pump: {} frames supplied, stream available bytes={}",
++             frames, SDL_GetAudioStreamAvailable(g_stream));
++  }
++}
++
++void aurora_audio_close(void) {
++  if (!g_running.exchange(false, std::memory_order_acq_rel)) {
++    return;
++  }
++  if (g_stream != nullptr) {
++    SDL_UnbindAudioStream(g_stream);
++    SDL_DestroyAudioStream(g_stream);
++    g_stream = nullptr;
++  }
++  if (g_device != 0) {
++    SDL_CloseAudioDevice(g_device);
++    g_device = 0;
++  }
++  g_cb = nullptr;
++  SDL_QuitSubSystem(SDL_INIT_AUDIO);
++}
++
++bool aurora_audio_is_open(void) { return g_running.load(std::memory_order_acquire) && g_device != 0; }
++
++void aurora_audio_fill_silence(float* data, int frames) {
++  std::memset(data, 0, static_cast<size_t>(frames) * 2 * sizeof(float));
++}
+diff --git a/Runtime/Audio/CStaticAudioPlayer.cpp b/Runtime/Audio/CStaticAudioPlayer.cpp
+index b85a2e2..7a229c4 100644
+--- a/Runtime/Audio/CStaticAudioPlayer.cpp
++++ b/Runtime/Audio/CStaticAudioPlayer.cpp
+@@ -2,42 +2,79 @@
+ 
+ #include "Runtime/CDvdFile.hpp"
+ #include "Runtime/CDvdRequest.hpp"
++#include <spdlog/spdlog.h>
+ 
+ namespace metaforce {
+ 
+ #define RSF_BUFFER_SIZE 0x20000
+ 
+-//CStaticAudioPlayer::CStaticAudioPlayer(boo::IAudioVoiceEngine& engine, std::string_view path, int loopStart,
+-//                                       int loopEnd)
+-//: x0_path(path)
+-//, x1c_loopStartSamp(loopStart & 0xfffffffe)
+-//, x20_loopEndSamp(loopEnd & 0xfffffffe)
+-//, m_voiceCallback(*this)
+-//, m_voice(engine.allocateNewStereoVoice(32000, &m_voiceCallback)) {
+-//  // These are mixed directly into boo voice engine instead
+-//  // x28_dmaLeft.reset(new u8[640]);
+-//  // x30_dmaRight.reset(new u8[640]);
+-//
+-//  CDvdFile file(path);
+-//  x10_rsfRem = file.Length();
+-//  x14_rsfLength = x10_rsfRem;
+-//
+-//  u32 bufCount = (x10_rsfRem + RSF_BUFFER_SIZE - 1) / RSF_BUFFER_SIZE;
+-//  x48_buffers.reserve(bufCount);
+-//  x38_dvdRequests.reserve(bufCount);
+-//
+-//  for (int remBytes = x10_rsfRem; remBytes > 0; remBytes -= RSF_BUFFER_SIZE) {
+-//    u32 thisSz = RSF_BUFFER_SIZE;
+-//    if (remBytes < RSF_BUFFER_SIZE)
+-//      thisSz = ROUND_UP_32(remBytes);
+-//
+-//    x48_buffers.emplace_back(new u8[thisSz]);
+-//    x38_dvdRequests.push_back(file.AsyncRead(x48_buffers.back().get(), thisSz));
+-//  }
+-//
+-//  g72x_init_state(&x58_leftState);
+-//  g72x_init_state(&x8c_rightState);
+-//}
++namespace {
++CStaticAudioPlayer* s_activePlayer = nullptr;
++} // namespace
++
++CStaticAudioPlayer::CStaticAudioPlayer(std::string_view path, int loopStart, int loopEnd)
++: x0_path(path)
++, x1c_loopStartSamp(loopStart & 0xfffffffe)
++, x20_loopEndSamp(loopEnd & 0xfffffffe) {
++  if (!aurora_audio_is_open()) {
++    aurora_audio_open(32000, SupplyCallback);
++  }
++
++  CDvdFile file(path);
++  x10_rsfRem = file.Length();
++  x14_rsfLength = x10_rsfRem;
++  spdlog::info("CStaticAudioPlayer: opened '{}' ({} bytes, loop {}-{})", path, x10_rsfRem,
++               x1c_loopStartSamp, x20_loopEndSamp);
++
++  u32 bufCount = (x10_rsfRem + RSF_BUFFER_SIZE - 1) / RSF_BUFFER_SIZE;
++  x48_buffers.reserve(bufCount);
++  x38_dvdRequests.reserve(bufCount);
++
++  for (int remBytes = x10_rsfRem; remBytes > 0; remBytes -= RSF_BUFFER_SIZE) {
++    u32 thisSz = RSF_BUFFER_SIZE;
++    if (remBytes < RSF_BUFFER_SIZE)
++      thisSz = ROUND_UP_32(remBytes);
++
++    x48_buffers.emplace_back(new u8[thisSz]);
++    x38_dvdRequests.push_back(file.AsyncRead(x48_buffers.back().get(), thisSz));
++  }
++
++  g72x_init_state(&x58_leftState);
++  g72x_init_state(&x8c_rightState);
++}
++
++void CStaticAudioPlayer::StartMixing() {
++  s_activePlayer = this;
++  x18_curSamp = 0;
++  g72x_init_state(&x58_leftState);
++  g72x_init_state(&x8c_rightState);
++  m_leftStateLoop.reset();
++  m_rightStateLoop.reset();
++}
++
++void CStaticAudioPlayer::StopMixing() {
++  if (s_activePlayer == this) {
++    s_activePlayer = nullptr;
++  }
++}
++
++void CStaticAudioPlayer::SupplyCallback(float* data, int frames) {
++  CStaticAudioPlayer* self = s_activePlayer;
++  if (self == nullptr) {
++    aurora_audio_fill_silence(data, frames);
++    return;
++  }
++  if (!self->IsReady()) {
++    aurora_audio_fill_silence(data, frames);
++    return;
++  }
++  self->x38_dvdRequests.clear();
++  std::vector<s16> tmp(static_cast<size_t>(frames) * 2);
++  self->Decode(tmp.data(), frames);
++  for (int i = 0; i < frames * 2; ++i) {
++    data[i] = tmp[static_cast<size_t>(i)] / 32768.f;
++  }
++}
+ 
+ bool CStaticAudioPlayer::IsReady() {
+   if (x38_dvdRequests.size())
+diff --git a/Runtime/Audio/CStaticAudioPlayer.hpp b/Runtime/Audio/CStaticAudioPlayer.hpp
+index fb39fe3..486b3d8 100644
+--- a/Runtime/Audio/CStaticAudioPlayer.hpp
++++ b/Runtime/Audio/CStaticAudioPlayer.hpp
+@@ -8,10 +8,9 @@
+ #include "Runtime/RetroTypes.hpp"
+ #include "Runtime/Audio/CAudioSys.hpp"
+ 
+-#include "g721.h"
++#include <aurora/audio.h>
+ 
+-//#include <boo/audiodev/IAudioVoice.hpp>
+-//#include <boo/audiodev/IAudioVoiceEngine.hpp>
++#include "g721.h"
+ 
+ namespace metaforce {
+ class IDvdRequest;
+@@ -23,9 +22,6 @@ class CStaticAudioPlayer {
+   u32 x18_curSamp = 0;
+   u32 x1c_loopStartSamp;
+   u32 x20_loopEndSamp;
+-  // u32 x24_ = 0;
+-  // std::unique_ptr<u8[]> x28_dmaLeft;
+-  // std::unique_ptr<u8[]> x30_dmaRight;
+   std::vector<std::shared_ptr<IDvdRequest>> x38_dvdRequests;
+   std::vector<std::unique_ptr<u8[]>> x48_buffers;
+   g72x_state x58_leftState;
+@@ -41,35 +37,19 @@ class CStaticAudioPlayer {
+       val = 32767;
+     return val;
+   }
+-/*
+-  struct AudioVoiceCallback  {
+-    CStaticAudioPlayer& m_parent;
+-    void preSupplyAudio(boo::IAudioVoice&, double) override {}
+-    size_t supplyAudio(boo::IAudioVoice& voice, size_t frames, int16_t* data) override {
+-      if (m_parent.IsReady()) {
+-        m_parent.x38_dvdRequests.clear();
+-        m_parent.Decode(data, frames);
+-      } else
+-        memset(data, 0, 4 * frames);
+-      return frames;
+-    }
+-    explicit AudioVoiceCallback(CStaticAudioPlayer& p) : m_parent(p) {}
+-  } m_voiceCallback;
+-  boo::ObjToken<boo::IAudioVoice> m_voice;
+-*/
+ public:
+-//  CStaticAudioPlayer(boo::IAudioVoiceEngine& engine, std::string_view path, int loopStart, int loopEnd);
+-//  CStaticAudioPlayer(std::string_view path, int loopStart, int loopEnd)
+-//  : CStaticAudioPlayer(*CAudioSys::GetVoiceEngine(), path, loopStart, loopEnd) {}
++  CStaticAudioPlayer(std::string_view path, int loopStart, int loopEnd);
+ 
+   bool IsReady();
+   void DecodeMonoAndMix(s16* bufOut, u32 numSamples, u32 cur, u32 loopEndCur, u32 loopStartCur, int vol,
+                         g72x_state& state, std::optional<g72x_state>& loopState) const;
+   void Decode(s16* bufOut, u32 numSamples);
+   void SetVolume(float vol) { xc0_volume = zeus::clamp(0.f, vol, 1.f) * 32768.f; }
+-//
+-//  void StartMixing() { m_voice->start(); }
+-//  void StopMixing() { m_voice->stop(); }
++  void StartMixing();
++  void StopMixing();
++
++private:
++  static void SupplyCallback(float* data, int frames);
+ };
+ 
+ } // namespace metaforce
+diff --git a/Runtime/MP1/CFrontEndUI.cpp b/Runtime/MP1/CFrontEndUI.cpp
+index 012c71d..1519eeb 100644
+--- a/Runtime/MP1/CFrontEndUI.cpp
++++ b/Runtime/MP1/CFrontEndUI.cpp
+@@ -1648,7 +1648,9 @@ CFrontEndUI::~CFrontEndUI() {
+ }
+ 
+ void CFrontEndUI::StartSlideShow(CArchitectureQueue& queue) {
+-  // xf4_curAudio->StopMixing();
++  if (xf4_curAudio != nullptr) {
++    xf4_curAudio->StopMixing();
++  }
+   queue.Push(MakeMsg::CreateCreateIOWin(EArchMsgTarget::IOWinManager, 12, 11, std::make_shared<CSlideShow>()));
+ }
+ 
+@@ -1769,9 +1771,13 @@ void CFrontEndUI::CompleteStateTransition() {
+   case EScreen::FileSelect:
+     SetCurrentMovie(EMenuMovie::FileSelectLoop);
+     if (oldScreen == EScreen::Title) {
+-      // xf4_curAudio->StopMixing();
+-      // xf4_curAudio = xd8_audio2.get();
+-      // xf4_curAudio->StartMixing();
++      if (xf4_curAudio != nullptr) {
++        xf4_curAudio->StopMixing();
++      }
++      xf4_curAudio = xd8_audio2.get();
++      if (xf4_curAudio != nullptr) {
++        xf4_curAudio->StartMixing();
++      }
+     }
+     if (xdc_saveUI)
+       xdc_saveUI->ResetCardDriver();
+@@ -2044,7 +2050,9 @@ void CFrontEndUI::ProcessUserInput(const CFinalInput& input, CArchitectureQueue&
+         StartStateTransition(EScreen::FileSelect);
+         return;
+       case SFusionBonusFrame::EAction::PlayNESMetroid:
+-        // xf4_curAudio->StopMixing();
++        if (xf4_curAudio != nullptr) {
++          xf4_curAudio->StopMixing();
++        }
+         xec_emuFrme = std::make_unique<SNesEmulatorFrame>();
+         if (xdc_saveUI)
+           xdc_saveUI->SetInGame(true);
+@@ -2118,8 +2126,8 @@ CIOWin::EMessageReturn CFrontEndUI::Update(float dt, CArchitectureQueue& queue)
+       xe8_frontendNoCardFrme = std::make_unique<SFrontEndFrame>(x1c_rndB);
+       x38_pressStart.GetObj();
+       // CAudioSys::AddAudioGroup(x44_frontendAudioGrp->GetAudioGroupData());
+-      //      xd4_audio1 = std::make_unique<CStaticAudioPlayer>("Audio/frontend_1.rsf", 416480, 1973664);
+-      //      xd8_audio2 = std::make_unique<CStaticAudioPlayer>("Audio/frontend_2.rsf", 273556, 1636980);
++      xd4_audio1 = std::make_unique<CStaticAudioPlayer>("Audio/frontend_1.rsf", 416480, 1973664);
++      xd8_audio2 = std::make_unique<CStaticAudioPlayer>("Audio/frontend_2.rsf", 273556, 1636980);
+       x14_phase = EPhase::LoadFrames;
+     }
+     if (x14_phase == EPhase::LoadDeps)
+@@ -2131,11 +2139,11 @@ CIOWin::EMessageReturn CFrontEndUI::Update(float dt, CArchitectureQueue& queue)
+       return EMessageReturn::Exit;
+     }
+     /* Poll loading music and FRME resources */
+-    if (/*!xd4_audio1->IsReady() || !xd8_audio2->IsReady() || */ !xe0_frontendCardFrme->PumpLoad() ||
++    if (!xd4_audio1->IsReady() || !xd8_audio2->IsReady() || !xe0_frontendCardFrme->PumpLoad() ||
+         !xe8_frontendNoCardFrme->PumpLoad() || !xdc_saveUI->PumpLoad())
+       return EMessageReturn::Exit;
+-    //    xf4_curAudio = xd4_audio1.get();
+-    //    xf4_curAudio->StartMixing();
++    xf4_curAudio = xd4_audio1.get();
++    xf4_curAudio->StartMixing();
+     x14_phase = EPhase::LoadMovies;
+     [[fallthrough]];
+ 
+@@ -2176,7 +2184,9 @@ CIOWin::EMessageReturn CFrontEndUI::Update(float dt, CArchitectureQueue& queue)
+         xec_emuFrme.reset();
+         if (xdc_saveUI)
+           xdc_saveUI->SetInGame(false);
+-        // xf4_curAudio->StartMixing();
++        if (xf4_curAudio != nullptr) {
++          xf4_curAudio->StartMixing();
++        }
+       }
+       break;
+     }
+@@ -2184,7 +2194,9 @@ CIOWin::EMessageReturn CFrontEndUI::Update(float dt, CArchitectureQueue& queue)
+     if (xd2_deferSlideShow) {
+       /* Start mixing slideshow music */
+       xd2_deferSlideShow = false;
+-      // xf4_curAudio->StartMixing();
++      if (xf4_curAudio != nullptr) {
++        xf4_curAudio->StartMixing();
++      }
+       if (xdc_saveUI)
+         xdc_saveUI->ResetCardDriver();
+     }
