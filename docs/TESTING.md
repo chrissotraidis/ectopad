@@ -86,13 +86,49 @@ Last updated: 2026-08-11
 - Added SDL finger-event capture in aurora mapped to a virtual GameCube pad
   (left half = movement stick, right half = C-stick, bottom corners = A/B taps),
   fed through the existing `PADSetVirtualStatus` mechanism
-  (patch: `patches/2026-08-12-aurora-touch-input-virtual-pad.patch`).
+  (superseded by the full touch overlay below).
 - Verified on the iPad Pro 13-inch (M5) Simulator: with the game in Frigate
   Orpheon gameplay (via `--autostart`), a Simulator-GUI mouse drag on the left
   half of the screen (which the Simulator delivers as a touch) **moved Samus
   forward** — the view advanced past the doorway and the game's lock-on
   tutorial prompt ("Press and hold [L] to lock onto targets") appeared.
   Evidence: `/tmp/ios_touch1.png`, `/tmp/ios_touch_after.png`,
+
+### 2026-08-12 — Prime-native touch overlay (visible controls, edit mode, persistence)
+
+- Replaced the invisible zone layout with a rendered overlay in aurora
+  (`lib/touch.cpp` + `include/aurora/touch.hpp`, drawn in the ImGui pass so it
+  composites over the game): left stick (move), right stick (look/C-stick),
+  D-pad (beams left/right, visors up/down — the original Prime mapping),
+  A/B/X/Y face buttons, Z (jump), L (fire/charge) and R (lock-on) shoulder
+  tabs, START (pause), plus a gear (edit-mode toggle) and RESET.
+  Patch: `patches/2026-08-12-aurora-touch-overlay.patch` (applies after the
+  lifecycle + ImGui-shutdown patches on aurora @ `5143394`).
+- Touch hit-testing is explicit (buttons first, sticks last); touch and
+  physical-controller input merge through the existing
+  `PADSetVirtualStatus`/`merge_virtual_status` path (buttons OR'd, dominant
+  stick wins) — seamless handoff with no mode switch.
+- Layout customization: the gear enters edit mode (yellow highlight, banner,
+  RESET button); dragging repositions a control; positions are stored
+  normalized per orientation in `<userPath>/touch_overlay.ini`
+  (`[landscape]`/`[portrait]` sections) and reloaded on launch. Reset restores
+  defaults. Verified on the iPad Pro 13-inch (M5) Simulator inside Frigate
+  Orpheon gameplay:
+  - left-stick drags move/turn Samus (view changed; raw finger events logged);
+  - START tap opens the pause/inventory screen, B tap closes it;
+  - gear tap enters edit mode (yellow banner + RESET visible);
+  - dragging the A button moved it to (0.964, 0.842) and wrote
+    `touch_overlay.ini`; after relaunch the button rendered at the new spot
+    (persistence verified), then the layout was reset to defaults.
+  Evidence: `/tmp/ios_overlay_play1.png` (overlay in gameplay),
+  `/tmp/ios_start3_after.png` (pause menu via START),
+  `/tmp/ios_editmode_confirm.png` (edit mode),
+  `/tmp/touch_overlay_test_layout.ini` (archived test layout),
+  `/tmp/ios_persist_check.png` (layout loaded after relaunch).
+- Notes: the iPad Simulator always reports a virtual Apple gamepad
+  (vid 05ac, pid 0004), so controller-presence cannot be used to auto-hide the
+  overlay on the Simulator; the overlay renders regardless and input merges
+  (real-device handoff is automatic via the same merge path).
   `/tmp/ios_touch_after2.png`.
 - In-game: `Metaforce -l --warp 2 2 +debugOverlay.* <iso>` — full-screen scene +
   HUD, 1760 draw calls, 60 FPS; then ImGui segfault (KI-002).

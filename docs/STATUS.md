@@ -30,7 +30,7 @@ Last updated: 2026-08-12
 | Dawn/WebGPU reaching Metal on iOS device | **Not yet tested** | Principal technical unknown (Gate 2); simulator rendering (host GPU/Metal path) works — physical-device verification pending signing identity + hardware |
 | Touch controls (iPhone/iPad layouts) | **Not yet tested** | |
 | GameController support | **Not yet tested** | |
-| Touch input (iOS Simulator) | **Proven (foundation, Simulator-only)** | SDL touch events are captured in aurora and mapped to a virtual pad (left half = movement stick, right half = look stick, bottom corners = A/B taps) via the existing `PADSetVirtualStatus` mechanism; verified on the iPad Pro 13-inch (M5) Simulator: a left-half drag moves Samus forward through Frigate Orpheon (lock-on tutorial prompt triggered). Full touch overlay layout (buttons, radial menus, stick zones) not yet designed |
+| Touch input (iOS Simulator) | **Proven (overlay, Simulator-only)** | Prime-native visible overlay: move/look sticks, D-pad (beams/visors), A/B/X/Y/Z, L (fire) / R (lock-on) shoulders, START (pause); verified on the iPad Pro 13-inch (M5) Simulator in Frigate Orpheon gameplay: stick drags move/turn Samus, START opens the pause/inventory screen, B closes it; gear toggles edit mode (drag to reposition), layout persists normalized per orientation in `touch_overlay.ini` and reloads on launch; reset restores defaults. Touch + physical-controller input merge (no mode switch). See detail below |
 | Save/reload behavior | **Proven (macOS)** | Full cycle verified 2026-08-11 after the kabufuda queue/commit fix (KI-011): new game → save slot `GM8E01`/`MetroidPrime B` persisted to the raw card on disk → clean quit → relaunch → file select shows the save → A loads the saved game (intro narration + gameplay at 60 FPS). In-game save-station save/reload not yet exercised (requires navigating to a save station) |
 | Frigate Orpheon / later-area gameplay | **Partially proven** | New Game now reaches **actual first-person gameplay** in Frigate Orpheon after the KI-009 fix: intro cinematic (space, gunship, Samus model) renders at 60 FPS; gameplay view renders with visor HUD (energy 99), arm cannon, minimap at 60 FPS, 1000+ draw calls; keyboard movement works. Full playthrough + save station + later areas not yet verified |
 | App lifecycle (background/foreground) on iPad Simulator | **Proven (Simulator-only)** | Full background → foreground cycles verified 2026-08-12 on iPad Pro 13-inch (M5) Simulator with the aurora iOS lifecycle fix: Home → app backgrounds (home screen, process alive) → relaunch foregrounds → Frigate Orpheon gameplay resumes cleanly with HUD/state intact (ENERGY 99), CPU returns to gameplay levels, RSS stable (~581 MB, no leak across 2 cycles). See detail below |
@@ -152,6 +152,28 @@ Last updated: 2026-08-12
     voices (2 running), 3 submixes` with a stable 534-frame audio pump. Evidence:
     log `/tmp/mf_ios_sim_audio.log`, screenshots `/tmp/ios_audio_check2.png`
     (title screen) and `/tmp/ios_audio_final.png`.
+- **Prime-native touch overlay (2026-08-12, iPad Pro 13-inch M5, iOS 26.5):**
+    replaced the invisible zone layout with a rendered, customizable overlay in
+    aurora (`lib/touch.cpp`, drawn in the ImGui pass above the game): left stick
+    (move), right stick (look), D-pad (beam left/right, visor up/down — the
+    original Prime mapping), A/B/X/Y face buttons, Z (jump), L (fire/charge),
+    R (lock-on), START (pause), a gear (edit mode) and RESET. Touch input
+    merges with physical controllers via the existing virtual-status path (no
+    mode switch = seamless handoff). Edit mode (gear) enables drag-repositioning
+    of any control; positions persist normalized per orientation in
+    `<userPath>/touch_overlay.ini` (`[landscape]`/`[portrait]`) and reload on
+    launch; RESET restores defaults. Verified in Frigate Orpheon gameplay via
+    Simulator GUI touches: stick drags moved/turned Samus; START opened the
+    pause/inventory screen; B closed it; dragging the A button moved it to
+    (0.964, 0.842), the layout saved and rendered at the new position after a
+    relaunch, then was reset to defaults. The iPad Simulator always reports a
+    virtual Apple gamepad (vid 05ac, pid 0004), so controller presence cannot
+    auto-hide the overlay on the sim — input simply merges. Patch:
+    `patches/2026-08-12-aurora-touch-overlay.patch` (replaces the earlier
+    `2026-08-12-aurora-touch-input-virtual-pad.patch`). Evidence:
+    `/tmp/ios_overlay_play1.png`, `/tmp/ios_start3_after.png`,
+    `/tmp/ios_editmode_confirm.png`, `/tmp/ios_persist_check.png`,
+    `/tmp/touch_overlay_test_layout.ini`.
 - **Lifecycle on iPad Simulator (2026-08-12, iPad Pro 13-inch M5, iOS 26.5):**
     verified background → foreground behavior twice from inside Frigate Orpheon
     first-person gameplay. **Root-cause finding:** SDL3's iOS backend reports

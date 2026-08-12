@@ -1,0 +1,834 @@
+diff --git a/cmake/aurora_core.cmake b/cmake/aurora_core.cmake
+index 774c52a..6811058 100644
+--- a/cmake/aurora_core.cmake
++++ b/cmake/aurora_core.cmake
+@@ -35,7 +36,7 @@ if (IOS)
+ endif ()
+ 
+ if (AURORA_ENABLE_GX)
+-    target_sources(aurora_core PRIVATE lib/imgui.cpp)
++    target_sources(aurora_core PRIVATE lib/imgui.cpp lib/touch.cpp)
+     target_link_libraries(aurora_core PUBLIC imgui)
+ endif ()
+ 
+diff --git a/include/aurora/touch.hpp b/include/aurora/touch.hpp
+new file mode 100644
+index 0000000..a313f6d
+--- /dev/null
++++ b/include/aurora/touch.hpp
+@@ -0,0 +1,32 @@
++#pragma once
++
++#include <cstdint>
++
++struct PADStatus;
++
++namespace aurora::touch {
++
++/* SDL finger events (normalized x/y in [0,1]) feed a Prime-native touch overlay
++ * that drives the GameCube pad on port 0 through the virtual-status mechanism.
++ * Coordinates come straight from SDL_EVENT_FINGER_* (tfinger.x/.y). */
++void finger_down(uint64_t fingerId, float x, float y);
++void finger_motion(uint64_t fingerId, float x, float y);
++void finger_up(uint64_t fingerId);
++
++/* Called by the pad layer once per PADRead. Fills `out` with the merged virtual
++ * pad state (sticks, D-pad, buttons, triggers) and returns true when any touch
++ * control is currently active; returns false (and the caller should clear the
++ * virtual pad) when idle or when touch is unsupported. */
++bool get_status(PADStatus& out);
++
++/* Draws the overlay on top of the game. Must be called while an ImGui frame is
++ * active (the aurora imgui freeze() path does this). */
++void render();
++
++/* Customization. */
++void toggle_edit_mode();
++void reset_layout();
++void save_layout();
++void shutdown();
++
++} // namespace aurora::touch
+diff --git a/lib/aurora.cpp b/lib/aurora.cpp
+index dc5ae5b..77ac983 100644
+--- a/lib/aurora.cpp
++++ b/lib/aurora.cpp
+@@ -1,4 +1,5 @@
+ #include <aurora/aurora.h>
++#include <aurora/touch.hpp>
+ 
+ #ifdef AURORA_ENABLE_GX
+ #include "gfx/common.hpp"
+@@ -179,12 +180,15 @@ void shutdown() noexcept {
+ #ifdef AURORA_ENABLE_RMLUI
+   rmlui::shutdown();
+ #endif
+ #ifdef AURORA_ENABLE_GX
+   gfx::shutdown();
+   imgui::shutdown();
+   webgpu::shutdown();
+ #endif
+   input::shutdown();
+   window::shutdown();
++#ifdef AURORA_ENABLE_GX
++  aurora::touch::shutdown();
++#endif
+ }
+ 
+ const AuroraEvent* update() noexcept {
+diff --git a/lib/dolphin/pad/pad.cpp b/lib/dolphin/pad/pad.cpp
+index 2d7f795..e0a07cd 100644
+--- a/lib/dolphin/pad/pad.cpp
++++ b/lib/dolphin/pad/pad.cpp
+@@ -2,6 +2,7 @@
+ #include "../../device.hpp"
+ #include "../../internal.hpp"
+ #include "../../fs_helper.hpp"
++#include <aurora/touch.hpp>
+ #include <dolphin/pad.h>
+ #include <dolphin/si.h>
+ #include <SDL3/SDL_mouse.h>
+@@ -10,6 +11,8 @@
+ #include <sys/stat.h>
+ #include <ranges>
+ 
++void PADUpdateTouchVirtualPad();
++
+ namespace {
+ constexpr int32_t k_mappingsFileVersion = 4;
+ constexpr int32_t k_minMappingsFileVersion = 3;
+@@ -677,6 +680,8 @@ u32 PADRead(PADStatus* status) {
+     g_keyboardBindingsLoaded = true;
+     load_keyboard_bindings();
+   }
++  /* Keep the touchscreen virtual pad current for this read. */
++  PADUpdateTouchVirtualPad();
+ 
+   int numKeys = 0;
+   const bool* kbState = SDL_GetKeyboardState(&numKeys);
+@@ -936,6 +941,15 @@ void PADClearAllVirtualStatus() {
+   g_virtualPadActive.fill(false);
+ }
+ 
++void PADUpdateTouchVirtualPad() {
++  PADStatus status{};
++  if (aurora::touch::get_status(status)) {
++    PADSetVirtualStatus(0, &status);
++  } else {
++    PADClearVirtualStatus(0);
++  }
++}
++
+ void PADControlMotor(const u32 chan, const u32 cmd) {
+   const auto controller = aurora::input::get_controller_for_player(chan);
+   if (should_use_device_rumble(chan, controller)) {
+diff --git a/lib/imgui.cpp b/lib/imgui.cpp
+index 02adbe1..4cc8452 100644
+--- a/lib/imgui.cpp
++++ b/lib/imgui.cpp
+@@ -12,6 +12,7 @@
+ #include <SDL3/SDL_events.h>
+ #include <SDL3/SDL_render.h>
+ 
++#include <aurora/touch.hpp>
+ #include "internal.hpp"
+ #include "gfx/render_worker.hpp"
+ #include "webgpu/gpu.hpp"
+@@ -162,6 +166,8 @@ void new_frame(const AuroraWindowSize& size) noexcept {
+ 
+ DrawData freeze() noexcept {
+   ZoneScoped;
++  /* Draw the touch overlay on top of whatever the game rendered this frame. */
++  aurora::touch::render();
+   ImGui::Render();
+ 
+   auto* data = ImGui::GetDrawData();
+diff --git a/lib/touch.cpp b/lib/touch.cpp
+new file mode 100644
+index 0000000..fc72ec6
+--- /dev/null
++++ b/lib/touch.cpp
+@@ -0,0 +1,654 @@
++#include <aurora/touch.hpp>
++
++#include <algorithm>
++#include <array>
++#include <cfloat>
++#include <cmath>
++#include <cstdio>
++#include <cstring>
++#include <limits>
++#include <string>
++
++#include <SDL3/SDL_platform.h>
++#include <SDL3/SDL_touch.h>
++#include <dolphin/pad.h>
++#include <imgui.h>
++
++#include "input.hpp"
++#include "internal.hpp"
++#include "window.hpp"
++
++namespace aurora::touch {
++namespace {
++
++Module Log{"touch"};
++
++enum class Ctl : uint8_t {
++  StickLeft,
++  StickRight,
++  DPadUp,
++  DPadDown,
++  DPadLeft,
++  DPadRight,
++  ButtonA,
++  ButtonB,
++  ButtonX,
++  ButtonY,
++  ButtonZ,
++  TriggerL,
++  TriggerR,
++  Start,
++  Gear,
++  Reset,
++  Count,
++};
++
++struct CtlSpec {
++  Ctl id;
++  const char* name;
++  float cx;
++  float cy;
++  float r;
++  bool stick;
++  float hitScale;
++};
++
++// Landscape (width >= height) default layout, normalized to the window.
++constexpr std::array<CtlSpec, static_cast<size_t>(Ctl::Count)> kLandscape{{
++    {Ctl::StickLeft, "StickLeft", 0.16f, 0.72f, 0.160f, true, 2.0f},
++    {Ctl::StickRight, "StickRight", 0.80f, 0.30f, 0.130f, true, 2.0f},
++    {Ctl::DPadUp, "DPadUp", 0.17f, 0.30f, 0.050f, false, 1.5f},
++    {Ctl::DPadDown, "DPadDown", 0.17f, 0.42f, 0.050f, false, 1.5f},
++    {Ctl::DPadLeft, "DPadLeft", 0.11f, 0.36f, 0.050f, false, 1.5f},
++    {Ctl::DPadRight, "DPadRight", 0.23f, 0.36f, 0.050f, false, 1.5f},
++    {Ctl::ButtonA, "ButtonA", 0.86f, 0.74f, 0.052f, false, 1.5f},
++    {Ctl::ButtonB, "ButtonB", 0.78f, 0.83f, 0.052f, false, 1.5f},
++    {Ctl::ButtonX, "ButtonX", 0.94f, 0.83f, 0.052f, false, 1.5f},
++    {Ctl::ButtonY, "ButtonY", 0.86f, 0.92f, 0.052f, false, 1.5f},
++    {Ctl::ButtonZ, "ButtonZ", 0.72f, 0.74f, 0.048f, false, 1.5f},
++    {Ctl::TriggerL, "TriggerL", 0.12f, 0.13f, 0.100f, false, 1.3f},
++    {Ctl::TriggerR, "TriggerR", 0.88f, 0.13f, 0.100f, false, 1.3f},
++    {Ctl::Start, "Start", 0.50f, 0.06f, 0.032f, false, 1.6f},
++    {Ctl::Gear, "Gear", 0.965f, 0.045f, 0.030f, false, 1.6f},
++    {Ctl::Reset, "Reset", 0.90f, 0.045f, 0.030f, false, 1.6f},
++}};
++
++// Portrait (width < height) default layout.
++constexpr std::array<CtlSpec, static_cast<size_t>(Ctl::Count)> kPortrait{{
++    {Ctl::StickLeft, "StickLeft", 0.28f, 0.72f, 0.190f, true, 2.0f},
++    {Ctl::StickRight, "StickRight", 0.72f, 0.60f, 0.150f, true, 2.0f},
++    {Ctl::DPadUp, "DPadUp", 0.30f, 0.30f, 0.055f, false, 1.5f},
++    {Ctl::DPadDown, "DPadDown", 0.30f, 0.42f, 0.055f, false, 1.5f},
++    {Ctl::DPadLeft, "DPadLeft", 0.24f, 0.36f, 0.055f, false, 1.5f},
++    {Ctl::DPadRight, "DPadRight", 0.36f, 0.36f, 0.055f, false, 1.5f},
++    {Ctl::ButtonA, "ButtonA", 0.78f, 0.86f, 0.058f, false, 1.5f},
++    {Ctl::ButtonB, "ButtonB", 0.67f, 0.94f, 0.058f, false, 1.5f},
++    {Ctl::ButtonX, "ButtonX", 0.89f, 0.94f, 0.058f, false, 1.5f},
++    {Ctl::ButtonY, "ButtonY", 0.78f, 0.97f, 0.055f, false, 1.5f},
++    {Ctl::ButtonZ, "ButtonZ", 0.92f, 0.72f, 0.050f, false, 1.5f},
++    {Ctl::TriggerL, "TriggerL", 0.18f, 0.10f, 0.110f, false, 1.3f},
++    {Ctl::TriggerR, "TriggerR", 0.82f, 0.10f, 0.110f, false, 1.3f},
++    {Ctl::Start, "Start", 0.50f, 0.06f, 0.035f, false, 1.6f},
++    {Ctl::Gear, "Gear", 0.95f, 0.05f, 0.038f, false, 1.6f},
++    {Ctl::Reset, "Reset", 0.88f, 0.05f, 0.035f, false, 1.6f},
++}};
++
++struct Control {
++  Ctl id = Ctl::Count;
++  const char* name = "";
++  float cx = 0.f, cy = 0.f, r = 0.f;
++  bool stick = false;
++  float hitScale = 1.f;
++  uint64_t finger = 0;
++  bool active = false;   // button pressed or stick grabbed
++  bool dragging = false; // edit-mode drag in progress
++  float lastX = 0.f, lastY = 0.f;
++  float originX = 0.f, originY = 0.f; // stick grab origin (pixels)
++  float curX = 0.f, curY = 0.f;       // stick current (pixels)
++};
++
++struct CtlOverride {
++  float cx, cy, r;
++  bool set;
++};
++
++std::array<Control, static_cast<size_t>(Ctl::Count)> g_controls;
++std::array<CtlOverride, static_cast<size_t>(Ctl::Count)> g_ovLandscape;
++std::array<CtlOverride, static_cast<size_t>(Ctl::Count)> g_ovPortrait;
++bool g_controlsBuilt = false;
++bool g_layoutLoaded = false;
++bool g_landscape = true;
++bool g_editMode = false;
++
++bool touch_supported() noexcept {
++#if defined(SDL_PLATFORM_IOS) || defined(SDL_PLATFORM_TVOS) || defined(SDL_PLATFORM_ANDROID)
++  return true;
++#elif defined(SDL_PLATFORM_MACOS)
++  return false;
++#else
++  return SDL_GetNumTouchDevices() > 0;
++#endif
++}
++
++std::string layout_path() {
++  return std::string{g_config.userPath != nullptr ? g_config.userPath : ""} + "/touch_overlay.ini";
++}
++
++void mark_override(Ctl id) {
++  auto& ov = g_landscape ? g_ovLandscape : g_ovPortrait;
++  const auto idx = static_cast<size_t>(id);
++  ov[idx] = {g_controls[idx].cx, g_controls[idx].cy, g_controls[idx].r, true};
++}
++
++void load_layout_file() {
++  if (g_layoutLoaded) {
++    return;
++  }
++  g_layoutLoaded = true;
++  FILE* f = std::fopen(layout_path().c_str(), "r");
++  if (f == nullptr) {
++    return;
++  }
++  bool landscapeSection = true;
++  char line[160];
++  char name[32];
++  float cx, cy, r;
++  while (std::fgets(line, sizeof(line), f) != nullptr) {
++    if (line[0] == '[') {
++      landscapeSection = std::strncmp(line, "[portrait]", 10) != 0;
++      continue;
++    }
++    if (std::sscanf(line, "%31s %f %f %f", name, &cx, &cy, &r) == 4) {
++      const auto& spec = landscapeSection ? kLandscape : kPortrait;
++      auto& ov = landscapeSection ? g_ovLandscape : g_ovPortrait;
++      for (size_t i = 0; i < spec.size(); ++i) {
++        if (std::strcmp(name, spec[i].name) == 0) {
++          ov[i] = {std::clamp(cx, 0.02f, 0.98f), std::clamp(cy, 0.02f, 0.98f), std::clamp(r, 0.015f, 0.35f), true};
++          break;
++        }
++      }
++    }
++  }
++  std::fclose(f);
++}
++
++void save_layout_file() {
++  if (!g_controlsBuilt) {
++    return;
++  }
++  FILE* f = std::fopen(layout_path().c_str(), "w");
++  if (f == nullptr) {
++    return;
++  }
++  std::fputs("[landscape]\n", f);
++  for (size_t i = 0; i < g_controls.size(); ++i) {
++    const CtlOverride& o = g_ovLandscape[i];
++    if (o.set) {
++      std::fprintf(f, "%s %f %f %f\n", g_controls[i].name, o.cx, o.cy, o.r);
++    }
++  }
++  std::fputs("[portrait]\n", f);
++  for (size_t i = 0; i < g_controls.size(); ++i) {
++    const CtlOverride& o = g_ovPortrait[i];
++    if (o.set) {
++      std::fprintf(f, "%s %f %f %f\n", g_controls[i].name, o.cx, o.cy, o.r);
++    }
++  }
++  std::fclose(f);
++}
++
++void build_controls() {
++  if (g_controlsBuilt) {
++    return;
++  }
++  g_controlsBuilt = true;
++  const auto size = window::get_window_size();
++  g_landscape = size.width >= size.height;
++  const auto& spec = g_landscape ? kLandscape : kPortrait;
++  const auto& ov = g_landscape ? g_ovLandscape : g_ovPortrait;
++  for (size_t i = 0; i < spec.size(); ++i) {
++    Control& c = g_controls[i];
++    c.id = spec[i].id;
++    c.name = spec[i].name;
++    c.cx = spec[i].cx;
++    c.cy = spec[i].cy;
++    c.r = spec[i].r;
++    c.stick = spec[i].stick;
++    c.hitScale = spec[i].hitScale;
++    if (ov[i].set) {
++      c.cx = ov[i].cx;
++      c.cy = ov[i].cy;
++      c.r = ov[i].r;
++    }
++  }
++}
++
++void ensure_initialized() {
++  load_layout_file();
++  build_controls();
++}
++
++Control* hit_test(float x, float y, float w, float h) noexcept {
++  const float aspect = h / w;
++  Control* best = nullptr;
++  float bestD2 = std::numeric_limits<float>::max();
++  for (auto& c : g_controls) {
++    const float dx = x - c.cx;
++    const float dy = (y - c.cy) * aspect;
++    const float hitR = c.r * c.hitScale;
++    const float d2 = dx * dx + dy * dy;
++    if (d2 <= hitR * hitR && d2 < bestD2) {
++      bestD2 = d2;
++      best = &c;
++    }
++  }
++  return best;
++}
++
++} // namespace
++
++void finger_down(uint64_t fingerId, float x, float y) {
++  if (!touch_supported()) {
++    return;
++  }
++  ensure_initialized();
++  const auto size = window::get_window_size();
++  const float w = static_cast<float>(size.width);
++  const float h = static_cast<float>(size.height);
++  Control* hit = hit_test(x, y, w, h);
++  if (g_editMode) {
++    if (hit != nullptr && hit->id == Ctl::Gear) {
++      toggle_edit_mode();
++      return;
++    }
++    if (hit != nullptr && hit->id == Ctl::Reset) {
++      reset_layout();
++      return;
++    }
++    if (hit != nullptr && !hit->dragging) {
++      hit->finger = fingerId;
++      hit->dragging = true;
++      hit->lastX = x;
++      hit->lastY = y;
++    }
++    return;
++  }
++  if (hit != nullptr && hit->id == Ctl::Gear) {
++    toggle_edit_mode();
++    return;
++  }
++  if (hit != nullptr && !hit->active) {
++    hit->finger = fingerId;
++    hit->active = true;
++    if (hit->stick) {
++      hit->originX = x * w;
++      hit->originY = y * h;
++      hit->curX = hit->originX;
++      hit->curY = hit->originY;
++    }
++  }
++}
++
++void finger_motion(uint64_t fingerId, float x, float y) {
++  if (!touch_supported()) {
++    return;
++  }
++  ensure_initialized();
++  const auto size = window::get_window_size();
++  const float w = static_cast<float>(size.width);
++  const float h = static_cast<float>(size.height);
++  const float aspect = h / w;
++  for (auto& c : g_controls) {
++    if (c.finger != fingerId) {
++      continue;
++    }
++    if (c.dragging) {
++      c.cx = std::clamp(c.cx + (x - c.lastX), 0.03f, 0.97f);
++      c.cy = std::clamp(c.cy + (y - c.lastY) * aspect, 0.03f, 0.97f);
++      c.lastX = x;
++      c.lastY = y;
++      return;
++    }
++    if (c.stick) {
++      c.curX = x * w;
++      c.curY = y * h;
++    }
++    return;
++  }
++}
++
++void finger_up(uint64_t fingerId) {
++  if (!touch_supported()) {
++    return;
++  }
++  ensure_initialized();
++  for (auto& c : g_controls) {
++    if (c.finger != fingerId) {
++      continue;
++    }
++    c.finger = 0;
++    if (c.dragging) {
++      c.dragging = false;
++      if (g_editMode) {
++        mark_override(c.id);
++        save_layout();
++      }
++    }
++    c.active = false;
++    c.originX = c.originY = c.curX = c.curY = 0.f;
++    return;
++  }
++}
++
++bool get_status(PADStatus& out) {
++  if (!touch_supported()) {
++    return false;
++  }
++  ensure_initialized();
++  bool any = false;
++  for (const auto& c : g_controls) {
++    if (c.active) {
++      any = true;
++      break;
++    }
++  }
++  if (!any) {
++    return false;
++  }
++
++  const float w = static_cast<float>(window::get_window_size().width);
++  out = {};
++  out.err = PAD_ERR_NONE;
++  for (const auto& c : g_controls) {
++    if (!c.active) {
++      continue;
++    }
++    switch (c.id) {
++    case Ctl::StickLeft: {
++      const float rpx = c.r * w;
++      const float dx = std::clamp((c.curX - c.originX) / rpx, -1.f, 1.f);
++      const float dy = std::clamp((c.originY - c.curY) / rpx, -1.f, 1.f); // GC y-up
++      out.stickX = static_cast<s8>(dx * 127.f);
++      out.stickY = static_cast<s8>(dy * 127.f);
++      break;
++    }
++    case Ctl::StickRight: {
++      const float rpx = c.r * w;
++      const float dx = std::clamp((c.curX - c.originX) / rpx, -1.f, 1.f);
++      const float dy = std::clamp((c.originY - c.curY) / rpx, -1.f, 1.f);
++      out.substickX = static_cast<s8>(dx * 127.f);
++      out.substickY = static_cast<s8>(dy * 127.f);
++      break;
++    }
++    case Ctl::DPadUp:
++      out.button |= PAD_BUTTON_UP;
++      break;
++    case Ctl::DPadDown:
++      out.button |= PAD_BUTTON_DOWN;
++      break;
++    case Ctl::DPadLeft:
++      out.button |= PAD_BUTTON_LEFT;
++      break;
++    case Ctl::DPadRight:
++      out.button |= PAD_BUTTON_RIGHT;
++      break;
++    case Ctl::ButtonA:
++      out.button |= PAD_BUTTON_A;
++      out.analogA = 255;
++      break;
++    case Ctl::ButtonB:
++      out.button |= PAD_BUTTON_B;
++      out.analogB = 255;
++      break;
++    case Ctl::ButtonX:
++      out.button |= PAD_BUTTON_X;
++      break;
++    case Ctl::ButtonY:
++      out.button |= PAD_BUTTON_Y;
++      break;
++    case Ctl::ButtonZ:
++      out.button |= PAD_TRIGGER_Z;
++      break;
++    case Ctl::TriggerL:
++      out.button |= PAD_TRIGGER_L;
++      out.triggerLeft = 255;
++      break;
++    case Ctl::TriggerR:
++      out.button |= PAD_TRIGGER_R;
++      out.triggerRight = 255;
++      break;
++    case Ctl::Start:
++      out.button |= PAD_BUTTON_START;
++      break;
++    default:
++      break;
++    }
++  }
++  return true;
++}
++
++namespace {
++
++void draw_text(ImDrawList* draw, ImFont* font, float px, float py, float fontPx, const char* text, ImU32 col) {
++  const ImVec2 size = font->CalcTextSizeA(fontPx, FLT_MAX, 0.f, text);
++  draw->AddText(font, fontPx, ImVec2(px - size.x * 0.5f, py - size.y * 0.5f), col, text);
++}
++
++void draw_stick(ImDrawList* draw, const Control& c, float w, float h, ImU32 fill, ImU32 border, ImU32 glyph) {
++  const ImVec2 center(c.cx * w, c.cy * h);
++  const float rpx = c.r * w;
++  draw->AddCircleFilled(center, rpx, fill, 48);
++  draw->AddCircle(center, rpx, border, 48, 2.f);
++  if (c.active) {
++    float dx = c.curX - c.originX;
++    float dy = c.curY - c.originY;
++    const float len = std::sqrt(dx * dx + dy * dy);
++    const float maxT = rpx * 0.72f;
++    if (len > maxT) {
++      dx *= maxT / len;
++      dy *= maxT / len;
++    }
++    draw->AddCircleFilled(ImVec2(center.x + dx, center.y + dy), rpx * 0.42f, glyph, 32);
++    draw->AddCircle(center, rpx * 0.14f, glyph, 16, 1.5f);
++  } else {
++    draw->AddCircleFilled(center, rpx * 0.15f, glyph, 16);
++  }
++}
++
++void draw_button(ImDrawList* draw, ImFont* font, const Control& c, float w, float h, ImU32 fill, ImU32 border,
++                 ImU32 glyph, const char* label) {
++  const ImVec2 center(c.cx * w, c.cy * h);
++  const float rpx = c.r * w;
++  draw->AddCircleFilled(center, rpx, fill, 32);
++  draw->AddCircle(center, rpx, border, 32, 2.f);
++  if (label != nullptr) {
++    draw_text(draw, font, center.x, center.y, std::max(10.f, rpx * 1.05f), label, glyph);
++  }
++}
++
++void draw_dpad(ImDrawList* draw, const Control& c, float w, float h, ImU32 fill, ImU32 border, ImU32 glyph) {
++  const ImVec2 center(c.cx * w, c.cy * h);
++  const float rpx = c.r * w;
++  draw->AddCircleFilled(center, rpx, fill, 24);
++  draw->AddCircle(center, rpx, border, 24, 2.f);
++  float dirX = 0.f, dirY = 0.f;
++  switch (c.id) {
++  case Ctl::DPadUp:
++    dirY = -1.f;
++    break;
++  case Ctl::DPadDown:
++    dirY = 1.f;
++    break;
++  case Ctl::DPadLeft:
++    dirX = -1.f;
++    break;
++  case Ctl::DPadRight:
++    dirX = 1.f;
++    break;
++  default:
++    return;
++  }
++  const float a = rpx * 0.42f;
++  const float b = rpx * 0.30f;
++  const ImVec2 tip(center.x + dirX * a, center.y + dirY * a);
++  const ImVec2 p1(center.x - dirY * b - dirX * b * 0.5f, center.y + dirX * b - dirY * b * 0.5f);
++  const ImVec2 p2(center.x + dirY * b - dirX * b * 0.5f, center.y - dirX * b - dirY * b * 0.5f);
++  draw->AddTriangleFilled(tip, p1, p2, glyph);
++}
++
++void draw_trigger(ImDrawList* draw, ImFont* font, const Control& c, float w, float h, ImU32 fill, ImU32 border,
++                  ImU32 glyph, const char* label) {
++  const float rw = c.r * w * 1.7f;
++  const float rh = c.r * w * 0.95f;
++  const ImVec2 min(c.cx * w - rw * 0.5f, c.cy * h - rh * 0.5f);
++  const ImVec2 max(c.cx * w + rw * 0.5f, c.cy * h + rh * 0.5f);
++  draw->AddRectFilled(min, max, fill, rh * 0.5f);
++  draw->AddRect(min, max, border, rh * 0.5f, 0, 2.f);
++  draw_text(draw, font, (min.x + max.x) * 0.5f, (min.y + max.y) * 0.5f, std::max(12.f, rh * 0.55f), label, glyph);
++}
++
++void draw_gear(ImDrawList* draw, const Control& c, float w, float h, ImU32 fill, ImU32 border, ImU32 glyph) {
++  const ImVec2 center(c.cx * w, c.cy * h);
++  const float rpx = c.r * w;
++  draw->AddCircleFilled(center, rpx, fill, 24);
++  draw->AddCircle(center, rpx, border, 24, 2.f);
++  constexpr float kPi = 3.14159265358979f;
++  for (int i = 0; i < 4; ++i) {
++    const float a = kPi * 0.5f * i + kPi * 0.25f;
++    const float ca = std::cos(a), sa = std::sin(a);
++    draw->AddLine(ImVec2(center.x + ca * rpx * 0.45f, center.y + sa * rpx * 0.45f),
++                  ImVec2(center.x + ca * rpx * 0.82f, center.y + sa * rpx * 0.82f), glyph, 2.f);
++  }
++}
++
++void draw_reset(ImDrawList* draw, ImFont* font, const Control& c, float w, float h, ImU32 fill, ImU32 border,
++                ImU32 glyph) {
++  const float rw = c.r * w * 2.8f;
++  const float rh = c.r * w * 1.2f;
++  const ImVec2 min(c.cx * w - rw * 0.5f, c.cy * h - rh * 0.5f);
++  const ImVec2 max(c.cx * w + rw * 0.5f, c.cy * h + rh * 0.5f);
++  draw->AddRectFilled(min, max, fill, rh * 0.5f);
++  draw->AddRect(min, max, border, rh * 0.5f, 0, 2.f);
++  draw_text(draw, font, (min.x + max.x) * 0.5f, (min.y + max.y) * 0.5f, std::max(12.f, rh * 0.5f), "RESET", glyph);
++}
++
++} // namespace
++
++void render() {
++  if (!touch_supported()) {
++    return;
++  }
++  ensure_initialized();
++  if (ImGui::GetCurrentContext() == nullptr) {
++    return;
++  }
++  static bool s_logged = false;
++  if (!s_logged) {
++    s_logged = true;
++    Log.info("touch overlay: enabled (touch + controller input merge)");
++  }
++  const auto size = window::get_window_size();
++  const float w = static_cast<float>(size.width);
++  const float h = static_cast<float>(size.height);
++  if (w <= 0.f || h <= 0.f) {
++    return;
++  }
++  ImDrawList* draw = ImGui::GetBackgroundDrawList();
++  ImFont* font = ImGui::GetFont();
++  if (font == nullptr) {
++    return;
++  }
++
++  for (const auto& c : g_controls) {
++    const ImU32 fill = g_editMode ? ImColor(255, 220, 80, 70) : (c.active ? ImColor(255, 255, 255, 150)
++                                                                          : ImColor(255, 255, 255, 34));
++    const ImU32 border = g_editMode ? ImColor(255, 220, 80, 230) : ImColor(255, 255, 255, 90);
++    const ImU32 glyph = ImColor(255, 255, 255, 215);
++    switch (c.id) {
++    case Ctl::StickLeft:
++    case Ctl::StickRight:
++      draw_stick(draw, c, w, h, fill, border, glyph);
++      break;
++    case Ctl::DPadUp:
++    case Ctl::DPadDown:
++    case Ctl::DPadLeft:
++    case Ctl::DPadRight:
++      draw_dpad(draw, c, w, h, fill, border, glyph);
++      break;
++    case Ctl::ButtonA:
++      draw_button(draw, font, c, w, h, fill, border, glyph, "A");
++      break;
++    case Ctl::ButtonB:
++      draw_button(draw, font, c, w, h, fill, border, glyph, "B");
++      break;
++    case Ctl::ButtonX:
++      draw_button(draw, font, c, w, h, fill, border, glyph, "X");
++      break;
++    case Ctl::ButtonY:
++      draw_button(draw, font, c, w, h, fill, border, glyph, "Y");
++      break;
++    case Ctl::ButtonZ:
++      draw_button(draw, font, c, w, h, fill, border, glyph, "Z");
++      break;
++    case Ctl::TriggerL:
++      draw_trigger(draw, font, c, w, h, fill, border, glyph, "L");
++      break;
++    case Ctl::TriggerR:
++      draw_trigger(draw, font, c, w, h, fill, border, glyph, "R");
++      break;
++    case Ctl::Start:
++      draw_button(draw, font, c, w, h, fill, border, glyph, "START");
++      break;
++    case Ctl::Gear:
++      draw_gear(draw, c, w, h, fill, border, glyph);
++      break;
++    case Ctl::Reset:
++      if (g_editMode) {
++        draw_reset(draw, font, c, w, h, fill, border, glyph);
++      }
++      break;
++    default:
++      break;
++    }
++  }
++
++  if (g_editMode) {
++    draw_text(draw, font, w * 0.5f, h * 0.05f, std::max(14.f, w * 0.018f),
++              "EDIT MODE - drag controls to reposition; tap gear to save & exit; RESET restores defaults",
++              ImColor(255, 220, 80, 255));
++  }
++}
++
++void toggle_edit_mode() {
++  ensure_initialized();
++  g_editMode = !g_editMode;
++  if (!g_editMode) {
++    save_layout();
++  }
++}
++
++void save_layout() {
++  if (g_controlsBuilt) {
++    save_layout_file();
++  }
++}
++
++void reset_layout() {
++  ensure_initialized();
++  g_ovLandscape.fill({});
++  g_ovPortrait.fill({});
++  const auto& spec = g_landscape ? kLandscape : kPortrait;
++  for (size_t i = 0; i < spec.size(); ++i) {
++    Control& c = g_controls[i];
++    c.cx = spec[i].cx;
++    c.cy = spec[i].cy;
++    c.r = spec[i].r;
++  }
++  save_layout();
++}
++
++void shutdown() {
++  save_layout();
++}
++
++} // namespace aurora::touch
+diff --git a/lib/window.cpp b/lib/window.cpp
+index 0d1a5c2..c0691e6 100644
+--- a/lib/window.cpp
++++ b/lib/window.cpp
+@@ -9,6 +9,7 @@
+ 
+ #include <aurora/aurora.h>
+ #include <aurora/event.h>
++#include <aurora/touch.hpp>
+ #include <SDL3/SDL_error.h>
+ #include <SDL3/SDL_events.h>
+ #include <SDL3/SDL_properties.h>
+@@ -195,6 +202,16 @@ void process_event(SDL_Event& event) {
+   case SDL_EVENT_MOUSE_WHEEL:
+     input::set_mouse_scroll(event.wheel.x, event.wheel.y);
+     break;
++  case SDL_EVENT_FINGER_DOWN:
++    aurora::touch::finger_down(event.tfinger.fingerID, event.tfinger.x, event.tfinger.y);
++    break;
++  case SDL_EVENT_FINGER_MOTION:
++    aurora::touch::finger_motion(event.tfinger.fingerID, event.tfinger.x, event.tfinger.y);
++    break;
++  case SDL_EVENT_FINGER_UP:
++  case SDL_EVENT_FINGER_CANCELED:
++    aurora::touch::finger_up(event.tfinger.fingerID);
++    break;
+   case SDL_EVENT_QUIT:
+     g_events.push_back(AuroraEvent{
+         .type = AURORA_EXIT,
