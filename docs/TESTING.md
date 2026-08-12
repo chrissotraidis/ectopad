@@ -65,6 +65,21 @@ Last updated: 2026-08-11
   loaded the saved game (intro narration card → cinematic at 60 FPS, 10+ audio
   voices). Evidence: screenshots `/tmp/mf_reload_a2.png`,
   `/tmp/mf_reload_game.png`; logs `/tmp/mf_savefix.log`, `/tmp/mf_reload.log`.
+
+### 2026-08-11 — iPad Pro 13-inch (M5) Simulator, in-game + save (Gate 2 de-risk)
+
+- Rebuilt `build/ios-sim` with the audio stack, CInputStream byte-order fix
+  (KI-009), and kabufuda card-persistence fix (KI-011); installed and launched.
+- `--warp 2 2`: rendered **Tallon Overworld in-game** (rocky ruins, arm cannon,
+  visor HUD with ENERGY 99, radar, minimap) through Dawn→Metal on the simulator.
+- `--autostart` (new test hook): drove title → file select → new game → intro
+  cinematic → **first-person Frigate Orpheon gameplay** (ENERGY 99, missiles 15,
+  radar, HUD icons) at 60 FPS with no host input, and persisted the
+  `GM8E01`/`MetroidPrime B` save to the sim container's card
+  (`…/Library/Application Support/dolphin-emu/GC/MemoryCardA.USA.raw`, entry at
+  offset 0x2040). Host keyboard forwarding to the Simulator GUI was not
+  available, which motivated the hook. Evidence: `/tmp/ios_warp1.png`,
+  `/tmp/ios_auto1.png`, `/tmp/ios_auto2.png`, `/tmp/ios_auto3.png`.
 - In-game: `Metaforce -l --warp 2 2 +debugOverlay.* <iso>` — full-screen scene +
   HUD, 1760 draw calls, 60 FPS; then ImGui segfault (KI-002).
 - Artifacts: logs `/tmp/metaforce-run.log`, `/tmp/metaforce-fe.log`,

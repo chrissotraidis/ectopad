@@ -25,7 +25,7 @@ Last updated: 2026-08-11
 | Audio on macOS | **Proven (frontend + in-game, local patches)** | SDL3 device (44100 Hz stereo) + amuse engine with a software mixer backend + **soxr voice resampler** + **streamed DSP audio & MIDI sequencer restored** (`CStreamAudioManager` + `CMidiManager`): all 28 Prime audio groups load into amuse; in-game warp plays area music + SFX continuously (6–7 voices, 3 submixes) at 60 FPS; non-32 kHz voices (24/16/12/4 kHz) resample to correct pitch; frontend RSF music plays; stable pump, clean exit; see KNOWN_ISSUES KI-003 |
 | HECL/game-data extraction from supplied ISO | **Proven** | Disc identified and all assets loaded from ISO at runtime ("Metroid Prime USA (Build v1.111 3/10/2003 17:56:21)"); raw ISO, no conversion required |
 | iOS/iPadOS ARM64 device build | **Proven** | Local ARM64 iOS build succeeded (`build/install/Metaforce.app`, platform 2/iOS, minos 14.0) after fixing an upstream zstd link issue (Homebrew macOS dylib leaking into the iOS link) |
-| iOS Simulator (iPad) execution | **Proven** | iOS Simulator build succeeded (after fixing Dawn cross-compile host-tool issues: host protoc + GLFW disabled); **rebuilt 2026-08-11 21:20 with the vendored audio stack (amuse/athena/logvisor/soxr) — compiles and links for the sim SDK**; installed and launched on iPad Pro 13-inch (M5) Simulator; loaded the user's ISO from the app container; Dawn/WebGPU reached Metal ("Apple iOS simulator GPU"); amuse audio initialized (32 kHz SDL backend) and frontend RSF music played (2 voices, 3 submixes); rendered the **Metroid Prime title screen** (gold logo + [PRESS START], 4:3) |
+| iOS Simulator (iPad) execution | **Proven** | iOS Simulator build succeeded (after fixing Dawn cross-compile host-tool issues: host protoc + GLFW disabled); **rebuilt 2026-08-11 23:20 with the vendored audio stack + CInputStream byte-order fix + kabufuda card-persistence fix**; installed and launched on iPad Pro 13-inch (M5) Simulator; loaded the user's ISO; Dawn/WebGPU reached Metal ("Apple iOS simulator GPU"); amuse audio initialized (32 kHz SDL backend); rendered the **Metroid Prime title screen**, and — via the `--autostart` test hook — ran the **full New Game flow: intro cinematic → first-person Frigate Orpheon gameplay** (visor HUD, ENERGY 99, arm cannon, radar) at 60 FPS, and **persisted a `GM8E01`/`MetroidPrime B` save to the sim's card** |
 | Audio on iPad Simulator | **Proven (Simulator-only)** | amuse engine + SDL backend initialize on the iPad Pro 13-inch (M5) Simulator (device 44100 Hz, engine 32 kHz); audio groups load into amuse (Misc/MiscSamus/UI/Weapons/ZZZ at frontend); `CStaticAudioPlayer` streams `frontend_1.rsf`/`frontend_2.rsf`; `SDLBackend: 2 voices (2 running), 3 submixes`, stable 534-frame audio pump, no underruns; see KNOWN_ISSUES KI-003 |
 | Dawn/WebGPU reaching Metal on iOS device | **Not yet tested** | Principal technical unknown (Gate 2); simulator rendering (host GPU/Metal path) works — physical-device verification pending signing identity + hardware |
 | Touch controls (iPhone/iPad layouts) | **Not yet tested** | |
@@ -81,6 +81,19 @@ Last updated: 2026-08-11
   `/tmp/mf_reload_a2.png`, `/tmp/mf_reload_game.png`, card hexdump at
   `~/Library/Application Support/dolphin-emu/GC/MemoryCardA.USA.raw` (entry at
   offset 0x2040), logs `/tmp/mf_savefix.log`, `/tmp/mf_reload.log`.
+- **iOS Simulator in-game (2026-08-11):** rebuilt the sim app with all recent
+  fixes and verified in-game rendering through Dawn→Metal: `--warp 2 2`
+  rendered Tallon Overworld (ruins, full HUD); `--autostart` drove the full
+  frontend flow (title → file select → new game → intro cinematic → first-person
+  Frigate Orpheon gameplay with ENERGY 99 / missiles 15 / arm cannon / radar at
+  60 FPS) with no host input; the new-game save
+  (`GM8E01`/`MetroidPrime B`) was persisted to the sim container's card. The
+  `--autostart` hook (patch:
+  `patches/2026-08-11-metaforce-autostart-test-hook.patch`) exists because
+  host keyboard forwarding to the Simulator was unavailable
+  (`ConnectHardwareKeyboard` ignored) — it is also the foundation for future
+  device automation. Evidence: `/tmp/ios_warp1.png`, `/tmp/ios_auto1.png`,
+  `/tmp/ios_auto2.png`, `/tmp/ios_auto3.png`.
 
 ### Partially proven
 - **Gamepad input:** wired via aurora PAD → SDL_Gamepad (untested — no controller

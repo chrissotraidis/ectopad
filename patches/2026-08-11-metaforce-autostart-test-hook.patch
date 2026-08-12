@@ -1,0 +1,205 @@
+diff --git a/Runtime/MP1/CFrontEndUI.cpp b/Runtime/MP1/CFrontEndUI.cpp
+index 012c71d..bf9a576 100644
+--- a/Runtime/MP1/CFrontEndUI.cpp
++++ b/Runtime/MP1/CFrontEndUI.cpp
+@@ -1648,7 +1648,9 @@ CFrontEndUI::~CFrontEndUI() {
+ }
+ 
+ void CFrontEndUI::StartSlideShow(CArchitectureQueue& queue) {
+-  // xf4_curAudio->StopMixing();
++  if (xf4_curAudio != nullptr) {
++    xf4_curAudio->StopMixing();
++  }
+   queue.Push(MakeMsg::CreateCreateIOWin(EArchMsgTarget::IOWinManager, 12, 11, std::make_shared<CSlideShow>()));
+ }
+ 
+@@ -1769,9 +1771,13 @@ void CFrontEndUI::CompleteStateTransition() {
+   case EScreen::FileSelect:
+     SetCurrentMovie(EMenuMovie::FileSelectLoop);
+     if (oldScreen == EScreen::Title) {
+-      // xf4_curAudio->StopMixing();
+-      // xf4_curAudio = xd8_audio2.get();
+-      // xf4_curAudio->StartMixing();
++      if (xf4_curAudio != nullptr) {
++        xf4_curAudio->StopMixing();
++      }
++      xf4_curAudio = xd8_audio2.get();
++      if (xf4_curAudio != nullptr) {
++        xf4_curAudio->StartMixing();
++      }
+     }
+     if (xdc_saveUI)
+       xdc_saveUI->ResetCardDriver();
+@@ -2044,7 +2050,9 @@ void CFrontEndUI::ProcessUserInput(const CFinalInput& input, CArchitectureQueue&
+         StartStateTransition(EScreen::FileSelect);
+         return;
+       case SFusionBonusFrame::EAction::PlayNESMetroid:
+-        // xf4_curAudio->StopMixing();
++        if (xf4_curAudio != nullptr) {
++          xf4_curAudio->StopMixing();
++        }
+         xec_emuFrme = std::make_unique<SNesEmulatorFrame>();
+         if (xdc_saveUI)
+           xdc_saveUI->SetInGame(true);
+@@ -2118,8 +2126,8 @@ CIOWin::EMessageReturn CFrontEndUI::Update(float dt, CArchitectureQueue& queue)
+       xe8_frontendNoCardFrme = std::make_unique<SFrontEndFrame>(x1c_rndB);
+       x38_pressStart.GetObj();
+       // CAudioSys::AddAudioGroup(x44_frontendAudioGrp->GetAudioGroupData());
+-      //      xd4_audio1 = std::make_unique<CStaticAudioPlayer>("Audio/frontend_1.rsf", 416480, 1973664);
+-      //      xd8_audio2 = std::make_unique<CStaticAudioPlayer>("Audio/frontend_2.rsf", 273556, 1636980);
++      xd4_audio1 = std::make_unique<CStaticAudioPlayer>("Audio/frontend_1.rsf", 416480, 1973664);
++      xd8_audio2 = std::make_unique<CStaticAudioPlayer>("Audio/frontend_2.rsf", 273556, 1636980);
+       x14_phase = EPhase::LoadFrames;
+     }
+     if (x14_phase == EPhase::LoadDeps)
+@@ -2131,11 +2139,11 @@ CIOWin::EMessageReturn CFrontEndUI::Update(float dt, CArchitectureQueue& queue)
+       return EMessageReturn::Exit;
+     }
+     /* Poll loading music and FRME resources */
+-    if (/*!xd4_audio1->IsReady() || !xd8_audio2->IsReady() || */ !xe0_frontendCardFrme->PumpLoad() ||
++    if (!xd4_audio1->IsReady() || !xd8_audio2->IsReady() || !xe0_frontendCardFrme->PumpLoad() ||
+         !xe8_frontendNoCardFrme->PumpLoad() || !xdc_saveUI->PumpLoad())
+       return EMessageReturn::Exit;
+-    //    xf4_curAudio = xd4_audio1.get();
+-    //    xf4_curAudio->StartMixing();
++    xf4_curAudio = xd4_audio1.get();
++    xf4_curAudio->StartMixing();
+     x14_phase = EPhase::LoadMovies;
+     [[fallthrough]];
+ 
+@@ -2176,7 +2184,9 @@ CIOWin::EMessageReturn CFrontEndUI::Update(float dt, CArchitectureQueue& queue)
+         xec_emuFrme.reset();
+         if (xdc_saveUI)
+           xdc_saveUI->SetInGame(false);
+-        // xf4_curAudio->StartMixing();
++        if (xf4_curAudio != nullptr) {
++          xf4_curAudio->StartMixing();
++        }
+       }
+       break;
+     }
+@@ -2184,7 +2194,9 @@ CIOWin::EMessageReturn CFrontEndUI::Update(float dt, CArchitectureQueue& queue)
+     if (xd2_deferSlideShow) {
+       /* Start mixing slideshow music */
+       xd2_deferSlideShow = false;
+-      // xf4_curAudio->StartMixing();
++      if (xf4_curAudio != nullptr) {
++        xf4_curAudio->StartMixing();
++      }
+       if (xdc_saveUI)
+         xdc_saveUI->ResetCardDriver();
+     }
+@@ -2281,6 +2293,48 @@ CIOWin::EMessageReturn CFrontEndUI::Update(float dt, CArchitectureQueue& queue)
+       x68_musicVol = 1.f;
+     }
+ 
++    /* --autostart test automation: drive the frontend to start a new game
++     * without host input (used on the iOS Simulator and future device
++     * automation where no touch/keyboard path exists yet). */
++    if (static_cast<CMain*>(g_Main)->GetAutostart()) {
++      x_autostartTimer += dt;
++      const bool atTitle = x50_curScreen == EScreen::Title && x54_nextScreen == EScreen::Title;
++      const bool atFileSelect = x50_curScreen == EScreen::FileSelect && x54_nextScreen == EScreen::FileSelect;
++      if (atTitle && !x_autostartTitleSent && x_autostartTimer > 2.f) {
++        /* Ensure a Dolphin card exists so the file select uses the card UI. */
++        if (CMemoryCardSys::CardProbe(kabufuda::ECardSlot::SlotA).x0_error != kabufuda::ECardResult::READY) {
++          CMemoryCardSys::CreateDolphinCard(kabufuda::ECardSlot::SlotA);
++        }
++        if (xdc_saveUI) {
++          xdc_saveUI->ResetCardDriver();
++        }
++        x_autostartTitleSent = true;
++        StartStateTransition(EScreen::FileSelect);
++      } else if (atFileSelect) {
++        if (!x_autostartCardDone) {
++          x_autostartCardDone = true;
++          x_autostartTimer = 0.f;
++        } else if (!x_autostartAPressed && x_autostartTimer > 2.f) {
++          CFinalInput input;
++          input.x2d_b28_PA = true;
++          input.x2e_b31_PStart = true;
++          if (xe0_frontendCardFrme) {
++            xe0_frontendCardFrme->ProcessUserInput(input);
++          }
++          x_autostartAPressed = true;
++          x_autostartTimer = 0.f;
++        } else if (!x_autostartA2Pressed && x_autostartTimer > 2.f) {
++          CFinalInput input;
++          input.x2d_b28_PA = true;
++          input.x2e_b31_PStart = true;
++          if (xe0_frontendCardFrme) {
++            xe0_frontendCardFrme->ProcessUserInput(input);
++          }
++          x_autostartA2Pressed = true;
++        }
++      }
++    }
++
+     return EMessageReturn::Exit;
+ 
+   case EPhase::ExitFrontEnd:
+diff --git a/Runtime/MP1/CFrontEndUI.hpp b/Runtime/MP1/CFrontEndUI.hpp
+index 0d2626b..a965a73 100644
+--- a/Runtime/MP1/CFrontEndUI.hpp
++++ b/Runtime/MP1/CFrontEndUI.hpp
+@@ -335,6 +335,13 @@ private:
+   std::unique_ptr<SOptionsFrontEndFrame> xf0_optionsFrme;
+   CStaticAudioPlayer* xf4_curAudio = nullptr;
+ 
++  /* --autostart test automation state */
++  float x_autostartTimer = 0.f;
++  bool x_autostartTitleSent = false;
++  bool x_autostartCardDone = false;
++  bool x_autostartAPressed = false;
++  bool x_autostartA2Pressed = false;
++
+   void SetFadeBlackWithMovie() {
+     x58_fadeBlackTimer = 1000000.f;
+     x5c_fadeBlackWithMovie = true;
+diff --git a/Runtime/MP1/MP1.cpp b/Runtime/MP1/MP1.cpp
+index 5ece652..0510b4f 100644
+--- a/Runtime/MP1/MP1.cpp
++++ b/Runtime/MP1/MP1.cpp
+@@ -102,6 +102,7 @@ CGameArchitectureSupport::CGameArchitectureSupport(CMain& parent)
+   CAudioSys::SysSetVolume(0x7f);
+   CAudioSys::SetDefaultVolumeScale(0x75);
+   CAudioSys::SetVolumeScale(CAudioSys::GetDefaultVolumeScale());
++  CAudioSys::AudioSysInit();
+   CStreamAudioManager::Initialize();
+   CStreamAudioManager::SetMusicVolume(0x7f);
+   m->ResetGameState();
+@@ -218,6 +219,7 @@ CGameArchitectureSupport::~CGameArchitectureSupport() {
+   UnloadAudio();
+   CSfxManager::Shutdown();
+   CStreamAudioManager::Shutdown();
++  CAudioSys::AudioSysShutdown();
+ }
+ 
+ CMain::CMain(IFactory* resFactory, CSimplePool* resStore)
+@@ -596,6 +598,9 @@ std::string CMain::Init(int argc, char** argv, const FileStoreManager& storeMgr,
+ 
+   for (int i = 1; i < argc; ++i) {
+     std::string arg = argv[i];
++    if (arg == "--autostart") {
++      m_autostart = true;
++    }
+     if (arg == "--warp" && i < argc - 2) {
+       const char* worldIdxStr = argv[i + 1];
+       const char* areaIdxStr = argv[i + 2];
+diff --git a/Runtime/MP1/MP1.hpp b/Runtime/MP1/MP1.hpp
+index 858e3f2..e7ef78e 100644
+--- a/Runtime/MP1/MP1.hpp
++++ b/Runtime/MP1/MP1.hpp
+@@ -261,6 +261,12 @@ public:
+   TAreaId m_warpAreaId = 0;
+   u64 m_warpLayerBits = 0;
+   std::vector<TEditorId> m_warpMemoryRelays;
++
++  /* Test automation: drive the frontend to start a new game without input.
++   * Enabled by the --autostart launch argument (used on iOS Simulator where
++   * host keyboard forwarding is not available). */
++  bool m_autostart = false;
++  bool GetAutostart() const { return m_autostart; }
+ };
+ 
+ } // namespace MP1
