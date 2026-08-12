@@ -1,0 +1,600 @@
+diff --git a/cmake/aurora_core.cmake b/cmake/aurora_core.cmake
+index 87ee6a0..70a2e14 100644
+--- a/cmake/aurora_core.cmake
++++ b/cmake/aurora_core.cmake
+@@ -36,6 +36,7 @@ if (IOS)
+     target_sources(aurora_core PRIVATE
+             lib/ios/OverlayBridge.mm
+             lib/ios/MetaforceGameDataImport.mm
++            lib/ios/SunPadControllerMapping.mm
+             lib/ios/SunPadDiagnostics.mm
+             lib/ios/SunPadInputMixer.mm
+             lib/ios/SunPadSettings.mm
+@@ -44,6 +45,7 @@ if (IOS)
+     set_source_files_properties(
+             lib/ios/OverlayBridge.mm
+             lib/ios/MetaforceGameDataImport.mm
++            lib/ios/SunPadControllerMapping.mm
+             lib/ios/SunPadDiagnostics.mm
+             lib/ios/SunPadInputMixer.mm
+             lib/ios/SunPadSettings.mm
+diff --git a/include/aurora/touch.hpp b/include/aurora/touch.hpp
+index 8eb0e96..3608655 100644
+--- a/include/aurora/touch.hpp
++++ b/include/aurora/touch.hpp
+@@ -30,4 +30,9 @@ bool consume_ios_touch_state(IosTouchState& out) noexcept;
+  * a no-op. */
+ void ios_overlay_frame_presented() noexcept;
+ 
++/* iOS applies SunPad's persisted, deliberately narrow physical
++ * A/B/X/Y/right-shoulder -> GameCube A/B/X/Y/Z permutation. Other platforms
++ * return the input unchanged. */
++uint16_t map_ios_controller_face_buttons(uint16_t buttons, uint16_t physicalButtons) noexcept;
++
+ } // namespace aurora::touch
+diff --git a/lib/dolphin/pad/pad.cpp b/lib/dolphin/pad/pad.cpp
+index a9bb92e..2718a7c 100644
+--- a/lib/dolphin/pad/pad.cpp
++++ b/lib/dolphin/pad/pad.cpp
+@@ -786,6 +786,27 @@ u32 PADRead(PADStatus* status) {
+           rightTriggerSet = true;
+         }
+       });
++      uint16_t physicalFaceButtons = 0;
++      if (SDL_GetGamepadButton(controller->m_controller, SDL_GAMEPAD_BUTTON_SOUTH))
++        physicalFaceButtons |= PAD_BUTTON_A;
++      if (SDL_GetGamepadButton(controller->m_controller, SDL_GAMEPAD_BUTTON_EAST))
++        physicalFaceButtons |= PAD_BUTTON_B;
++      if (SDL_GetGamepadButton(controller->m_controller, SDL_GAMEPAD_BUTTON_WEST))
++        physicalFaceButtons |= PAD_BUTTON_X;
++      if (SDL_GetGamepadButton(controller->m_controller, SDL_GAMEPAD_BUTTON_NORTH))
++        physicalFaceButtons |= PAD_BUTTON_Y;
++      if (SDL_GetGamepadButton(controller->m_controller, SDL_GAMEPAD_BUTTON_RIGHT_SHOULDER))
++        physicalFaceButtons |= PAD_TRIGGER_Z;
++      status[i].button =
++          aurora::touch::map_ios_controller_face_buttons(status[i].button, physicalFaceButtons);
++      if (i == 0 && SDL_getenv("AURORA_VIRTUAL_GAMEPAD_MAPPING_TEST") != nullptr) {
++        static uint16_t previousTestButtons = 0xffff;
++        if (status[i].button != previousTestButtons) {
++          aurora::input::Log.info("controller mapping pad-test buttons=0x{:04x} physical=0x{:04x}",
++                                  status[i].button, physicalFaceButtons);
++          previousTestButtons = status[i].button;
++        }
++      }
+ 
+       // TODO: Add serializable mappings for these (probably not necessary)?
+       static constexpr std::array<std::pair<SDL_GamepadButton, PADExtButton>, PAD_EXT_BUTTON_COUNT> kExtButtonMappings{{
+diff --git a/lib/input.cpp b/lib/input.cpp
+index d85f45b..db20a4f 100644
+--- a/lib/input.cpp
++++ b/lib/input.cpp
+@@ -404,6 +404,13 @@ SDL_JoystickID add_controller(SDL_JoystickID which) noexcept {
+              controller.m_pid, static_cast<int>(SDL_GetGamepadType(ctrl)));
+     g_GameControllers[instance] = controller;
+     apply_port_preferences();
++    if (SDL_getenv("AURORA_VIRTUAL_GAMEPAD_MAPPING_TEST") != nullptr && controller.m_vid == 0xffff &&
++        controller.m_pid == 0x1234) {
++      for (auto& [otherInstance, other] : g_GameControllers) {
++        SDL_SetGamepadPlayerIndex(other.m_controller, otherInstance == instance ? 0 : -1);
++      }
++      Log.info("controller mapping pad-test assigned virtual instance {} to port 0", instance);
++    }
+     return instance;
+   }
+ 
+diff --git a/lib/ios/OverlayBridge.mm b/lib/ios/OverlayBridge.mm
+index a010abf..f29dd1e 100644
+--- a/lib/ios/OverlayBridge.mm
++++ b/lib/ios/OverlayBridge.mm
+@@ -1,6 +1,7 @@
+ #include <aurora/touch.hpp>
+ 
+ #import <Foundation/Foundation.h>
++#import <GameController/GameController.h>
+ #import <UIKit/UIKit.h>
+ #import <UniformTypeIdentifiers/UniformTypeIdentifiers.h>
+ 
+@@ -11,6 +12,7 @@
+ #include "../window.hpp"
+ 
+ #import "MetaforceGameDataImport.h"
++#import "SunPadControllerMapping.h"
+ #import "SunPadDiagnostics.h"
+ #import "SunPadGameOverlay.h"
+ #import "SunPadInputMixer.h"
+@@ -19,13 +21,84 @@
+ /* Metaforce-specific services behind the unchanged SunPad menu. */
+ @interface TouchOverlayDelegate : NSObject <SunPadGameOverlayDelegate, UIDocumentPickerDelegate>
+ @property(nonatomic, weak) SunPadGameOverlay* overlay;
+-- (void)presentComingSoon:(SunPadGameOverlay*)overlay title:(NSString*)title;
+ - (void)applyEngineSettings;
+ - (void)presentGameDataImport:(SunPadGameOverlay*)overlay;
+ - (void)presentGameDataFolderImport:(SunPadGameOverlay*)overlay;
+ - (void)importGameDataFromURL:(NSURL*)url overlay:(SunPadGameOverlay*)overlay;
++- (void)presentControllerMapping:(SunPadGameOverlay*)overlay;
++- (void)presentPhysicalButtonChoicesForGameButton:(uint16_t)gameButton
++                                          overlay:(SunPadGameOverlay*)overlay;
+ @end
+ 
++static BOOL ProcessHasArgument(NSString* argument) {
++    return [NSProcessInfo.processInfo.arguments containsObject:argument];
++}
++
++static SunPadControllerButtonMapping CurrentControllerMapping(void) {
++    SunPadControllerButtonMapping mapping = ProcessHasArgument(@"--metaforce-controller-mapping-pad-test")
++        ? SunPadDefaultControllerButtonMapping()
++        : [SunPadControllerMappingStore mapping];
++    if (ProcessHasArgument(@"--metaforce-controller-mapping-pad-test"))
++        mapping = SunPadControllerButtonMappingByAssigning(
++            mapping, SunPadPhysicalControllerButtonB, SunPadButtonA);
++    return mapping;
++}
++
++static std::atomic_uint64_t g_controllerMappingBits{0};
++
++static uint64_t PackControllerMapping(SunPadControllerButtonMapping mapping) {
++    return (uint64_t)mapping.gameA | ((uint64_t)mapping.gameB << 8) |
++        ((uint64_t)mapping.gameX << 16) | ((uint64_t)mapping.gameY << 24) |
++        ((uint64_t)mapping.gameZ << 32);
++}
++
++static SunPadControllerButtonMapping UnpackControllerMapping(uint64_t bits) {
++    return (SunPadControllerButtonMapping){
++        .gameA = (SunPadPhysicalControllerButton)(bits & 0xff),
++        .gameB = (SunPadPhysicalControllerButton)((bits >> 8) & 0xff),
++        .gameX = (SunPadPhysicalControllerButton)((bits >> 16) & 0xff),
++        .gameY = (SunPadPhysicalControllerButton)((bits >> 24) & 0xff),
++        .gameZ = (SunPadPhysicalControllerButton)((bits >> 32) & 0xff),
++    };
++}
++
++static void PublishControllerMapping(SunPadControllerButtonMapping mapping) {
++    g_controllerMappingBits.store(PackControllerMapping(mapping), std::memory_order_release);
++}
++
++static SunPadControllerButtonMapping ActiveControllerMapping(void) {
++    uint64_t bits = g_controllerMappingBits.load(std::memory_order_acquire);
++    if (bits == 0) {
++        SunPadControllerButtonMapping mapping = CurrentControllerMapping();
++        bits = PackControllerMapping(mapping);
++        g_controllerMappingBits.store(bits, std::memory_order_release);
++    }
++    return UnpackControllerMapping(bits);
++}
++
++static NSString* SunPadGameButtonName(uint16_t gameButton) {
++    switch (gameButton) {
++    case SunPadButtonA: return @"GameCube A";
++    case SunPadButtonB: return @"GameCube B";
++    case SunPadButtonX: return @"GameCube X";
++    case SunPadButtonY: return @"GameCube Y";
++    case SunPadButtonZ: return @"GameCube Z";
++    default: return @"Unknown";
++    }
++}
++
++static SunPadPhysicalControllerButton SunPadMappedPhysicalButton(
++    SunPadControllerButtonMapping mapping, uint16_t gameButton) {
++    switch (gameButton) {
++    case SunPadButtonA: return mapping.gameA;
++    case SunPadButtonB: return mapping.gameB;
++    case SunPadButtonX: return mapping.gameX;
++    case SunPadButtonY: return mapping.gameY;
++    case SunPadButtonZ: return mapping.gameZ;
++    default: return (SunPadPhysicalControllerButton)0;
++    }
++}
++
+ @implementation TouchOverlayDelegate
+ 
+ - (instancetype)init {
+@@ -66,21 +139,6 @@
+               (long)settings.renderScale, (long)settings.aspectRatioMode);
+ }
+ 
+-- (void)presentComingSoon:(SunPadGameOverlay*)overlay title:(NSString*)title {
+-    UIViewController* presenter = overlay.window.rootViewController;
+-    if (presenter == nil) {
+-        return;
+-    }
+-    UIAlertController* alert =
+-        [UIAlertController alertControllerWithTitle:title
+-                                            message:@"This action is not available in this build yet."
+-                                     preferredStyle:UIAlertControllerStyleAlert];
+-    [alert addAction:[UIAlertAction actionWithTitle:@"OK"
+-                                             style:UIAlertActionStyleDefault
+-                                           handler:nil]];
+-    [presenter presentViewController:alert animated:YES completion:nil];
+-}
+-
+ - (void)gameOverlayRequestsGameDataChange:(SunPadGameOverlay*)overlay {
+     [self presentGameDataImport:overlay];
+ }
+@@ -106,7 +164,98 @@
+ }
+ 
+ - (void)gameOverlayRequestsControllerMapping:(SunPadGameOverlay*)overlay {
+-    [self presentComingSoon:overlay title:@"Controller Mapping"];
++    [self presentControllerMapping:overlay];
++}
++
++- (void)presentControllerMapping:(SunPadGameOverlay*)overlay {
++    NSString* controllerName = nil;
++    BOOL hasRemappedElements = NO;
++    for (GCController* controller in GCController.controllers) {
++        if (controller.extendedGamepad != nil) {
++            controllerName = controller.vendorName ?: controller.productCategory;
++            hasRemappedElements = controller.physicalInputProfile.hasRemappedElements;
++            break;
++        }
++    }
++    SunPadControllerButtonMapping mapping = CurrentControllerMapping();
++    NSString* message = controllerName.length > 0
++        ? [NSString stringWithFormat:@"Connected: %@\nOnly A, B, X, Y, and Z are remapped. Analog triggers, sticks, D-pad, Start, and L stay unchanged.",
++                                     controllerName]
++        : @"No extended controller is connected. You can review or reset the saved mapping; connect a controller to test it.";
++    if (hasRemappedElements) {
++        message = [message stringByAppendingString:
++            @"\n\niOS controller customization is also active, so Apple applies that remap before Metaforce."];
++    }
++
++    UIAlertController* alert =
++        [UIAlertController alertControllerWithTitle:@"Controller Button Mapping"
++                                            message:message
++                                     preferredStyle:UIAlertControllerStyleAlert];
++    const uint16_t gameButtons[] = {
++        SunPadButtonA, SunPadButtonB, SunPadButtonX, SunPadButtonY, SunPadButtonZ,
++    };
++    __weak TouchOverlayDelegate* weakSelf = self;
++    for (uint16_t gameButton : gameButtons) {
++        NSString* title = [NSString stringWithFormat:@"%@ — %@",
++            SunPadGameButtonName(gameButton),
++            SunPadPhysicalControllerButtonName(
++                SunPadMappedPhysicalButton(mapping, gameButton))];
++        [alert addAction:[UIAlertAction actionWithTitle:title
++                                                style:UIAlertActionStyleDefault
++                                              handler:^(__kindof UIAlertAction*) {
++            [weakSelf presentPhysicalButtonChoicesForGameButton:gameButton overlay:overlay];
++        }]];
++    }
++    [alert addAction:[UIAlertAction actionWithTitle:@"Reset to Default"
++                                            style:UIAlertActionStyleDestructive
++                                          handler:^(__kindof UIAlertAction*) {
++        [SunPadControllerMappingStore reset];
++        PublishControllerMapping(SunPadDefaultControllerButtonMapping());
++        SunPadLog(@"controller mapping reset to default");
++        [weakSelf presentControllerMapping:overlay];
++    }]];
++    [alert addAction:[UIAlertAction actionWithTitle:@"Done"
++                                            style:UIAlertActionStyleCancel
++                                          handler:nil]];
++    [overlay.window.rootViewController presentViewController:alert animated:YES completion:nil];
++}
++
++- (void)presentPhysicalButtonChoicesForGameButton:(uint16_t)gameButton
++                                          overlay:(SunPadGameOverlay*)overlay {
++    UIAlertController* alert = [UIAlertController
++        alertControllerWithTitle:SunPadGameButtonName(gameButton)
++                         message:@"Choose the physical controller button. If it is already assigned, the two assignments swap."
++                  preferredStyle:UIAlertControllerStyleAlert];
++    const SunPadPhysicalControllerButton physicalButtons[] = {
++        SunPadPhysicalControllerButtonA,
++        SunPadPhysicalControllerButtonB,
++        SunPadPhysicalControllerButtonX,
++        SunPadPhysicalControllerButtonY,
++        SunPadPhysicalControllerButtonRightShoulder,
++    };
++    __weak TouchOverlayDelegate* weakSelf = self;
++    for (SunPadPhysicalControllerButton physicalButton : physicalButtons) {
++        [alert addAction:[UIAlertAction
++            actionWithTitle:SunPadPhysicalControllerButtonName(physicalButton)
++                      style:UIAlertActionStyleDefault
++                    handler:^(__kindof UIAlertAction*) {
++            SunPadControllerButtonMapping mapping = [SunPadControllerMappingStore mapping];
++            mapping = SunPadControllerButtonMappingByAssigning(
++                mapping, physicalButton, gameButton);
++            [SunPadControllerMappingStore setMapping:mapping];
++            PublishControllerMapping(mapping);
++            SunPadLog(@"controller mapping changed game=%@ physical=%@",
++                      SunPadGameButtonName(gameButton),
++                      SunPadPhysicalControllerButtonName(physicalButton));
++            [weakSelf presentControllerMapping:overlay];
++        }]];
++    }
++    [alert addAction:[UIAlertAction actionWithTitle:@"Cancel"
++                                            style:UIAlertActionStyleCancel
++                                          handler:^(__kindof UIAlertAction*) {
++        [weakSelf presentControllerMapping:overlay];
++    }]];
++    [overlay.window.rootViewController presentViewController:alert animated:YES completion:nil];
+ }
+ 
+ - (void)presentGameDataImport:(SunPadGameOverlay*)overlay {
+@@ -248,7 +397,14 @@ bool attach_ios_overlay(SDL_Window* sdlWindow) noexcept {
+   // Add at the window level so the overlay stays above the SDL Metal view.
+   [window addSubview:overlay];
+   g_overlay = overlay;
++  PublishControllerMapping(CurrentControllerMapping());
+   [g_delegate applyEngineSettings];
++  if (ProcessHasArgument(@"--metaforce-controller-mapping-ui-test")) {
++    dispatch_async(dispatch_get_main_queue(), ^{
++      [g_delegate presentControllerMapping:g_overlay];
++      SunPadLog(@"controller mapping UI test presented");
++    });
++  }
+ 
+   g_fpsLabel = [UILabel new];
+   g_fpsLabel.textColor = [UIColor colorWithWhite:1.0 alpha:0.85];
+@@ -290,4 +446,60 @@ void ios_overlay_frame_presented() noexcept {
+   g_presentedFrames.fetch_add(1, std::memory_order_relaxed);
+ }
+ 
++uint16_t map_ios_controller_face_buttons(const uint16_t buttons,
++                                         const uint16_t physicalButtons) noexcept {
++  SunPadPhysicalControllerButton pressed = (SunPadPhysicalControllerButton)0;
++  if (physicalButtons & SunPadButtonA) pressed |= SunPadPhysicalControllerButtonA;
++  if (physicalButtons & SunPadButtonB) pressed |= SunPadPhysicalControllerButtonB;
++  if (physicalButtons & SunPadButtonX) pressed |= SunPadPhysicalControllerButtonX;
++  if (physicalButtons & SunPadButtonY) pressed |= SunPadPhysicalControllerButtonY;
++  if (physicalButtons & SunPadButtonZ) pressed |= SunPadPhysicalControllerButtonRightShoulder;
++  constexpr uint16_t remappedMask =
++      SunPadButtonA | SunPadButtonB | SunPadButtonX | SunPadButtonY | SunPadButtonZ;
++  return (buttons & ~remappedMask) |
++      SunPadApplyControllerButtonMapping(ActiveControllerMapping(), pressed);
++}
++
++extern "C" int MetaforceRunControllerMappingTest(void) {
++  NSUserDefaults* defaults = NSUserDefaults.standardUserDefaults;
++  NSString* key = @"SunPadControllerButtonMappingV1";
++  id saved = [defaults objectForKey:key];
++  int result = 0;
++
++  [SunPadControllerMappingStore reset];
++  PublishControllerMapping(SunPadDefaultControllerButtonMapping());
++  constexpr uint16_t direct = SunPadButtonStart | SunPadButtonL;
++  if (map_ios_controller_face_buttons(direct, SunPadButtonA | SunPadButtonZ) !=
++      (direct | SunPadButtonA | SunPadButtonZ)) {
++    result = 1;
++  }
++
++  SunPadControllerButtonMapping mapping = [SunPadControllerMappingStore mapping];
++  mapping = SunPadControllerButtonMappingByAssigning(
++      mapping, SunPadPhysicalControllerButtonB, SunPadButtonA);
++  [SunPadControllerMappingStore setMapping:mapping];
++  const SunPadControllerButtonMapping persisted = [SunPadControllerMappingStore mapping];
++  PublishControllerMapping(persisted);
++  if (!SunPadControllerButtonMappingIsValid(persisted) ||
++      persisted.gameA != SunPadPhysicalControllerButtonB ||
++      persisted.gameB != SunPadPhysicalControllerButtonA ||
++      map_ios_controller_face_buttons(direct, SunPadButtonA | SunPadButtonB) !=
++          (direct | SunPadButtonA | SunPadButtonB) ||
++      map_ios_controller_face_buttons(direct, SunPadButtonA) !=
++          (direct | SunPadButtonB) ||
++      map_ios_controller_face_buttons(direct, SunPadButtonB) !=
++          (direct | SunPadButtonA)) {
++    result = 2;
++  }
++
++  if (saved != nil)
++    [defaults setObject:saved forKey:key];
++  else
++    [defaults removeObjectForKey:key];
++  [defaults synchronize];
++  PublishControllerMapping(CurrentControllerMapping());
++  SunPadLog(@"controller mapping test result=%d persistence=verified passthrough=verified", result);
++  return result;
++}
++
+ } // namespace aurora::touch
+diff --git a/lib/ios/SunPadControllerMapping.h b/lib/ios/SunPadControllerMapping.h
+new file mode 100644
+index 0000000..5d2b9f6
+--- /dev/null
++++ b/lib/ios/SunPadControllerMapping.h
+@@ -0,0 +1,49 @@
++#pragma once
++
++#import <Foundation/Foundation.h>
++
++#include "SunPadInputState.h"
++
++NS_ASSUME_NONNULL_BEGIN
++
++typedef NS_OPTIONS(uint8_t, SunPadPhysicalControllerButton) {
++    SunPadPhysicalControllerButtonA = 1 << 0,
++    SunPadPhysicalControllerButtonB = 1 << 1,
++    SunPadPhysicalControllerButtonX = 1 << 2,
++    SunPadPhysicalControllerButtonY = 1 << 3,
++    SunPadPhysicalControllerButtonRightShoulder = 1 << 4,
++};
++
++typedef struct {
++    SunPadPhysicalControllerButton gameA;
++    SunPadPhysicalControllerButton gameB;
++    SunPadPhysicalControllerButton gameX;
++    SunPadPhysicalControllerButton gameY;
++    SunPadPhysicalControllerButton gameZ;
++} SunPadControllerButtonMapping;
++
++FOUNDATION_EXPORT SunPadControllerButtonMapping SunPadDefaultControllerButtonMapping(void);
++FOUNDATION_EXPORT BOOL SunPadControllerButtonMappingIsValid(
++    SunPadControllerButtonMapping mapping);
++FOUNDATION_EXPORT uint16_t SunPadApplyControllerButtonMapping(
++    SunPadControllerButtonMapping mapping,
++    SunPadPhysicalControllerButton pressedButtons);
++FOUNDATION_EXPORT SunPadControllerButtonMapping SunPadControllerButtonMappingByAssigning(
++    SunPadControllerButtonMapping mapping,
++    SunPadPhysicalControllerButton physicalButton,
++    uint16_t gameButton);
++FOUNDATION_EXPORT NSString *SunPadPhysicalControllerButtonName(
++    SunPadPhysicalControllerButton button);
++
++/* Versioned, app-local persistence for the deliberately narrow A/B/X/Y/Z
++ * remapping layer. Sticks, D-pad, Menu, left shoulder, and analog triggers
++ * remain outside this store and keep their established direct mappings. */
++@interface SunPadControllerMappingStore : NSObject
++
+++ (SunPadControllerButtonMapping)mapping;
+++ (void)setMapping:(SunPadControllerButtonMapping)mapping;
+++ (void)reset;
++
++@end
++
++NS_ASSUME_NONNULL_END
+diff --git a/lib/ios/SunPadControllerMapping.mm b/lib/ios/SunPadControllerMapping.mm
+new file mode 100644
+index 0000000..534215d
+--- /dev/null
++++ b/lib/ios/SunPadControllerMapping.mm
+@@ -0,0 +1,140 @@
++#import "SunPadControllerMapping.h"
++
++#include <initializer_list>
++
++static NSString *const SunPadControllerMappingDefaultsKey =
++    @"SunPadControllerButtonMappingV1";
++
++static NSArray<NSString *> *SunPadMappingKeys(void) {
++    return @[@"A", @"B", @"X", @"Y", @"Z"];
++}
++
++static NSArray<NSNumber *> *SunPadMappingValues(SunPadControllerButtonMapping mapping) {
++    return @[@(mapping.gameA), @(mapping.gameB), @(mapping.gameX),
++             @(mapping.gameY), @(mapping.gameZ)];
++}
++
++static SunPadPhysicalControllerButton *SunPadMappingSlot(
++    SunPadControllerButtonMapping *mapping, uint16_t gameButton) {
++    switch (gameButton) {
++    case SunPadButtonA: return &mapping->gameA;
++    case SunPadButtonB: return &mapping->gameB;
++    case SunPadButtonX: return &mapping->gameX;
++    case SunPadButtonY: return &mapping->gameY;
++    case SunPadButtonZ: return &mapping->gameZ;
++    default: return nullptr;
++    }
++}
++
++SunPadControllerButtonMapping SunPadDefaultControllerButtonMapping(void) {
++    return (SunPadControllerButtonMapping){
++        .gameA = SunPadPhysicalControllerButtonA,
++        .gameB = SunPadPhysicalControllerButtonB,
++        .gameX = SunPadPhysicalControllerButtonX,
++        .gameY = SunPadPhysicalControllerButtonY,
++        .gameZ = SunPadPhysicalControllerButtonRightShoulder,
++    };
++}
++
++BOOL SunPadControllerButtonMappingIsValid(SunPadControllerButtonMapping mapping) {
++    uint8_t seen = 0;
++    const uint8_t allowed = SunPadPhysicalControllerButtonA |
++        SunPadPhysicalControllerButtonB | SunPadPhysicalControllerButtonX |
++        SunPadPhysicalControllerButtonY |
++        SunPadPhysicalControllerButtonRightShoulder;
++    for (NSNumber *number in SunPadMappingValues(mapping)) {
++        uint8_t value = number.unsignedCharValue;
++        if (value == 0 || (value & (value - 1)) != 0 || (value & ~allowed) != 0 ||
++            (seen & value) != 0) {
++            return NO;
++        }
++        seen |= value;
++    }
++    return seen == allowed;
++}
++
++uint16_t SunPadApplyControllerButtonMapping(
++    SunPadControllerButtonMapping mapping,
++    SunPadPhysicalControllerButton pressedButtons) {
++    if (!SunPadControllerButtonMappingIsValid(mapping))
++        mapping = SunPadDefaultControllerButtonMapping();
++    uint16_t gameButtons = 0;
++    if (pressedButtons & mapping.gameA) gameButtons |= SunPadButtonA;
++    if (pressedButtons & mapping.gameB) gameButtons |= SunPadButtonB;
++    if (pressedButtons & mapping.gameX) gameButtons |= SunPadButtonX;
++    if (pressedButtons & mapping.gameY) gameButtons |= SunPadButtonY;
++    if (pressedButtons & mapping.gameZ) gameButtons |= SunPadButtonZ;
++    return gameButtons;
++}
++
++SunPadControllerButtonMapping SunPadControllerButtonMappingByAssigning(
++    SunPadControllerButtonMapping mapping,
++    SunPadPhysicalControllerButton physicalButton,
++    uint16_t gameButton) {
++    if (!SunPadControllerButtonMappingIsValid(mapping))
++        mapping = SunPadDefaultControllerButtonMapping();
++    SunPadPhysicalControllerButton *destination = SunPadMappingSlot(&mapping, gameButton);
++    if (destination == nullptr)
++        return mapping;
++    SunPadPhysicalControllerButton previous = *destination;
++    if (previous == physicalButton)
++        return mapping;
++    for (uint16_t candidate : {SunPadButtonA, SunPadButtonB, SunPadButtonX,
++                               SunPadButtonY, SunPadButtonZ}) {
++        SunPadPhysicalControllerButton *slot = SunPadMappingSlot(&mapping, candidate);
++        if (slot != nullptr && *slot == physicalButton) {
++            *slot = previous;
++            break;
++        }
++    }
++    *destination = physicalButton;
++    return mapping;
++}
++
++NSString *SunPadPhysicalControllerButtonName(SunPadPhysicalControllerButton button) {
++    switch (button) {
++    case SunPadPhysicalControllerButtonA: return @"A";
++    case SunPadPhysicalControllerButtonB: return @"B";
++    case SunPadPhysicalControllerButtonX: return @"X";
++    case SunPadPhysicalControllerButtonY: return @"Y";
++    case SunPadPhysicalControllerButtonRightShoulder: return @"Right Shoulder";
++    default: return @"Unknown";
++    }
++}
++
++@implementation SunPadControllerMappingStore
++
+++ (SunPadControllerButtonMapping)mapping {
++    NSDictionary *saved = [[NSUserDefaults standardUserDefaults]
++        dictionaryForKey:SunPadControllerMappingDefaultsKey];
++    if (saved == nil)
++        return SunPadDefaultControllerButtonMapping();
++    NSArray<NSString *> *keys = SunPadMappingKeys();
++    SunPadControllerButtonMapping mapping = {
++        .gameA = (SunPadPhysicalControllerButton)[saved[keys[0]] unsignedCharValue],
++        .gameB = (SunPadPhysicalControllerButton)[saved[keys[1]] unsignedCharValue],
++        .gameX = (SunPadPhysicalControllerButton)[saved[keys[2]] unsignedCharValue],
++        .gameY = (SunPadPhysicalControllerButton)[saved[keys[3]] unsignedCharValue],
++        .gameZ = (SunPadPhysicalControllerButton)[saved[keys[4]] unsignedCharValue],
++    };
++    return SunPadControllerButtonMappingIsValid(mapping)
++        ? mapping : SunPadDefaultControllerButtonMapping();
++}
++
+++ (void)setMapping:(SunPadControllerButtonMapping)mapping {
++    if (!SunPadControllerButtonMappingIsValid(mapping))
++        mapping = SunPadDefaultControllerButtonMapping();
++    NSArray<NSString *> *keys = SunPadMappingKeys();
++    NSArray<NSNumber *> *values = SunPadMappingValues(mapping);
++    NSMutableDictionary *saved = [NSMutableDictionary dictionaryWithCapacity:keys.count];
++    for (NSUInteger index = 0; index < keys.count; ++index)
++        saved[keys[index]] = values[index];
++    [[NSUserDefaults standardUserDefaults] setObject:saved
++                                              forKey:SunPadControllerMappingDefaultsKey];
++}
++
+++ (void)reset {
++    [[NSUserDefaults standardUserDefaults] removeObjectForKey:SunPadControllerMappingDefaultsKey];
++}
++
++@end
+diff --git a/lib/ios_touch_stub.cpp b/lib/ios_touch_stub.cpp
+index d27d8e5..6a81075 100644
+--- a/lib/ios_touch_stub.cpp
++++ b/lib/ios_touch_stub.cpp
+@@ -10,4 +10,6 @@ bool consume_ios_touch_state(IosTouchState&) noexcept {
+ }
+ 
+ void ios_overlay_frame_presented() noexcept {}
++
++uint16_t map_ios_controller_face_buttons(const uint16_t buttons, uint16_t) noexcept { return buttons; }
+ } // namespace aurora::touch

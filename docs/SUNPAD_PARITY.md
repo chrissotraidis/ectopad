@@ -21,6 +21,8 @@ than independently redesigned.
 | `apple/shared/SunPadInputMixer.h` | `lib/ios/SunPadInputMixer.h` | Byte-identical |
 | `apple/shared/SunPadInputMixer.mm` | `lib/ios/SunPadInputMixer.mm` | Byte-identical |
 | `apple/shared/SunPadInputState.h` | `lib/ios/SunPadInputState.h` | Byte-identical |
+| `apple/shared/SunPadControllerMapping.h` | `lib/ios/SunPadControllerMapping.h` | Byte-identical |
+| `apple/shared/SunPadControllerMapping.mm` | `lib/ios/SunPadControllerMapping.mm` | Byte-identical |
 | `apple/shared/SunPadDiagnostics.h` | `lib/ios/SunPadDiagnostics.h` | Byte-identical |
 | `apple/shared/SunPadDiagnostics.mm` | `lib/ios/SunPadDiagnostics.mm` | One intentional app-name change: the persistent log root is `Metaforce/Logs` instead of `SunPad/Logs` |
 
@@ -45,7 +47,7 @@ behavior belongs behind this bridge, not in a restyled overlay.
 | Layout editor | SunPad drag, per-control resize, and reset code present | Current-build interaction awaits touch delivery/device verification |
 | Game Data & Saves | SunPad menu structure unchanged | Files picker/folder import, exact GM8E01 Rev 2 validation, private staging, atomic activation, and save-preserving removal implemented; service path Simulator-verified, picker interaction awaits touch/device |
 | Share Diagnostic Log | SunPad menu, privacy confirmation, snapshot, and share sheet are ported directly | Implementation is already self-contained in the overlay; current-build interaction still awaits working touch delivery/device verification |
-| Controller Mapping | SunPad menu item present | Bridge alert only; mapping UI/engine action remains |
+| Controller Mapping | SunPad menu item and mapping model ported directly | A/B/X/Y/right-shoulder ↔ GameCube A/B/X/Y/Z permutation persists and applies in the iOS SDL→PAD path; Simulator UI and deterministic swap/passthrough test verified; physical controller remains untested |
 
 ## Verification record
 
@@ -81,3 +83,13 @@ behavior belongs behind this bridge, not in a restyled overlay.
   valid import/reimport and removal were verified through the same service used
   by the delegate. A normal restart booted the activated image. Evidence:
   `/tmp/metaforce-import-atomic-2026-08-12.log` and [GAME_DATA.md](GAME_DATA.md).
+- Controller mapping now uses SunPad's byte-identical mapping store and the same
+  five-button swap UI. The Simulator displayed the dialog over the unchanged
+  controls and a test restored prior defaults after verifying default mapping,
+  persisted A/B swap, and Start/L passthrough. Evidence:
+  `/tmp/ios-controller-mapping-ui-2026-08-12.png` and
+  `/tmp/ios-controller-mapping-2026-08-12.log`.
+- An SDL virtual controller then proved the runtime boundary itself: under an
+  opt-in A/B swap, PAD logged raw physical B `0x0200` as mapped GameCube A
+  `0x0100`, then neutral on release. Production reads an atomic cached mapping;
+  `NSUserDefaults` is not consulted per frame.

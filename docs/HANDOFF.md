@@ -24,7 +24,9 @@ Last updated: 2026-08-12
   behind the unchanged menu source. Simulator evidence proves 2× 4:3
   (`1280x960`), 2× experimental 16:9 (`1707x960`), and the live
   presented-frame label. The Experimental 60 FPS switch remains intentionally
-  unwired for GM8E01, and Controller Mapping remains a bridge alert.
+  unwired for GM8E01. Controller Mapping now uses SunPad's byte-identical store
+  and reference five-button UI; Simulator persistence/permutation/UI evidence is
+  complete, while physical-controller behavior remains untested.
 - Game Data & Saves is now real behind the unchanged SunPad UI: Files picker and
   Documents-folder imports validate exact GM8E01 Rev 2, stage privately, verify
   canonical SHA-1, and activate by same-directory atomic rename. Simulator
@@ -38,10 +40,11 @@ Last updated: 2026-08-12
 - Performance runs must close competing CPU/GPU-heavy apps and record load.
   The 20.4/59.9 Simulator samples were confounded and are functional FPS-label
   evidence only, not baselines.
-- Next unblocked work: wire controller mapping, then re-test the touch
-  menu/editor and production Files picker plus the already
-  ported diagnostic share sheet on hardware. Gate 2/3 still requires signing
-  identity and physical devices.
+- The requirement-level status is now explicit in
+  [COMPLETION_AUDIT.md](COMPLETION_AUDIT.md). Next unblocked work is iPhone
+  Simulator/layout coverage, diagnostic-share privacy verification, and
+  current-build touch/menu/editor/production Files picker interaction where the
+  host permits it. Gate 2/3 still requires signing identity and physical devices.
 
 ## How to resume
 

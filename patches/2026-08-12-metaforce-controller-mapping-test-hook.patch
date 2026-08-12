@@ -1,0 +1,44 @@
+diff --git a/Runtime/CMain.cpp b/Runtime/CMain.cpp
+index 158664a..a0fba50 100644
+--- a/Runtime/CMain.cpp
++++ b/Runtime/CMain.cpp
+@@ -35,12 +35,14 @@
+ 
+ #include <aurora/event.h>
+ #include <aurora/main.h>
++#include <aurora/audio.h>
+ #include <dolphin/vi.h>
+ #include <SDL3/SDL_log.h>
+ #include <SDL3/SDL_messagebox.h>
+ #if TARGET_OS_IOS
+ extern "C" int MetaforceRunGameDataImportTest(const char* requestedPath);
+ extern "C" int MetaforceRunGameDataRemovalTest(void);
++extern "C" int MetaforceRunControllerMappingTest(void);
+ #endif
+ #if defined(ANDROID)
+ #include <spdlog/sinks/android_sink.h>
+@@ -457,6 +459,7 @@ public:
+ //    if (m_voiceEngine) {
+ //      m_voiceEngine->pumpAndMixVoices();
+ //    }
++    aurora_audio_pump();
+ #ifdef EMSCRIPTEN
+     CDvdFile::DoWork();
+ #endif
+@@ -490,6 +493,7 @@ public:
+     //      m_voiceEngine->unlockPump();
+     //      m_voiceEngine->stopPump();
+     //    }
++    aurora_audio_close();
+     if (g_mainMP1) {
+       g_mainMP1->Shutdown();
+     }
+@@ -614,6 +618,8 @@ int main(int argc, char** argv) {
+       return MetaforceRunGameDataImportTest(argv[i + 1]);
+     if (!strcmp(argv[i], "--metaforce-remove-data-test"))
+       return MetaforceRunGameDataRemovalTest();
++    if (!strcmp(argv[i], "--metaforce-controller-mapping-test"))
++      return MetaforceRunControllerMappingTest();
+   }
+ #endif
+ 

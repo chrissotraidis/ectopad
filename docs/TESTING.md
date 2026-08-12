@@ -200,6 +200,31 @@ Last updated: 2026-08-12
   macOS dylib. Production Files-picker tapping is still unverified because host
   Simulator touch delivery is broken and no signed physical device is present.
 
+### 2026-08-12 — holistic audit and SunPad controller mapping
+
+- Added [COMPLETION_AUDIT.md](COMPLETION_AUDIT.md), checking every goal block
+  against current evidence. The goal remains active: physical iPhone/iPad Gates
+  2/3, current touch/UI interaction, diagnostics sharing, gameplay breadth,
+  controlled performance/memory, and packaging remain incomplete.
+- Ported `SunPadControllerMapping.{h,mm}` byte-identically. The unchanged
+  SunPad menu now presents the reference five-button mapping UI; Aurora applies
+  its persisted A/B/X/Y/right-shoulder permutation only to the iOS SDL gamepad
+  path, leaving sticks, triggers, D-pad, Start, L, touch, and desktop unchanged.
+- Simulator test returned `result=0` after verifying default mapping, persisted
+  A/B swap in both directions, and Start/L passthrough, then restored the user's
+  prior preference. A deterministic UI launch displayed all five default rows
+  over the unchanged controls. Evidence:
+  `/tmp/ios-controller-mapping-ui-2026-08-12.png` and
+  `/tmp/ios-controller-mapping-2026-08-12.log`.
+- The full SDL virtual-controller → Aurora assignment → `PADRead` mapping path
+  was also exercised with an opt-in test-only A/B swap. A raw physical east/B
+  bit (`physical=0x0200`) emerged as GameCube A (`buttons=0x0100`) and returned
+  to zero on release. Evidence was captured from the live console; the guarded
+  test assignment/logging is inert unless explicitly enabled.
+- macOS ARM64, iOS Simulator, and physical arm64 iOS builds all completed. The
+  Simulator was shut down afterward. Physical behavior is not claimed: this Mac
+  currently has zero code-signing identities and `devicectl` sees no device.
+
 ### 2026-08-11 — macOS rendering and keyboard fixes
 
 - In-game: `Metaforce -l --warp 2 2 +debugOverlay.* <iso>` — full-screen scene +
