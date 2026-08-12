@@ -231,6 +231,26 @@ below are retained as evidence; newer entries supersede older limitations.
 - Note: exec-session teardown kills backgrounded Metaforce processes; keep
   launch + capture inside one command.
 
+## Automation check 2026-08-12 12:05 (macOS)
+
+- Build: OK — incremental (75/75, current tree at `c7bd09c`).
+- macOS render: OK — `--warp 2 2` full-frame Tallon Overworld gameplay
+  (HUD, ENERGY 99, radar, minimap, arm cannon); **FPS 60.0, draw calls 1807,
+  merged 14814**, done pipelines 250; no FATAL/error lines. Evidence:
+  `/tmp/mf_auto_check.png`, log `/tmp/mf_auto_check.log`.
+- Audio: OK — 6 voices (3 submixes) steady pump.
+- iPad Simulator (opportunistic): **skipped (sim not booted)**.
+
+## Physical Gate 2/3 attempt 2026-08-12 (blocked at prerequisites)
+
+- Re-verified the exact prerequisites: `security find-identity -p codesigning
+  -v` → `0 valid identities found`; `~/Library/MobileDevice/Provisioning
+  Profiles/` does not exist; `xcrun devicectl list devices` → `No devices
+  found`; `xctrace list devices` → Mac + Simulators only.
+- Per the objective, no signing/install was attempted, no speculative
+  engine/UI change was made, and no Simulator work was performed. Gates 2 and
+  3 remain unexecuted, not failed.
+
 ## Final state reconciliation 2026-08-12
 
 - Current menu/touch harness: `phase=settings/editor/folder/files-picker`

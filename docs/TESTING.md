@@ -33,6 +33,29 @@ Last updated: 2026-08-12
 
 ## Evidence ledger
 
+### 2026-08-12 — physical Gate 2/3 attempt: blocked at prerequisites
+
+- The scoped physical pass could not start. Exact verification:
+  `security find-identity -p codesigning -v` → `0 valid identities found`
+  (no `Apple Development` certificate in the login keychain);
+  `~/Library/MobileDevice/Provisioning Profiles/` does not exist;
+  `xcrun devicectl list devices` → `No devices found`; `xctrace list devices`
+  → Mac + Simulators only.
+- The unsigned source app was verified read-only and left untouched:
+  `ref/metaforce/build/ios-default/Binaries/Metaforce.app` — non-fat arm64
+  Mach-O, iPhoneOS platform 2, min iOS 14.0, `com.axiodl.Metaforce` 0.0.1 (1),
+  `code object is not signed at all`.
+- No signing, install, launch, Metal, overlay, menu, import, audio, save, or
+  lifecycle observation was attempted. All Gate 2 items are **BLOCKED** and all
+  focused Gate 3 items are **NOT TESTED**. No engine/UI change was made.
+  Evidence: `/tmp/ectopad-gate2-prereq-blocked-2026-08-12.md`.
+- Re-verified on the same date (second consecutive attempt): still `0 valid
+  identities found`, no `Provisioning Profiles` directory, and `devicectl`
+  still reports no devices. The same three prerequisites remain missing.
+- Re-verified a third time (third consecutive attempt): identical result —
+  no identity, no profile directory, no device. The physical pass remains
+  blocked pending the external prerequisites.
+
 ### 2026-08-12 — current SunPad interaction/menu and audio reserve
 
 - Added an opt-in current-build harness in Metaforce-specific
