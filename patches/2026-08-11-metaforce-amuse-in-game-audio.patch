@@ -1,0 +1,1290 @@
+diff --git a/Runtime/Audio/CAudioGroupSet.cpp b/Runtime/Audio/CAudioGroupSet.cpp
+index 8041d43..2bb9aae 100644
+--- a/Runtime/Audio/CAudioGroupSet.cpp
++++ b/Runtime/Audio/CAudioGroupSet.cpp
+@@ -1,9 +1,10 @@
+ #include "Runtime/Audio/CAudioGroupSet.hpp"
+ 
+ #include <cstring>
++#include "Runtime/Streams/CMemoryInStream.hpp"
+ 
+ namespace metaforce {
+-/*
++
+ amuse::AudioGroupData CAudioGroupSet::LoadData() {
+   const auto readU32 = [](const u8* ptr) {
+     uint32_t value;
+@@ -30,8 +31,8 @@ amuse::AudioGroupData CAudioGroupSet::LoadData() {
+ 
+   return {proj, projLen, pool, poolLen, sdir, sdirLen, samp, sampLen, amuse::GCNDataTag{}};
+ }
+-*/
+-CAudioGroupSet::CAudioGroupSet(std::unique_ptr<u8[]>&& in) : m_buffer(std::move(in)) {}
++
++CAudioGroupSet::CAudioGroupSet(std::unique_ptr<u8[]>&& in) : m_buffer(std::move(in)), m_data(LoadData()) {}
+ 
+ CFactoryFnReturn FAudioGroupSetDataFactory(const metaforce::SObjectTag& tag, std::unique_ptr<u8[]>&& in, u32 len,
+                                            const metaforce::CVParamTransfer& vparms, CObjectReference* selfRef) {
+diff --git a/Runtime/Audio/CAudioGroupSet.hpp b/Runtime/Audio/CAudioGroupSet.hpp
+index 54960fa..444b547 100644
+--- a/Runtime/Audio/CAudioGroupSet.hpp
++++ b/Runtime/Audio/CAudioGroupSet.hpp
+@@ -9,7 +9,7 @@
+ #include "Runtime/IObj.hpp"
+ #include "Runtime/RetroTypes.hpp"
+ 
+-//#include <amuse/AudioGroupData.hpp>
++#include <amuse/AudioGroupData.hpp>
+ 
+ namespace metaforce {
+ 
+@@ -17,12 +17,12 @@ class CAudioGroupSet {
+   std::unique_ptr<u8[]> m_buffer;
+   std::string x10_baseName;
+   std::string x20_name;
+-//  amuse::AudioGroupData m_data;
+-//  amuse::AudioGroupData LoadData();
++  amuse::AudioGroupData m_data;
++  amuse::AudioGroupData LoadData();
+ 
+ public:
+   explicit CAudioGroupSet(std::unique_ptr<u8[]>&& in);
+-  //const amuse::AudioGroupData& GetAudioGroupData() const { return m_data; }
++  const amuse::AudioGroupData& GetAudioGroupData() const { return m_data; }
+   std::string_view GetName() const { return x20_name; }
+ };
+ 
+diff --git a/Runtime/Audio/CAudioSys.cpp b/Runtime/Audio/CAudioSys.cpp
+index 84f9ffe..1134214 100644
+--- a/Runtime/Audio/CAudioSys.cpp
++++ b/Runtime/Audio/CAudioSys.cpp
+@@ -5,6 +5,14 @@
+ 
+ #include "Runtime/CSimplePool.hpp"
+ #include "Runtime/Audio/CAudioGroupSet.hpp"
++#include "Runtime/Audio/CStaticAudioPlayer.hpp"
++#include "Runtime/Audio/SDLBackend.hpp"
++
++#include <aurora/audio.h>
++#include <amuse/AudioGroup.hpp>
++#include <spdlog/spdlog.h>
++
++#include <vector>
+ 
+ namespace metaforce {
+ namespace {
+@@ -20,6 +28,55 @@ s16 s_DefaultVolumeScale = 0x7f;
+ } // Anonymous namespace
+ 
+ CAudioSys* CAudioSys::g_SharedSys = nullptr;
++SDLBackendVoiceAllocator* CAudioSys::s_audioBackend = nullptr;
++amuse::Engine* CAudioSys::s_amuseEngine = nullptr;
++
++namespace {
++void MasterSupplyCallback(float* data, int frames) {
++  // Frontend/static music first.
++  CStaticAudioPlayer::SupplyCallback(data, frames);
++  // Then the amuse engine mix (game SFX/music), summed on top.
++  if (SDLBackendVoiceAllocator* backend = CAudioSys::GetAudioBackendPtr()) {
++    static std::vector<float> amuseBuf;
++    amuseBuf.resize(static_cast<size_t>(frames) * 2);
++    backend->pumpAndMix(static_cast<size_t>(frames), amuseBuf.data());
++    for (int i = 0; i < frames * 2; ++i) {
++      data[i] += amuseBuf[i];
++    }
++  }
++}
++} // namespace
++
++amuse::Engine& CAudioSys::GetAmuseEngine() {
++  if (s_amuseEngine == nullptr) {
++    AudioSysInit();
++  }
++  return *s_amuseEngine;
++}
++
++SDLBackendVoiceAllocator& CAudioSys::GetAudioBackend() {
++  GetAmuseEngine();
++  return *s_audioBackend;
++}
++
++SDLBackendVoiceAllocator* CAudioSys::GetAudioBackendPtr() { return s_audioBackend; }
++
++void CAudioSys::AudioSysInit() {
++  if (s_amuseEngine != nullptr) {
++    return;
++  }
++  s_audioBackend = new SDLBackendVoiceAllocator(32000.0);
++  s_amuseEngine = new amuse::Engine(*s_audioBackend);
++  aurora_audio_open(32000, MasterSupplyCallback);
++  spdlog::info("CAudioSys: amuse engine initialized (SDL backend, 32000 Hz)");
++}
++
++void CAudioSys::AudioSysShutdown() {
++  delete s_amuseEngine;
++  s_amuseEngine = nullptr;
++  delete s_audioBackend;
++  s_audioBackend = nullptr;
++}
+ 
+ TLockedToken<CAudioGroupSet> CAudioSys::FindGroupSet(std::string_view name) {
+   // TODO: Heterogeneous lookup when C++20 available
+@@ -69,12 +126,30 @@ void CAudioSys::SysUnloadAudioGroupSet(std::string_view name) {
+ bool CAudioSys::SysIsGroupSetLoaded(std::string_view name) { return FindGroupSet(name).operator bool(); }
+ 
+ void CAudioSys::SysAddGroupIntoAmuse(std::string_view name) {
++  auto set = FindGroupSet(name);
++  if (!set) {
++    return;
++  }
++  GetAmuseEngine().addAudioGroup(set->GetAudioGroupData());
++  spdlog::info("CAudioSys: added audio group '{}' to amuse", name);
+ }
+ 
+ void CAudioSys::SysRemoveGroupFromAmuse(std::string_view name) {
++  auto set = FindGroupSet(name);
++  if (!set) {
++    return;
++  }
++  if (s_amuseEngine != nullptr) {
++    s_amuseEngine->removeAudioGroup(set->GetAudioGroupData());
++  }
++  spdlog::info("CAudioSys: removed audio group '{}' from amuse", name);
+ }
+ 
+-void CAudioSys::_UpdateVolume() {  }
++void CAudioSys::_UpdateVolume() {
++  if (s_amuseEngine != nullptr) {
++    s_amuseEngine->setVolume(s_MasterVol * s_SfxVol);
++  }
++}
+ 
+ void CAudioSys::SysSetVolume(u8 volume) {
+   s_MasterVol = volume / 127.f;
+diff --git a/Runtime/Audio/CAudioSys.hpp b/Runtime/Audio/CAudioSys.hpp
+index 5c3503d..3432986 100644
+--- a/Runtime/Audio/CAudioSys.hpp
++++ b/Runtime/Audio/CAudioSys.hpp
+@@ -4,13 +4,13 @@
+ #include "Runtime/GCNTypes.hpp"
+ #include "Runtime/RetroTypes.hpp"
+ 
+-//#include <amuse/amuse.hpp>
+-//#include <boo/audiodev/IAudioVoiceEngine.hpp>
++#include <amuse/Engine.hpp>
+ #include <zeus/CVector3f.hpp>
+ 
+ namespace metaforce {
+ class CAudioGroupSet;
+ class CSimplePool;
++class SDLBackendVoiceAllocator;
+ 
+ CFactoryFnReturn FAudioTranslationTableFactory(const SObjectTag& tag, CInputStream& in, const CVParamTransfer& vparms,
+                                                CObjectReference* selfRef);
+@@ -21,6 +21,8 @@ public:
+ 
+ private:
+   static CAudioSys* g_SharedSys;
++  static SDLBackendVoiceAllocator* s_audioBackend;
++  static amuse::Engine* s_amuseEngine;
+   static void _UpdateVolume();
+ 
+ public:
+@@ -53,6 +55,14 @@ public:
+   static void SysSetVolume(u8 volume);
+   static void SysSetSfxVolume(u8 volume, u16 time, bool music, bool fx);
+ 
++  /** Initialize/access the amuse audio engine (lazily created). */
++  static amuse::Engine& GetAmuseEngine();
++  static SDLBackendVoiceAllocator& GetAudioBackend();
++  /** Raw backend pointer without lazy init (null before init/after shutdown). */
++  static SDLBackendVoiceAllocator* GetAudioBackendPtr();
++  static void AudioSysInit();
++  static void AudioSysShutdown();
++
+   static s16 GetDefaultVolumeScale();
+   static void SetDefaultVolumeScale(s16 scale);
+   static void SetVolumeScale(s16 scale);
+diff --git a/Runtime/Audio/CMakeLists.txt b/Runtime/Audio/CMakeLists.txt
+index 155e720..1b598f9 100644
+--- a/Runtime/Audio/CMakeLists.txt
++++ b/Runtime/Audio/CMakeLists.txt
+@@ -5,6 +5,7 @@ set(AUDIO_SOURCES
+         CMidiManager.hpp CMidiManager.cpp
+         CStaticAudioPlayer.hpp CStaticAudioPlayer.cpp
+         CStreamAudioManager.hpp CStreamAudioManager.cpp
++        SDLBackend.hpp SDLBackend.cpp
+         g721.c g721.h)
+ 
+ runtime_add_list(Audio AUDIO_SOURCES)
+diff --git a/Runtime/Audio/CSfxManager.cpp b/Runtime/Audio/CSfxManager.cpp
+index ff41d47..f3d3f5d 100644
+--- a/Runtime/Audio/CSfxManager.cpp
++++ b/Runtime/Audio/CSfxManager.cpp
+@@ -7,15 +7,15 @@ namespace metaforce {
+ static TLockedToken<std::vector<u16>> mpSfxTranslationTableTok;
+ std::vector<u16>* CSfxManager::mpSfxTranslationTable = nullptr;
+ 
+-//static amuse::EffectReverbHiInfo s_ReverbHiQueued;
+-//static amuse::EffectChorusInfo s_ChorusQueued;
+-//static amuse::EffectReverbStdInfo s_ReverbStdQueued;
+-//static amuse::EffectDelayInfo s_DelayQueued;
+-//
+-//static amuse::EffectReverbHi* s_ReverbHiState = nullptr;
+-//static amuse::EffectChorus* s_ChorusState = nullptr;
+-//static amuse::EffectReverbStd* s_ReverbStdState = nullptr;
+-//static amuse::EffectDelay* s_DelayState = nullptr;
++static amuse::EffectReverbHiInfo s_ReverbHiQueued;
++static amuse::EffectChorusInfo s_ChorusQueued;
++static amuse::EffectReverbStdInfo s_ReverbStdQueued;
++static amuse::EffectDelayInfo s_DelayQueued;
++
++static amuse::EffectReverbHi* s_ReverbHiState = nullptr;
++static amuse::EffectChorus* s_ChorusState = nullptr;
++static amuse::EffectReverbStd* s_ReverbStdState = nullptr;
++static amuse::EffectDelay* s_DelayState = nullptr;
+ 
+ CFactoryFnReturn FAudioTranslationTableFactory(const SObjectTag& tag, CInputStream& in, const CVParamTransfer& vparms,
+                                                CObjectReference* selfRef) {
+@@ -36,7 +36,7 @@ bool CSfxManager::m_auxProcessingEnabled = false;
+ float CSfxManager::m_reverbAmount = 1.f;
+ CSfxManager::EAuxEffect CSfxManager::m_activeEffect = CSfxManager::EAuxEffect::None;
+ CSfxManager::EAuxEffect CSfxManager::m_nextEffect = CSfxManager::EAuxEffect::None;
+-//amuse::ObjToken<amuse::Listener> CSfxManager::m_listener;
++amuse::ObjToken<amuse::Listener> CSfxManager::m_listener;
+ 
+ u16 CSfxManager::kMaxPriority;
+ u16 CSfxManager::kMedPriority;
+@@ -54,27 +54,27 @@ bool CSfxManager::LoadTranslationTable(CSimplePool* pool, const SObjectTag* tag)
+ }
+ 
+ bool CSfxManager::CSfxWrapper::IsPlaying() const {
+-//  if (CBaseSfxWrapper::IsPlaying() && x1c_voiceHandle)
+-//    return x1c_voiceHandle->state() == amuse::VoiceState::Playing;
++  if (CBaseSfxWrapper::IsPlaying() && x1c_voiceHandle)
++    return x1c_voiceHandle->state() == amuse::VoiceState::Playing;
+   return false;
+ }
+ 
+ void CSfxManager::CSfxWrapper::Play() {
+-//  x1c_voiceHandle = CAudioSys::GetAmuseEngine().fxStart(x18_sfxId, x20_vol, x22_pan);
+-//  if (x1c_voiceHandle) {
+-//    if (CSfxManager::IsAuxProcessingEnabled() && UseAcoustics())
+-//      x1c_voiceHandle->setReverbVol(m_reverbAmount);
+-//    SetPlaying(true);
+-//  }
++  x1c_voiceHandle = CAudioSys::GetAmuseEngine().fxStart(x18_sfxId, x20_vol, x22_pan);
++  if (x1c_voiceHandle) {
++    if (CSfxManager::IsAuxProcessingEnabled() && UseAcoustics())
++      x1c_voiceHandle->setReverbVol(m_reverbAmount);
++    SetPlaying(true);
++  }
+   x24_ready = false;
+ }
+ 
+ void CSfxManager::CSfxWrapper::Stop() {
+-//  if (x1c_voiceHandle) {
+-//    x1c_voiceHandle->keyOff();
+-//    SetPlaying(false);
+-//    x1c_voiceHandle.reset();
+-//  }
++  if (x1c_voiceHandle) {
++    x1c_voiceHandle->keyOff();
++    SetPlaying(false);
++    x1c_voiceHandle.reset();
++  }
+ }
+ 
+ bool CSfxManager::CSfxWrapper::Ready() {
+@@ -86,25 +86,25 @@ bool CSfxManager::CSfxWrapper::Ready() {
+ u16 CSfxManager::CSfxWrapper::GetSfxId() const { return x18_sfxId; }
+ 
+ void CSfxManager::CSfxWrapper::UpdateEmitterSilent() {
+-//  if (x1c_voiceHandle)
+-//    x1c_voiceHandle->setVolume(1.f / 127.f);
++  if (x1c_voiceHandle)
++    x1c_voiceHandle->setVolume(1.f / 127.f);
+ }
+ 
+ void CSfxManager::CSfxWrapper::UpdateEmitter() {
+-//  if (x1c_voiceHandle)
+-//    x1c_voiceHandle->setVolume(x20_vol);
++  if (x1c_voiceHandle)
++    x1c_voiceHandle->setVolume(x20_vol);
+ }
+ 
+ void CSfxManager::CSfxWrapper::SetReverb(float rev) {
+-//  if (x1c_voiceHandle && IsAuxProcessingEnabled() && UseAcoustics())
+-//    x1c_voiceHandle->setReverbVol(rev);
++  if (x1c_voiceHandle && IsAuxProcessingEnabled() && UseAcoustics())
++    x1c_voiceHandle->setReverbVol(rev);
+ }
+ 
+ bool CSfxManager::CSfxEmitterWrapper::IsPlaying() const {
+   if (IsLooped())
+     return CBaseSfxWrapper::IsPlaying();
+-//  if (CBaseSfxWrapper::IsPlaying() && x50_emitterHandle)
+-//    return x50_emitterHandle->getVoice()->state() == amuse::VoiceState::Playing;
++  if (CBaseSfxWrapper::IsPlaying() && x50_emitterHandle)
++    return x50_emitterHandle->getVoice()->state() == amuse::VoiceState::Playing;
+   return false;
+ }
+ 
+@@ -114,23 +114,23 @@ void CSfxManager::CSfxEmitterWrapper::Play() {
+   else
+     x1a_reverb = 0.f;
+ 
+-//  zeus::simd_floats pos(x24_parmData.x0_pos.mSimd);
+-//  zeus::simd_floats dir(x24_parmData.xc_dir.mSimd);
+-//  x50_emitterHandle = CAudioSys::GetAmuseEngine().addEmitter(
+-//      pos.data(), dir.data(), x24_parmData.x18_maxDist, x24_parmData.x1c_distComp, x24_parmData.x24_sfxId,
+-//      x24_parmData.x27_minVol, x24_parmData.x26_maxVol, (x24_parmData.x20_flags & 0x8) != 0);
+-//
+-//  if (x50_emitterHandle)
+-//    SetPlaying(true);
++  zeus::simd_floats pos(x24_parmData.x0_pos.mSimd);
++  zeus::simd_floats dir(x24_parmData.xc_dir.mSimd);
++  x50_emitterHandle = CAudioSys::GetAmuseEngine().addEmitter(
++      pos.data(), dir.data(), x24_parmData.x18_maxDist, x24_parmData.x1c_distComp, x24_parmData.x24_sfxId,
++      x24_parmData.x27_minVol, x24_parmData.x26_maxVol, (x24_parmData.x20_flags & 0x8) != 0);
++
++  if (x50_emitterHandle)
++    SetPlaying(true);
+   x54_ready = false;
+ }
+ 
+ void CSfxManager::CSfxEmitterWrapper::Stop() {
+-//  if (x50_emitterHandle) {
+-//    x50_emitterHandle->getVoice()->keyOff();
+-//    SetPlaying(false);
+-//    x50_emitterHandle.reset();
+-//  }
++  if (x50_emitterHandle) {
++    x50_emitterHandle->getVoice()->keyOff();
++    SetPlaying(false);
++    x50_emitterHandle.reset();
++  }
+ }
+ 
+ bool CSfxManager::CSfxEmitterWrapper::Ready() {
+@@ -154,22 +154,22 @@ CSfxManager::ESfxAudibility CSfxManager::CSfxEmitterWrapper::GetAudible(const ze
+ u16 CSfxManager::CSfxEmitterWrapper::GetSfxId() const { return x24_parmData.x24_sfxId; }
+ 
+ void CSfxManager::CSfxEmitterWrapper::UpdateEmitterSilent() {
+-//  if (x50_emitterHandle) {
+-//    zeus::simd_floats pos(x24_parmData.x0_pos.mSimd);
+-//    zeus::simd_floats dir(x24_parmData.xc_dir.mSimd);
+-//    x50_emitterHandle->setVectors(pos.data(), dir.data());
+-//    x50_emitterHandle->setMaxVol(1.f / 127.f);
+-//  }
++  if (x50_emitterHandle) {
++    zeus::simd_floats pos(x24_parmData.x0_pos.mSimd);
++    zeus::simd_floats dir(x24_parmData.xc_dir.mSimd);
++    x50_emitterHandle->setVectors(pos.data(), dir.data());
++    x50_emitterHandle->setMaxVol(1.f / 127.f);
++  }
+   x55_cachedMaxVol = x24_parmData.x26_maxVol;
+ }
+ 
+ void CSfxManager::CSfxEmitterWrapper::UpdateEmitter() {
+-//  if (x50_emitterHandle) {
+-//    zeus::simd_floats pos(x24_parmData.x0_pos.mSimd);
+-//    zeus::simd_floats dir(x24_parmData.xc_dir.mSimd);
+-//    x50_emitterHandle->setVectors(pos.data(), dir.data());
+-//    x50_emitterHandle->setMaxVol(x55_cachedMaxVol);
+-//  }
++  if (x50_emitterHandle) {
++    zeus::simd_floats pos(x24_parmData.x0_pos.mSimd);
++    zeus::simd_floats dir(x24_parmData.xc_dir.mSimd);
++    x50_emitterHandle->setVectors(pos.data(), dir.data());
++    x50_emitterHandle->setMaxVol(x55_cachedMaxVol);
++  }
+ }
+ 
+ void CSfxManager::CSfxEmitterWrapper::SetReverb(float rev) {
+@@ -238,26 +238,26 @@ void CSfxManager::TurnOffChannel(ESfxChannels chan) {
+ void CSfxManager::AddListener(ESfxChannels channel, const zeus::CVector3f& pos, const zeus::CVector3f& dir,
+                               const zeus::CVector3f& heading, const zeus::CVector3f& up, float frontRadius,
+                               float surroundRadius, float soundSpeed, u32 flags /* 0x1 for doppler */, float vol) {
+-//  if (m_listener)
+-//    CAudioSys::GetAmuseEngine().removeListener(m_listener.get());
+-//  zeus::simd_floats p(pos.mSimd);
+-//  zeus::simd_floats d(dir.mSimd);
+-//  zeus::simd_floats h(heading.mSimd);
+-//  zeus::simd_floats u(up.mSimd);
+-//  m_listener = CAudioSys::GetAmuseEngine().addListener(p.data(), d.data(), h.data(), u.data(), frontRadius,
+-//                                                       surroundRadius, soundSpeed, vol);
++  if (m_listener)
++    CAudioSys::GetAmuseEngine().removeListener(m_listener.get());
++  zeus::simd_floats p(pos.mSimd);
++  zeus::simd_floats d(dir.mSimd);
++  zeus::simd_floats h(heading.mSimd);
++  zeus::simd_floats u(up.mSimd);
++  m_listener = CAudioSys::GetAmuseEngine().addListener(p.data(), d.data(), h.data(), u.data(), frontRadius,
++                                                       surroundRadius, soundSpeed, vol);
+ }
+ 
+ void CSfxManager::UpdateListener(const zeus::CVector3f& pos, const zeus::CVector3f& dir, const zeus::CVector3f& heading,
+                                  const zeus::CVector3f& up, float vol) {
+-//  if (m_listener) {
+-//    zeus::simd_floats p(pos.mSimd);
+-//    zeus::simd_floats d(dir.mSimd);
+-//    zeus::simd_floats h(heading.mSimd);
+-//    zeus::simd_floats u(up.mSimd);
+-//    m_listener->setVectors(p.data(), d.data(), h.data(), u.data());
+-//    m_listener->setVolume(vol);
+-//  }
++  if (m_listener) {
++    zeus::simd_floats p(pos.mSimd);
++    zeus::simd_floats d(dir.mSimd);
++    zeus::simd_floats h(heading.mSimd);
++    zeus::simd_floats u(up.mSimd);
++    m_listener->setVectors(p.data(), d.data(), h.data(), u.data());
++    m_listener->setVolume(vol);
++  }
+ }
+ 
+ s16 CSfxManager::GetRank(CBaseSfxWrapper* sfx) {
+@@ -304,10 +304,10 @@ void CSfxManager::PitchBend(const CSfxHandle& handle, float pitch) {
+     return;
+   if (!handle->IsPlaying())
+     CSfxManager::Update(0.f);
+-//  if (handle->IsPlaying()) {
+-//    m_doUpdate = true;
+-//    handle->GetVoice()->setPitchWheel(pitch);
+-//  }
++  if (handle->IsPlaying()) {
++    m_doUpdate = true;
++    handle->GetVoice()->setPitchWheel(pitch);
++  }
+ }
+ 
+ void CSfxManager::SfxVolume(const CSfxHandle& handle, float vol) {
+@@ -317,15 +317,15 @@ void CSfxManager::SfxVolume(const CSfxHandle& handle, float vol) {
+     CSfxWrapper& wrapper = static_cast<CSfxWrapper&>(*handle);
+     wrapper.SetVolume(vol);
+   }
+-//  if (handle->IsPlaying())
+-//    handle->GetVoice()->setVolume(vol);
++  if (handle->IsPlaying())
++    handle->GetVoice()->setVolume(vol);
+ }
+ 
+ void CSfxManager::SfxSpan(const CSfxHandle& handle, float span) {
+   if (!handle)
+     return;
+-//  if (handle->IsPlaying())
+-//    handle->GetVoice()->setSurroundPan(span);
++  if (handle->IsPlaying())
++    handle->GetVoice()->setSurroundPan(span);
+ }
+ 
+ u16 CSfxManager::TranslateSFXID(u16 id) {
+@@ -380,16 +380,16 @@ void CSfxManager::UpdateEmitter(const CSfxHandle& handle, const zeus::CVector3f&
+                                 float maxVol) {
+   if (!handle || !handle->IsEmitter() || !handle->IsPlaying())
+     return;
+-//  m_doUpdate = true;
+-//  CSfxEmitterWrapper& emitter = static_cast<CSfxEmitterWrapper&>(*handle);
+-//  emitter.GetEmitterData().x0_pos = pos;
+-//  emitter.GetEmitterData().xc_dir = dir;
+-//  emitter.GetEmitterData().x26_maxVol = maxVol;
+-//  amuse::Emitter& h = *emitter.GetHandle();
+-//  zeus::simd_floats p(pos.mSimd);
+-//  zeus::simd_floats d(dir.mSimd);
+-//  h.setVectors(p.data(), d.data());
+-//  h.setMaxVol(maxVol);
++  m_doUpdate = true;
++  CSfxEmitterWrapper& emitter = static_cast<CSfxEmitterWrapper&>(*handle);
++  emitter.GetEmitterData().x0_pos = pos;
++  emitter.GetEmitterData().xc_dir = dir;
++  emitter.GetEmitterData().x26_maxVol = maxVol;
++  amuse::Emitter& h = *emitter.GetHandle();
++  zeus::simd_floats p(pos.mSimd);
++  zeus::simd_floats d(dir.mSimd);
++  h.setVectors(p.data(), d.data());
++  h.setMaxVol(maxVol);
+ }
+ 
+ CSfxHandle CSfxManager::AddEmitter(u16 id, const zeus::CVector3f& pos, const zeus::CVector3f& dir, bool useAcoustics,
+@@ -459,84 +459,84 @@ void CSfxManager::EnableAuxCallback() {
+   if (m_activeEffect != EAuxEffect::None)
+     DisableAuxCallback();
+ 
+-//  auto studio = CAudioSys::GetAmuseEngine().getDefaultStudio();
+-//  amuse::Submix& smix = studio->getAuxA();
+-//
+-//  m_activeEffect = m_nextEffect;
+-//  switch (m_activeEffect) {
+-//  case EAuxEffect::ReverbHi:
+-//    s_ReverbHiState = &smix.makeReverbHi(s_ReverbHiQueued);
+-//    break;
+-//  case EAuxEffect::Chorus:
+-//    s_ChorusState = &smix.makeChorus(s_ChorusQueued);
+-//    break;
+-//  case EAuxEffect::ReverbStd:
+-//    s_ReverbStdState = &smix.makeReverbStd(s_ReverbStdQueued);
+-//    break;
+-//  case EAuxEffect::Delay:
+-//    s_DelayState = &smix.makeDelay(s_DelayQueued);
+-//    break;
+-//  default:
+-//    break;
+-//  }
++  auto studio = CAudioSys::GetAmuseEngine().getDefaultStudio();
++  amuse::Submix& smix = studio->getAuxA();
++
++  m_activeEffect = m_nextEffect;
++  switch (m_activeEffect) {
++  case EAuxEffect::ReverbHi:
++    s_ReverbHiState = &smix.makeReverbHi(s_ReverbHiQueued);
++    break;
++  case EAuxEffect::Chorus:
++    s_ChorusState = &smix.makeChorus(s_ChorusQueued);
++    break;
++  case EAuxEffect::ReverbStd:
++    s_ReverbStdState = &smix.makeReverbStd(s_ReverbStdQueued);
++    break;
++  case EAuxEffect::Delay:
++    s_DelayState = &smix.makeDelay(s_DelayQueued);
++    break;
++  default:
++    break;
++  }
+ 
+   m_auxProcessingEnabled = true;
+ }
+ 
+-//void CSfxManager::PrepareDelayCallback(const amuse::EffectDelayInfo& info) {
+-//  DisableAuxProcessing();
+-//  s_DelayQueued = info;
+-//  m_nextEffect = EAuxEffect::Delay;
+-//  if (m_reverbAmount == 0.f)
+-//    EnableAuxCallback();
+-//}
+-//
+-//void CSfxManager::PrepareReverbStdCallback(const amuse::EffectReverbStdInfo& info) {
+-//  DisableAuxProcessing();
+-//  s_ReverbStdQueued = info;
+-//  m_nextEffect = EAuxEffect::ReverbStd;
+-//  if (m_reverbAmount == 0.f)
+-//    EnableAuxCallback();
+-//}
+-//
+-//void CSfxManager::PrepareChorusCallback(const amuse::EffectChorusInfo& info) {
+-//  DisableAuxProcessing();
+-//  s_ChorusQueued = info;
+-//  m_nextEffect = EAuxEffect::Chorus;
+-//  if (m_reverbAmount == 0.f)
+-//    EnableAuxCallback();
+-//}
+-//
+-//void CSfxManager::PrepareReverbHiCallback(const amuse::EffectReverbHiInfo& info) {
+-//  DisableAuxProcessing();
+-//  s_ReverbHiQueued = info;
+-//  m_nextEffect = EAuxEffect::ReverbHi;
+-//  if (m_reverbAmount == 0.f)
+-//    EnableAuxCallback();
+-//}
++void CSfxManager::PrepareDelayCallback(const amuse::EffectDelayInfo& info) {
++  DisableAuxProcessing();
++  s_DelayQueued = info;
++  m_nextEffect = EAuxEffect::Delay;
++  if (m_reverbAmount == 0.f)
++    EnableAuxCallback();
++}
++
++void CSfxManager::PrepareReverbStdCallback(const amuse::EffectReverbStdInfo& info) {
++  DisableAuxProcessing();
++  s_ReverbStdQueued = info;
++  m_nextEffect = EAuxEffect::ReverbStd;
++  if (m_reverbAmount == 0.f)
++    EnableAuxCallback();
++}
++
++void CSfxManager::PrepareChorusCallback(const amuse::EffectChorusInfo& info) {
++  DisableAuxProcessing();
++  s_ChorusQueued = info;
++  m_nextEffect = EAuxEffect::Chorus;
++  if (m_reverbAmount == 0.f)
++    EnableAuxCallback();
++}
++
++void CSfxManager::PrepareReverbHiCallback(const amuse::EffectReverbHiInfo& info) {
++  DisableAuxProcessing();
++  s_ReverbHiQueued = info;
++  m_nextEffect = EAuxEffect::ReverbHi;
++  if (m_reverbAmount == 0.f)
++    EnableAuxCallback();
++}
+ 
+ void CSfxManager::DisableAuxCallback() {
+-//  auto studio = CAudioSys::GetAmuseEngine().getDefaultStudio();
+-//  studio->getAuxA().clearEffects();
+-//
+-//  switch (m_activeEffect) {
+-//  case EAuxEffect::ReverbHi:
+-//    s_ReverbHiState = nullptr;
+-//    break;
+-//  case EAuxEffect::Chorus:
+-//    s_ChorusState = nullptr;
+-//    break;
+-//  case EAuxEffect::ReverbStd:
+-//    s_ReverbStdState = nullptr;
+-//    break;
+-//  case EAuxEffect::Delay:
+-//    s_DelayState = nullptr;
+-//    break;
+-//  default:
+-//    break;
+-//  }
+-//
+-//  m_activeEffect = EAuxEffect::None;
++  auto studio = CAudioSys::GetAmuseEngine().getDefaultStudio();
++  studio->getAuxA().clearEffects();
++
++  switch (m_activeEffect) {
++  case EAuxEffect::ReverbHi:
++    s_ReverbHiState = nullptr;
++    break;
++  case EAuxEffect::Chorus:
++    s_ChorusState = nullptr;
++    break;
++  case EAuxEffect::ReverbStd:
++    s_ReverbStdState = nullptr;
++    break;
++  case EAuxEffect::Delay:
++    s_DelayState = nullptr;
++    break;
++  default:
++    break;
++  }
++
++  m_activeEffect = EAuxEffect::None;
+ }
+ 
+ void CSfxManager::DisableAuxProcessing() {
+diff --git a/Runtime/Audio/CSfxManager.hpp b/Runtime/Audio/CSfxManager.hpp
+index 8435194..71bb97d 100644
+--- a/Runtime/Audio/CSfxManager.hpp
++++ b/Runtime/Audio/CSfxManager.hpp
+@@ -90,7 +90,7 @@ public:
+     virtual void Stop() = 0;
+     virtual bool Ready() = 0;
+     virtual ESfxAudibility GetAudible(const zeus::CVector3f&) = 0;
+-    //virtual amuse::ObjToken<amuse::Voice> GetVoice() const = 0;
++    virtual amuse::ObjToken<amuse::Voice> GetVoice() const = 0;
+     virtual u16 GetSfxId() const = 0;
+     virtual void UpdateEmitterSilent() = 0;
+     virtual void UpdateEmitter() = 0;
+@@ -116,7 +116,7 @@ public:
+   class CSfxEmitterWrapper : public CBaseSfxWrapper {
+     float x1a_reverb = 0.0f;
+     CAudioSys::C3DEmitterParmData x24_parmData;
+-    //amuse::ObjToken<amuse::Emitter> x50_emitterHandle;
++    amuse::ObjToken<amuse::Emitter> x50_emitterHandle;
+     bool x54_ready = true;
+     float x55_cachedMaxVol = 0.0f;
+ 
+@@ -126,14 +126,14 @@ public:
+     void Stop() override;
+     bool Ready() override;
+     ESfxAudibility GetAudible(const zeus::CVector3f&) override;
+-    //amuse::ObjToken<amuse::Voice> GetVoice() const override { return x50_emitterHandle->getVoice(); }
++    amuse::ObjToken<amuse::Voice> GetVoice() const override { return x50_emitterHandle->getVoice(); }
+     u16 GetSfxId() const override;
+     void UpdateEmitterSilent() override;
+     void UpdateEmitter() override;
+     void SetReverb(float rev) override;
+     CAudioSys::C3DEmitterParmData& GetEmitterData() { return x24_parmData; }
+ 
+-    //amuse::ObjToken<amuse::Emitter> GetHandle() const { return x50_emitterHandle; }
++    amuse::ObjToken<amuse::Emitter> GetHandle() const { return x50_emitterHandle; }
+ 
+     CSfxEmitterWrapper(bool looped, s16 prio, const CAudioSys::C3DEmitterParmData& data,
+                        /*const CSfxHandle& handle,*/ bool useAcoustics, TAreaId area)
+@@ -144,7 +144,7 @@ public:
+ 
+   class CSfxWrapper : public CBaseSfxWrapper {
+     u16 x18_sfxId;
+-    //amuse::ObjToken<amuse::Voice> x1c_voiceHandle;
++    amuse::ObjToken<amuse::Voice> x1c_voiceHandle;
+     float x20_vol;
+     float x22_pan;
+     bool x24_ready = true;
+@@ -155,7 +155,7 @@ public:
+     void Stop() override;
+     bool Ready() override;
+     ESfxAudibility GetAudible(const zeus::CVector3f&) override { return ESfxAudibility::Aud3; }
+-//    amuse::ObjToken<amuse::Voice> GetVoice() const override { return x1c_voiceHandle; }
++    amuse::ObjToken<amuse::Voice> GetVoice() const { return x1c_voiceHandle; }
+     u16 GetSfxId() const override;
+     void UpdateEmitterSilent() override;
+     void UpdateEmitter() override;
+@@ -178,7 +178,7 @@ public:
+   static float m_reverbAmount;
+   static EAuxEffect m_activeEffect;
+   static EAuxEffect m_nextEffect;
+-  //static amuse::ObjToken<amuse::Listener> m_listener;
++  static amuse::ObjToken<amuse::Listener> m_listener;
+ 
+   static u16 kMaxPriority;
+   static u16 kMedPriority;
+@@ -222,10 +222,10 @@ public:
+   static void StopAndRemoveAllEmitters();
+   static void DisableAuxCallback();
+   static void EnableAuxCallback();
+-//  static void PrepareDelayCallback(const amuse::EffectDelayInfo& info);
+-//  static void PrepareReverbStdCallback(const amuse::EffectReverbStdInfo& info);
+-//  static void PrepareChorusCallback(const amuse::EffectChorusInfo& info);
+-//  static void PrepareReverbHiCallback(const amuse::EffectReverbHiInfo& info);
++  static void PrepareDelayCallback(const amuse::EffectDelayInfo& info);
++  static void PrepareReverbStdCallback(const amuse::EffectReverbStdInfo& info);
++  static void PrepareChorusCallback(const amuse::EffectChorusInfo& info);
++  static void PrepareReverbHiCallback(const amuse::EffectReverbHiInfo& info);
+   static void DisableAuxProcessing();
+ 
+   static void SetActiveAreas(const rstl::reserved_vector<TAreaId, 10>& areas);
+diff --git a/Runtime/Audio/SDLBackend.cpp b/Runtime/Audio/SDLBackend.cpp
+new file mode 100644
+index 0000000..dd7a851
+--- /dev/null
++++ b/Runtime/Audio/SDLBackend.cpp
+@@ -0,0 +1,378 @@
++#include "Runtime/Audio/SDLBackend.hpp"
++
++#include <amuse/Engine.hpp>
++#include <amuse/Submix.hpp>
++#include <amuse/Voice.hpp>
++#include <spdlog/spdlog.h>
++
++#include <algorithm>
++#include <cmath>
++#include <cstring>
++
++namespace metaforce {
++
++static constexpr int kChannelCount = 2; // Stereo output
++
++namespace {
++constexpr float ChannelCoef(const std::array<float, 8>& coefs, amuse::AudioChannel ch) {
++  return coefs[static_cast<size_t>(ch)];
++}
++} // namespace
++
++SDLBackendVoiceAllocator::SDLBackendVoiceAllocator(double mixRate)
++: m_mixRate(mixRate), m_5msFrames(static_cast<size_t>(std::lround(mixRate * 5.0 / 1000.0))) {
++  // Internal main output endpoint; null client so no effects are applied.
++  m_mainSubmix = new SDLBackendSubmix(*this, nullptr, true, 0);
++}
++
++SDLBackendVoiceAllocator::~SDLBackendVoiceAllocator() {
++  delete m_mainSubmix;
++  m_mainSubmix = nullptr;
++}
++
++std::unique_ptr<amuse::IBackendVoice>
++SDLBackendVoiceAllocator::allocateVoice(amuse::Voice& clientVox, double sampleRate, bool dynamicPitch) {
++  std::lock_guard<std::recursive_mutex> lock(m_lock);
++  std::unique_ptr<SDLBackendVoice> ret = std::make_unique<SDLBackendVoice>(*this, clientVox, sampleRate, dynamicPitch);
++  m_voices.push_back(ret.get());
++  return ret;
++}
++
++std::unique_ptr<amuse::IBackendSubmix>
++SDLBackendVoiceAllocator::allocateSubmix(amuse::Submix& clientSmx, bool mainOut, int busId) {
++  std::lock_guard<std::recursive_mutex> lock(m_lock);
++  std::unique_ptr<SDLBackendSubmix> ret = std::make_unique<SDLBackendSubmix>(*this, &clientSmx, mainOut, busId);
++  m_submixes.push_back(ret.get());
++  m_submixesDirty = true;
++  return ret;
++}
++
++std::vector<std::pair<std::string, std::string>> SDLBackendVoiceAllocator::enumerateMIDIDevices() { return {}; }
++
++namespace {
++class NullMIDIReader : public amuse::IMIDIReader {
++public:
++  void pumpReader(double) override {}
++};
++} // namespace
++
++std::unique_ptr<amuse::IMIDIReader> SDLBackendVoiceAllocator::allocateMIDIReader(amuse::Engine&) {
++  return std::make_unique<NullMIDIReader>();
++}
++
++amuse::AudioChannelSet SDLBackendVoiceAllocator::getAvailableSet() { return amuse::AudioChannelSet::Stereo; }
++
++void SDLBackendVoiceAllocator::setVolume(float vol) { m_totalVol = vol; }
++
++void SDLBackendVoiceAllocator::setCallbackInterface(amuse::Engine* engine) { m_cbInterface = engine; }
++
++void SDLBackendVoiceAllocator::pumpAndMix(size_t frames, float* dataOut) {
++  std::lock_guard<std::recursive_mutex> lock(m_lock);
++  static uint64_t s_pumpCount = 0;
++  if (++s_pumpCount % 300 == 0) {
++    size_t running = 0;
++    for (const SDLBackendVoice* vox : m_voices) {
++      if (vox->m_running) {
++        ++running;
++      }
++    }
++    if (running > 0 || !m_voices.empty()) {
++      spdlog::info("SDLBackend: {} voices ({} running), {} submixes", m_voices.size(), running, m_submixes.size());
++    }
++  }
++  if (dataOut) {
++    std::memset(dataOut, 0, sizeof(float) * frames * kChannelCount);
++  }
++
++  if (m_submixesDirty) {
++    m_linearizedSubmixes.clear();
++    m_mainSubmix->linearizeC3(m_linearizedSubmixes);
++    m_submixesDirty = false;
++  }
++
++  m_mainSubmix->m_redirect = dataOut;
++
++  size_t remFrames = frames;
++  while (remFrames) {
++    const size_t thisFrames = std::min(remFrames, m_5msFrames);
++    const double dt = static_cast<double>(thisFrames) / static_cast<double>(m_5msFrames) * 5.0 / 1000.0;
++    if (m_cbInterface) {
++      m_cbInterface->_on5MsInterval(*this, dt);
++    }
++
++    for (auto it = m_linearizedSubmixes.rbegin(); it != m_linearizedSubmixes.rend(); ++it) {
++      (*it)->zeroFill();
++    }
++
++    for (SDLBackendVoice* vox : m_voices) {
++      if (vox->m_running) {
++        vox->pumpAndMix(thisFrames);
++      }
++    }
++
++    for (auto it = m_linearizedSubmixes.rbegin(); it != m_linearizedSubmixes.rend(); ++it) {
++      (*it)->pumpAndMix(thisFrames);
++    }
++
++    remFrames -= thisFrames;
++    if (dataOut) {
++      const size_t sampleCount = thisFrames * kChannelCount;
++      for (size_t i = 0; i < sampleCount; ++i) {
++        dataOut[i] *= m_totalVol;
++      }
++      dataOut += sampleCount;
++    }
++  }
++
++  if (m_cbInterface) {
++    m_cbInterface->_onPumpCycleComplete(*this);
++  }
++}
++
++SDLBackendVoice::SDLBackendVoice(SDLBackendVoiceAllocator& root, amuse::Voice& clientVox, double sampleRate,
++                                 bool dynamicPitch)
++: m_root(root), m_clientVox(clientVox) {
++  if (sampleRate != root.m_mixRate) {
++    spdlog::warn("SDLBackendVoice: sample rate {} != mixer rate {}; no resampler (pitch may be off)", sampleRate,
++                 root.m_mixRate);
++  }
++}
++
++SDLBackendVoice::~SDLBackendVoice() {
++  std::lock_guard<std::recursive_mutex> lock(m_root.m_lock);
++  auto it = std::find(m_root.m_voices.begin(), m_root.m_voices.end(), this);
++  if (it != m_root.m_voices.end()) {
++    m_root.m_voices.erase(it);
++  }
++}
++
++void SDLBackendVoice::resetSampleRate(double sampleRate) {
++  static double s_lastWarnedRate = 0.0;
++  if (sampleRate != m_root.m_mixRate && s_lastWarnedRate != sampleRate) {
++    s_lastWarnedRate = sampleRate;
++    spdlog::warn("SDLBackendVoice::resetSampleRate: {} != mixer rate {}; no resampler", sampleRate, m_root.m_mixRate);
++  }
++}
++
++void SDLBackendVoice::resetChannelLevels() {
++  std::lock_guard<std::recursive_mutex> lock(m_root.m_lock);
++  m_sends.clear();
++  m_root.m_submixesDirty = true;
++}
++
++void SDLBackendVoice::setChannelLevels(amuse::IBackendSubmix* submix, const std::array<float, 8>& coefs, bool slew) {
++  std::lock_guard<std::recursive_mutex> lock(m_root.m_lock);
++  auto* smx = static_cast<SDLBackendSubmix*>(submix);
++  if (smx == nullptr) {
++    smx = m_root.m_mainSubmix;
++  }
++  auto search = m_sends.find(smx);
++  if (search == m_sends.cend()) {
++    search = m_sends.emplace(smx, Send{}).first;
++    m_root.m_submixesDirty = true;
++  }
++  Send& send = search->second;
++  send.slewFrames = slew ? static_cast<int>(m_root.m_5msFrames) : 0;
++  send.curSlewFrame = 0;
++  send.oldCoefs = send.coefs;
++  send.coefs = coefs;
++}
++
++void SDLBackendVoice::setPitchRatio(double ratio, bool slew) {
++  if (ratio != 1.0) {
++    spdlog::debug("SDLBackendVoice::setPitchRatio({}, {}) ignored (no resampler)", ratio, slew);
++  }
++}
++
++void SDLBackendVoice::start() {
++  std::lock_guard<std::recursive_mutex> lock(m_root.m_lock);
++  m_running = true;
++}
++
++void SDLBackendVoice::stop() {
++  std::lock_guard<std::recursive_mutex> lock(m_root.m_lock);
++  m_running = false;
++}
++
++void SDLBackendVoice::pumpAndMix(size_t frames) {
++  if (m_scratchPre.size() < frames + 2) {
++    m_scratchPre.resize(frames + 2);
++  }
++  if (m_scratchPost.size() < frames + 2) {
++    m_scratchPost.resize(frames + 2);
++  }
++  if (m_s16Buf.size() < frames + 2) {
++    m_s16Buf.resize(frames + 2);
++  }
++
++  const double dt = static_cast<double>(frames) / m_root.m_mixRate;
++  m_clientVox.preSupplyAudio(dt);
++
++  const size_t oDone = m_clientVox.supplyAudio(frames, m_s16Buf.data());
++  for (size_t i = 0; i < oDone; ++i) {
++    m_scratchPre[i] = static_cast<float>(m_s16Buf[i]) / 32768.f;
++  }
++
++  if (m_sends.empty()) {
++    // Route to the main output with an identity-ish stereo matrix (FL=FR=1).
++    SDLBackendSubmix& mainSmx = *m_root.m_mainSubmix;
++    m_clientVox.routeAudio(oDone, dt, mainSmx.m_busId, m_scratchPre.data(), m_scratchPost.data());
++    float* out = mainSmx.getMergeBuf(oDone);
++    for (size_t f = 0; f < oDone; ++f) {
++      const float v = m_scratchPost[f];
++      out[f * kChannelCount + 0] += v;
++      out[f * kChannelCount + 1] += v;
++    }
++  } else {
++    for (auto& kv : m_sends) {
++      SDLBackendSubmix* smx = kv.first;
++      Send& send = kv.second;
++      m_clientVox.routeAudio(oDone, dt, smx->m_busId, m_scratchPre.data(), m_scratchPost.data());
++      float* out = smx->getMergeBuf(oDone);
++      const bool slewing = send.slewFrames != 0 && send.curSlewFrame < send.slewFrames;
++      for (size_t f = 0; f < oDone; ++f) {
++        const float v = m_scratchPost[f];
++        float gain[2];
++        if (slewing) {
++          const double t = static_cast<double>(send.curSlewFrame) / static_cast<double>(send.slewFrames);
++          const double omt = 1.0 - t;
++          gain[0] = static_cast<float>(send.coefs[0] * t + send.oldCoefs[0] * omt);
++          gain[1] = static_cast<float>(send.coefs[1] * t + send.oldCoefs[1] * omt);
++        } else {
++          gain[0] = send.coefs[0];
++          gain[1] = send.coefs[1];
++        }
++        out[f * kChannelCount + 0] += v * gain[0];
++        out[f * kChannelCount + 1] += v * gain[1];
++      }
++      if (slewing) {
++        ++send.curSlewFrame;
++      }
++    }
++  }
++}
++
++SDLBackendSubmix::SDLBackendSubmix(SDLBackendVoiceAllocator& root, amuse::Submix* clientSmx, bool mainOut, int busId)
++: m_root(root), m_clientSmx(clientSmx), m_busId(busId), m_mainOut(mainOut) {
++  if (mainOut && this != m_root.m_mainSubmix) {
++    // Route to the allocator's main output at unity.
++    setSendLevel(m_root.m_mainSubmix, 1.f, false);
++  }
++}
++
++SDLBackendSubmix::~SDLBackendSubmix() {
++  std::lock_guard<std::recursive_mutex> lock(m_root.m_lock);
++  auto it = std::find(m_root.m_submixes.begin(), m_root.m_submixes.end(), this);
++  if (it != m_root.m_submixes.end()) {
++    m_root.m_submixes.erase(it);
++  }
++  m_root.m_submixesDirty = true;
++}
++
++void SDLBackendSubmix::setSendLevel(amuse::IBackendSubmix* submix, float level, bool slew) {
++  std::lock_guard<std::recursive_mutex> lock(m_root.m_lock);
++  auto* smx = static_cast<SDLBackendSubmix*>(submix);
++  if (smx == nullptr) {
++    smx = m_root.m_mainSubmix;
++  }
++  auto search = m_sendGains.find(smx);
++  if (search == m_sendGains.cend()) {
++    search = m_sendGains.emplace(smx, std::array<float, 2>{1.f, 1.f}).first;
++    m_root.m_submixesDirty = true;
++  }
++  m_slewFrames = slew ? static_cast<int>(m_root.m_5msFrames) : 0;
++  m_curSlewFrame = 0;
++  search->second[0] = search->second[1];
++  search->second[1] = level;
++}
++
++double SDLBackendSubmix::getSampleRate() const { return m_root.m_mixRate; }
++
++amuse::SubmixFormat SDLBackendSubmix::getSampleFormat() const { return amuse::SubmixFormat::Float; }
++
++void SDLBackendSubmix::zeroFill() {
++  if (!m_scratch.empty()) {
++    std::fill(m_scratch.begin(), m_scratch.end(), 0.f);
++  }
++}
++
++float* SDLBackendSubmix::getMergeBuf(size_t frames) {
++  if (m_redirect) {
++    return m_redirect;
++  }
++  const size_t sampleCount = frames * kChannelCount;
++  if (m_scratch.size() < sampleCount) {
++    m_scratch.resize(sampleCount);
++  }
++  return m_scratch.data();
++}
++
++bool SDLBackendSubmix::isDirectDependencyOf(SDLBackendSubmix* send) const {
++  return m_sendGains.find(send) != m_sendGains.cend();
++}
++
++void SDLBackendSubmix::linearizeC3(std::vector<SDLBackendSubmix*>& out) {
++  // Simple iterative C3 merge over the allocator's submix list.
++  out.push_back(this);
++  bool changed = true;
++  while (changed) {
++    changed = false;
++    for (SDLBackendSubmix* smx : m_root.m_submixes) {
++      if (smx == this || std::find(out.begin(), out.end(), smx) != out.end()) {
++        continue;
++      }
++      if (smx->isDirectDependencyOf(this)) {
++        out.push_back(smx);
++        changed = true;
++      }
++    }
++  }
++}
++
++void SDLBackendSubmix::pumpAndMix(size_t frames) {
++  const int chanCount = kChannelCount;
++
++  if (m_redirect) {
++    if (m_clientSmx != nullptr && m_clientSmx->canApplyEffect()) {
++      amuse::ChannelMap chMap;
++      chMap.m_channelCount = 2;
++      chMap.m_channels[0] = amuse::AudioChannel::FrontLeft;
++      chMap.m_channels[1] = amuse::AudioChannel::FrontRight;
++      m_clientSmx->applyEffect(m_redirect, frames, chMap);
++    }
++    m_redirect += chanCount * frames;
++  } else {
++    const size_t sampleCount = frames * chanCount;
++    if (m_scratch.size() < sampleCount) {
++      m_scratch.resize(sampleCount);
++    }
++    if (m_clientSmx != nullptr && m_clientSmx->canApplyEffect()) {
++      amuse::ChannelMap chMap;
++      chMap.m_channelCount = 2;
++      chMap.m_channels[0] = amuse::AudioChannel::FrontLeft;
++      chMap.m_channels[1] = amuse::AudioChannel::FrontRight;
++      m_clientSmx->applyEffect(m_scratch.data(), frames, chMap);
++    }
++
++    for (auto& kv : m_sendGains) {
++      SDLBackendSubmix* sm = kv.first;
++      float* dataOut = sm->getMergeBuf(frames);
++      const bool slewing = m_slewFrames != 0 && m_curSlewFrame < m_slewFrames;
++      for (size_t f = 0; f < sampleCount; ++f) {
++        const float v = m_scratch[f];
++        if (slewing) {
++          const double t = static_cast<double>(m_curSlewFrame) / static_cast<double>(m_slewFrames);
++          const double omt = 1.0 - t;
++          dataOut[f] += v * static_cast<float>(kv.second[1] * t + kv.second[0] * omt);
++        } else {
++          dataOut[f] += v * kv.second[1];
++        }
++      }
++      if (slewing) {
++        ++m_curSlewFrame;
++      }
++    }
++  }
++}
++
++} // namespace metaforce
+diff --git a/Runtime/Audio/SDLBackend.hpp b/Runtime/Audio/SDLBackend.hpp
+new file mode 100644
+index 0000000..caf441a
+--- /dev/null
++++ b/Runtime/Audio/SDLBackend.hpp
+@@ -0,0 +1,133 @@
++#pragma once
++
++#include <amuse/IBackendSubmix.hpp>
++#include <amuse/IBackendVoice.hpp>
++#include <amuse/IBackendVoiceAllocator.hpp>
++
++#include <array>
++#include <cstddef>
++#include <cstdint>
++#include <memory>
++#include <mutex>
++#include <unordered_map>
++#include <vector>
++
++namespace amuse {
++class Engine;
++class Submix;
++class Voice;
++} // namespace amuse
++
++namespace metaforce {
++
++class SDLBackendVoice;
++class SDLBackendSubmix;
++
++/**
++ * Minimal software mixer backend for amuse, written for the Metaforce Apple
++ * port. Voices are mixed into an interleaved stereo float buffer on the
++ * calling thread (pumpAndMix), which the host feeds to an SDL3 audio device.
++ *
++ * No resampling: every voice must run at the mixer rate (32 kHz for Prime's
++ * audio groups). Deviations are logged and played at the wrong pitch rather
++ * than crashing, so a soxr-based resampler can be added later if needed.
++ */
++class SDLBackendVoiceAllocator : public amuse::IBackendVoiceAllocator {
++  friend class SDLBackendVoice;
++  friend class SDLBackendSubmix;
++
++  amuse::Engine* m_cbInterface = nullptr;
++  double m_mixRate;
++  size_t m_5msFrames;
++  float m_totalVol = 1.f;
++
++  std::recursive_mutex m_lock;
++  std::vector<SDLBackendVoice*> m_voices;
++  std::vector<SDLBackendSubmix*> m_submixes;
++  SDLBackendSubmix* m_mainSubmix = nullptr;
++  bool m_submixesDirty = false;
++  std::vector<SDLBackendSubmix*> m_linearizedSubmixes;
++
++public:
++  explicit SDLBackendVoiceAllocator(double mixRate = 32000.0);
++  ~SDLBackendVoiceAllocator() override;
++
++  std::unique_ptr<amuse::IBackendVoice> allocateVoice(amuse::Voice& clientVox, double sampleRate,
++                                                      bool dynamicPitch) override;
++  std::unique_ptr<amuse::IBackendSubmix> allocateSubmix(amuse::Submix& clientSmx, bool mainOut,
++                                                        int busId) override;
++  std::vector<std::pair<std::string, std::string>> enumerateMIDIDevices() override;
++  std::unique_ptr<amuse::IMIDIReader> allocateMIDIReader(amuse::Engine& engine) override;
++  amuse::AudioChannelSet getAvailableSet() override;
++  void setVolume(float vol) override;
++  void setCallbackInterface(amuse::Engine* engine) override;
++
++  /** Mix up to `frames` stereo frames into dataOut (interleaved float). */
++  void pumpAndMix(size_t frames, float* dataOut);
++};
++
++/** Backend voice: owns the voice's send matrices; mixed by the allocator. */
++class SDLBackendVoice : public amuse::IBackendVoice {
++  friend class SDLBackendVoiceAllocator;
++
++  struct Send {
++    SDLBackendSubmix* smx = nullptr;
++    std::array<float, 8> coefs{};
++    std::array<float, 8> oldCoefs{};
++    int slewFrames = 0;
++    int curSlewFrame = 0;
++  };
++
++  SDLBackendVoiceAllocator& m_root;
++  amuse::Voice& m_clientVox;
++  bool m_running = false;
++  std::unordered_map<SDLBackendSubmix*, Send> m_sends;
++  std::vector<float> m_scratchPre;
++  std::vector<float> m_scratchPost;
++  std::vector<int16_t> m_s16Buf;
++
++public:
++  SDLBackendVoice(SDLBackendVoiceAllocator& root, amuse::Voice& clientVox, double sampleRate, bool dynamicPitch);
++  ~SDLBackendVoice() override;
++
++  void resetSampleRate(double sampleRate) override;
++  void resetChannelLevels() override;
++  void setChannelLevels(amuse::IBackendSubmix* submix, const std::array<float, 8>& coefs, bool slew) override;
++  void setPitchRatio(double ratio, bool slew) override;
++  void start() override;
++  void stop() override;
++
++  void pumpAndMix(size_t frames);
++};
++
++/** Backend submix: accumulates voice contributions, applies effects, sends. */
++class SDLBackendSubmix : public amuse::IBackendSubmix {
++  friend class SDLBackendVoiceAllocator;
++  friend class SDLBackendVoice;
++
++  SDLBackendVoiceAllocator& m_root;
++  amuse::Submix* m_clientSmx;
++  int m_busId;
++  bool m_mainOut;
++  std::unordered_map<SDLBackendSubmix*, std::array<float, 2>> m_sendGains;
++  std::vector<float> m_scratch;
++  float* m_redirect = nullptr;
++  int m_slewFrames = 0;
++  int m_curSlewFrame = 0;
++
++public:
++  SDLBackendSubmix(SDLBackendVoiceAllocator& root, amuse::Submix* clientSmx, bool mainOut, int busId);
++  ~SDLBackendSubmix() override;
++
++  void setSendLevel(amuse::IBackendSubmix* submix, float level, bool slew) override;
++  double getSampleRate() const override;
++  amuse::SubmixFormat getSampleFormat() const override;
++
++  void zeroFill();
++  float* getMergeBuf(size_t frames);
++  void pumpAndMix(size_t frames);
++  bool isDirectDependencyOf(SDLBackendSubmix* send) const;
++  void linearizeC3(std::vector<SDLBackendSubmix*>& out);
++};
++
++} // namespace metaforce
+diff --git a/Runtime/MP1/MP1.cpp b/Runtime/MP1/MP1.cpp
+index 5ece652..209c895 100644
+--- a/Runtime/MP1/MP1.cpp
++++ b/Runtime/MP1/MP1.cpp
+@@ -102,6 +102,7 @@ CGameArchitectureSupport::CGameArchitectureSupport(CMain& parent)
+   CAudioSys::SysSetVolume(0x7f);
+   CAudioSys::SetDefaultVolumeScale(0x75);
+   CAudioSys::SetVolumeScale(CAudioSys::GetDefaultVolumeScale());
++  CAudioSys::AudioSysInit();
+   CStreamAudioManager::Initialize();
+   CStreamAudioManager::SetMusicVolume(0x7f);
+   m->ResetGameState();
+@@ -218,6 +219,7 @@ CGameArchitectureSupport::~CGameArchitectureSupport() {
+   UnloadAudio();
+   CSfxManager::Shutdown();
+   CStreamAudioManager::Shutdown();
++  CAudioSys::AudioSysShutdown();
+ }
+ 
+ CMain::CMain(IFactory* resFactory, CSimplePool* resStore)

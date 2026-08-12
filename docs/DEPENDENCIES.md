@@ -63,6 +63,10 @@ and is linked **shared** (aurora warns that static SDL3 is unavailable via Homeb
 | nod | MIT (encounter/nod) |
 | zeus | GPL-3.0 (AxioDL/zeus) |
 | spdlog | MIT |
+| amuse (vendored for in-game audio) | MIT (AxioDL/amuse), pin `ad9bc96` |
+| athena (vendored, amuse dep) | MIT (encounter/athena), pin `6adba82` |
+| logvisor (vendored, amuse dep) | MIT (AxioDL/logvisor), pin `208a8c1` |
+| lzokay (vendored, amuse dep) | MIT (AxioDL/lzokay), pin `db2df1f` |
 | libjpeg-turbo | BSD-3 / IJG |
 | SDL3 | Zlib |
 | Dawn | Apache-2.0 / BSD-3 (Chromium) |

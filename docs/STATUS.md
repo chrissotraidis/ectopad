@@ -22,7 +22,7 @@ Last updated: 2026-08-11
 | macOS ARM64 build of current Metaforce | **Proven** | Clean RelWithDebInfo build, 862/862 steps, arm64 Mach-O, 2026-08-11 |
 | Metaforce launch on macOS (Metal, frame, title flow) | **Proven** | Launches; Dawn initializes Metal (Apple M2 IntegratedGPU); 60 FPS; **frontend renders full-frame (title screen "METROID PRIME" logo + emblem verified)**; in-game warp renders fully (1752 draw calls, HUD) — after the KI-001 scissor/viewport fix |
 | Input on macOS (keyboard/mouse/controller) | **Proven (keyboard, local patch)** | Keyboard/mouse wired locally (was disabled upstream via `#if 0`); verified: Enter=Start advances title → save dialog, arrows/S navigate menus, D-pad/stick state reflected in the input overlay; gamepad path untested (no controller connected) |
-| Audio on macOS | **Proven (frontend music, local patch)** | SDL3 output device opens (44100 Hz stereo); `Audio/frontend_1/2.rsf` load and decode via G721; steady pump (533/534 frames per frame, stable 25–34 KB stream buffer, no underrun); title/attract at 60 FPS, 13.6% CPU; clean exit. In-game musyx SFX/music still commented out upstream (next gap); see KNOWN_ISSUES KI-003 |
+| Audio on macOS | **Proven (frontend + in-game, local patches)** | SDL3 device (44100 Hz stereo) + amuse engine with a software mixer backend: all 5 Prime audio groups (Misc, MiscSamus, UI, Weapons, ZZZ) parse and load into amuse; in-game warp plays continuous SFX voices (4–5 voices, 3 submixes) at 60 FPS; frontend RSF music plays; stable pump, clean exit. Known gap: voices at non-32 kHz sample rates are not resampled yet (play at wrong pitch); see KNOWN_ISSUES KI-003 |
 | HECL/game-data extraction from supplied ISO | **Proven** | Disc identified and all assets loaded from ISO at runtime ("Metroid Prime USA (Build v1.111 3/10/2003 17:56:21)"); raw ISO, no conversion required |
 | iOS/iPadOS ARM64 device build | **Proven** | Local ARM64 iOS build succeeded (`build/install/Metaforce.app`, platform 2/iOS, minos 14.0) after fixing an upstream zstd link issue (Homebrew macOS dylib leaking into the iOS link) |
 | iOS Simulator (iPad) execution | **Proven** | iOS Simulator build succeeded (after fixing Dawn cross-compile host-tool issues: host protoc + GLFW disabled); installed and launched on iPad Pro 13-inch (M5) Simulator; loaded the user's ISO from the app container and rendered the **Metroid Prime title screen** (gold logo + [PRESS START], 4:3) via Dawn/WebGPU |
@@ -71,10 +71,10 @@ Last updated: 2026-08-11
 
 ### Blocked
 
-- **In-game audio (musyx path):** frontend/static audio now works (see Proven).
-    The musyx-driven game playback calls (`CSfxManager`, `CStreamAudioManager`,
-    `CMidiManager`) are still commented out upstream — an upstream mid-refactor
-    gap, not an Apple-port problem. That is the next audio work item.
+- **Voice resampling:** amuse voices whose samples are not 32 kHz (24/16/12/4 kHz
+    exist in Prime) are not yet resampled to the 32 kHz mix rate, so they play at
+    the wrong pitch. Next item: a soxr-based resampler in `SDLBackendVoice`
+    (mirroring the boo backend it replaces).
 
 ### Fixed this session
 

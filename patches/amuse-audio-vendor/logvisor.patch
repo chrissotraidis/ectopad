@@ -1,0 +1,29 @@
+diff --git a/include/logvisor/logvisor.hpp b/include/logvisor/logvisor.hpp
+index 1b0ec87..429f06c 100644
+--- a/include/logvisor/logvisor.hpp
++++ b/include/logvisor/logvisor.hpp
+@@ -215,7 +215,7 @@ public:
+       return;
+     _vreport(severity, fmt::to_string_view<Char>(format),
+              fmt::basic_format_args<fmt::buffer_context<Char>>(
+-                 fmt::make_args_checked<Args...>(format, std::forward<Args>(args)...)));
++                 fmt::internal::make_args_checked<Args...>(format, std::forward<Args>(args)...)));
+   }
+ 
+   template <typename Char>
+@@ -239,7 +239,7 @@ public:
+       return;
+     _vreportSource(severity, file, linenum, fmt::to_string_view<Char>(format),
+                    fmt::basic_format_args<fmt::buffer_context<Char>>(
+-                       fmt::make_args_checked<Args...>(format, std::forward<Args>(args)...)));
++                       fmt::internal::make_args_checked<Args...>(format, std::forward<Args>(args)...)));
+   }
+ 
+   template <typename Char>
+@@ -298,5 +298,5 @@ void quicklog(const S& format, Args&&... args) {
+   logvisor::MainLoggers[0]->report(
+       "quick", logvisor::Info, fmt::to_string_view<Char>(format),
+       fmt::basic_format_args<fmt::buffer_context<Char>>(
+-          fmt::make_args_checked<Args...>(format, std::forward<Args>(args)...)));
++          fmt::internal::make_args_checked<Args...>(format, std::forward<Args>(args)...)));
+ }

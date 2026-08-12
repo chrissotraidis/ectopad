@@ -1,0 +1,22 @@
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+index 64ea76d..8d0e0a3 100644
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -92,9 +92,14 @@ target_link_libraries(amuse
+   ${ZLIB_LIBRARIES}
+ )
+ 
+-target_atdna(amuse atdna_AudioGroupPool.cpp include/amuse/AudioGroupPool.hpp)
+-target_atdna(amuse atdna_AudioGroupProject.cpp include/amuse/AudioGroupProject.hpp)
+-target_atdna(amuse atdna_AudioGroupSampleDirectory.cpp include/amuse/AudioGroupSampleDirectory.hpp)
++# DNA serialization sources are pre-generated (atdna requires LLVM/clang APIs
++# that no longer build on modern toolchains). Regenerate with the atdna tool
++# from the matching header if the DNA structs change.
++target_sources(amuse PRIVATE
++  generated/atdna_AudioGroupPool.cpp
++  generated/atdna_AudioGroupProject.cpp
++  generated/atdna_AudioGroupSampleDirectory.cpp
++)
+ 
+ if(NX)
+   target_sources(amuse PRIVATE include/switch_math.hpp)

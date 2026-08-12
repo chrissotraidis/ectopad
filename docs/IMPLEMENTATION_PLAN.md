@@ -87,22 +87,28 @@ will be updated as gates produce evidence.
   `CSfxManager.cpp`, `CStreamAudioManager.cpp`, `CMidiManager.cpp`, `CMain.cpp`,
   and there was no audio output device anywhere in the tree (KI-003). This is an
   upstream mid-refactor gap.
-- **Progress (2026-08-11, macOS):** a minimal SDL3 audio output module now
-  exists in aurora (`aurora_audio_open/pump/close`), and the frontend static
-  audio path (`CStaticAudioPlayer` + `CFrontEndUI`) is restored — the title/
-  attract music decodes (G721) and plays through the default device at 60 FPS
-  with a steady stream buffer. Patch:
-  `patches/2026-08-11-metaforce-enable-audio-output.patch`. The musyx-driven
-  game path (steps 2–3 below) is still the open item for in-game audio.
+- **Progress (2026-08-11, macOS):** SDL3 output device in aurora; frontend
+  music restored; **amuse in-game audio works** — vendored amuse + athena +
+  logvisor + lzokay (pins + vendor script in `patches/amuse-audio-vendor/`),
+  pre-generated DNA serialization sources, a software mixer backend
+  (`Runtime/Audio/SDLBackend.*`), restored `CAudioSys` engine + `CSfxManager`.
+  All 5 Prime audio groups load; in-game SFX voices play at 60 FPS.
+  Patches: `patches/2026-08-11-metaforce-enable-audio-output.patch`,
+  `patches/2026-08-11-metaforce-amuse-in-game-audio.patch`.
 - **Implementation plan:**
   1. ~~Add a minimal audio device module (SDL3 audio — aurora already links SDL3
      with CoreAudio on macOS and the AudioToolbox/CoreAudio stack on iOS).~~ **Done**
-  2. Restore the DSP stream path in `CStreamAudioManager` (DSPADPCM → PCM decode
+  2. ~~Restore the DSP stream path in `CStreamAudioManager` (DSPADPCM → PCM decode~~ (partially —
+     SFX voices play via amuse; streamed music/sequences still pending)
      via musyx's decoder; feed the ring buffers to the device).
-  3. Initialize musyx (`sndInit`) and connect the game's audio systems
-     (`CSfxManager`/`CAudioSys`/`CMidiManager`) to it (group sets already load).
-  4. Wire the per-frame mix pump to the device callback.
-  5. Verify: music, ambience, weapons, voice/SFX, transitions, suspend/resume on
+  3. ~~Initialize the amuse engine and connect `CSfxManager`/`CAudioSys`~~ **Done**
+     (group sets load into amuse; SFX verified in-game).
+  4. ~~Wire the per-frame mix pump to the device callback~~ **Done**
+     (amuse mix summed with the static player in the SDL supply callback).
+  5. Add a voice resampler (soxr) so non-32 kHz samples (24/16/12/4 kHz) play
+     at correct pitch; restore `CStreamAudioManager`/`CMidiManager` streamed
+     music/sequences.
+  6. Verify: music, ambience, weapons, voice/SFX, transitions, suspend/resume on
      macOS, then iOS Simulator and device.
 - This is the last major Gate 1 item; the rest of Gate 1 is proven (build,
   Metal, rendering, title flow, input, saves/config paths).
