@@ -19,7 +19,7 @@ Last updated: 2026-08-12
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | macOS ARM64 | ☑ | — | ☑ | — | ◐ software path | ☑ | ☑ | ☑ | — |
 | iPhone Simulator | ☑ | ☐ | ☑ shell/UI | ☐ | — | ☐ | ☐ | ☐ | ☐ |
-| iPad Simulator | ☑ | ◐ service | ☑ | ☐ | — | ☐ | ☑ preserved | ☑ | ☐ |
+| iPad Simulator | ☑ | ◐ harness/service | ☑ | ◐ UIKit targets | — | ☐ | ☑ preserved | ☑ | ☐ |
 | Physical iPhone | ☐ | ☐ | ☐ | ☐ | ☐ | ☐ | ☐ | ☐ | ☐ |
 | Physical iPad | ☐ | ☐ | ☐ | ☐ | ☐ | ☐ | ☐ | ☐ | ☐ |
 
@@ -32,6 +32,34 @@ Last updated: 2026-08-12
   Magmoor Caverns, Phazon Mines.
 
 ## Evidence ledger
+
+### 2026-08-12 — current SunPad interaction/menu and audio reserve
+
+- Added an opt-in current-build harness in Metaforce-specific
+  `OverlayBridge.mm`; no SunPad source file changed. On a clean iPad Pro
+  13-inch (M5) Simulator container with no ISO/GCM it found the recursive
+  19-title menu inventory and all 14 controls; sent A down/up through the real
+  `SunPadInputMixer`; exercised render scale, opacity, global size,
+  hide-on-controller, and modern C-stick; selected/resized A to 1.25× in the
+  real editor; reset; presented the empty-folder alert and real Files picker
+  with `TouchOverlayDelegate`; restored defaults; and returned `result=0`.
+- The live bridge logged `menu visible=1 attached=1 frame={{1324, 12}, {40, 40}}`.
+  Aurora now reasserts the window-level SunPad overlay z-order once per second
+  after presented frames so later SDL Metal-view changes cannot cover `•••`.
+  Evidence: `/tmp/ipad-menu-audio-focused-2026-08-12.png` and `.log`.
+- Audited SunPad's resolved Super Mario Sunshine audio work. Its 12× guest-
+  timebase defect is architecture-specific and does not apply to native
+  Metaforce, but its bounded-reserve/no-stale-replay lesson does. Metaforce's
+  old pump generated one 60 Hz slice per rendered frame, so render dips could
+  starve SDL. The new pump measures output-ready audio after SDL conversion,
+  tops to 120 ms with fresh samples, and counts empty-queue recovery.
+- Final iOS Simulator, physical iPhoneOS arm64, and macOS ARM64 targets compiled
+  and linked. A native `--warp 2 2` run opened a 44.1 kHz device, held
+  5,292–5,294 output frames against the 5,292-frame target across repeated
+  samples, mixed 6–7 active gameplay voices/3 submixes, and logged no underrun.
+  Competing Codex renderer load was 35–61%, so this is correctness/stress
+  evidence, not a performance baseline. Audible physical-device acceptance is
+  still required. Log: `/tmp/metaforce-audio-reserve-native-2026-08-12.log`.
 
 ### 2026-08-11 — macOS ARM64 (Gate 1)
 

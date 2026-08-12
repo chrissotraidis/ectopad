@@ -39,12 +39,12 @@ behavior belongs behind this bridge, not in a restyled overlay.
 
 | Surface | UI parity | Engine wiring |
 | --- | --- | --- |
-| Visible GameCube controls and `•••` menu | Ported directly; Simulator rendering verified | Mixer → Aurora virtual GC pad is implemented; current host Simulator clicks are not delivering touches, so current-build interaction is not re-verified |
+| Visible GameCube controls and `•••` menu | Ported directly; Simulator rendering verified | Current-build harness found 19 menu titles and all 14 controls, drove A through the real mixer, and reported the menu visible/attached; physical finger input remains untested |
 | Render Resolution | SunPad control present | Wired live to Aurora's framebuffer scale; 2× produced 1280×960 in Simulator |
 | Aspect Ratio | SunPad control present | Original 4:3, experimental 16:9, and native-surface fill drive framebuffer presentation; 16:9 produced 1707×960 at 2× in Simulator |
 | FPS counter | SunPad control present | Wired to successful Dawn surface presents and shown with SunPad's label styling; Simulator rendering verified |
-| Touch Control Settings | SunPad panel present, including opacity, global/per-control size, hide-on-controller, modern C-stick | Settings and layout state persist through SunPad code; current-build interaction awaits touch delivery/device verification |
-| Layout editor | SunPad drag, per-control resize, and reset code present | Current-build interaction awaits touch delivery/device verification |
+| Touch Control Settings | SunPad panel present, including opacity, global/per-control size, hide-on-controller, modern C-stick | Current-build harness exercised the real controls/actions and verified persisted render, opacity, global size, hide, and modern-C settings; physical touch remains |
+| Layout editor | SunPad drag, per-control resize, and reset code present | Current-build harness selected A, invoked the registered per-control resize action, verified 1.25×, reset, and restored defaults; drag ergonomics still require real touch |
 | Game Data & Saves | SunPad menu structure unchanged | Files picker/folder import, exact GM8E01 Rev 2 validation, private staging, atomic activation, and save-preserving removal implemented; service path Simulator-verified, picker interaction awaits touch/device |
 | Share Diagnostic Log | SunPad menu, privacy confirmation, snapshot, and share sheet are ported directly | iPhone Simulator presented confirmation and real UIKit share sheet; privacy test proved app-container/temp redaction and Metaforce filename; physical interaction remains |
 | Controller Mapping | SunPad menu item and mapping model ported directly | A/B/X/Y/right-shoulder ↔ GameCube A/B/X/Y/Z permutation persists and applies in the iOS SDL→PAD path; Simulator UI and deterministic swap/passthrough test verified; physical controller remains untested |
@@ -63,10 +63,19 @@ behavior belongs behind this bridge, not in a restyled overlay.
   and terminated cleanly. Evidence:
   `/tmp/ki015-overlay-fixed-2026-08-12.png` and
   `/tmp/ki015-overlay-fixed-2026-08-12.log`.
-- Current host clicks in the Simulator device area still did not open the menu.
-  This is recorded as a test-infrastructure limitation, not as proof that the
-  app-side mixer or menu interaction is broken. Physical-device verification
-  remains required.
+- Current host clicks in the Simulator device area remain unreliable. A guarded
+  launch-only harness now exercises the unchanged SunPad UIKit targets and
+  current Metaforce delegates without editing any SunPad source. On 2026-08-12
+  it returned `result=0`: 19 menu titles, 14 controls, A down/up through the
+  real mixer, settings, per-control editor resize/reset, empty-folder alert,
+  and Files picker/delegate, followed by preference restoration. The live
+  bridge also logged `menu visible=1 attached=1`. Evidence:
+  `/tmp/ipad-menu-audio-focused-2026-08-12.{png,log}`. This is deterministic
+  current-build wiring evidence, not a substitute for finger-on-glass proof.
+- SDL can update its UIKit/Metal hierarchy after initial attachment. The
+  Metaforce bridge now reasserts the whole unchanged SunPad overlay at window
+  front once per second on the main thread, keeping controls and `•••` above
+  live gameplay without changing SunPad layout or styling.
 - The real engine side of three display actions was verified independently of
   host touch delivery by changing the same persisted SunPad settings before
   launch. The app logged `renderScale=2 aspectMode=0` with framebuffer

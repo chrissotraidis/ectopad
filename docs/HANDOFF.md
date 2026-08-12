@@ -50,10 +50,18 @@ Last updated: 2026-08-12
   Metaforce's desktop ImGui bar/windows/toasts/debug overlays under SunPad. Clean
   iPhone and iPad Simulator screenshots show the unchanged SunPad layer alone;
   macOS ImGui behavior is unchanged.
+- For today's immediate local-test state and complete remaining checklist, read
+  [STOP_FOR_TODAY_2026-08-12.md](STOP_FOR_TODAY_2026-08-12.md) first. The
+  current-build interaction harness now passes all phases (`result=0`) and the
+  bridge reasserts the SunPad layer over SDL once per second so `•••` remains
+  visible. Audio production now targets a measured 120 ms output-ready reserve
+  rather than assuming a 60 FPS render cadence; a loaded native run held
+  5,292–5,294 output frames with 6–7 active voices and no underrun log.
 
 ## How to resume
 
-1. Read [STATUS.md](STATUS.md) first (status legend included).
+1. Read [STOP_FOR_TODAY_2026-08-12.md](STOP_FOR_TODAY_2026-08-12.md), then
+   [STATUS.md](STATUS.md) (status legend included).
 2. Read [IMPLEMENTATION_PLAN.md](IMPLEMENTATION_PLAN.md) for the plan and gates.
 3. Follow [BUILDING.md](BUILDING.md) to configure/build.
 4. Append dated evidence to [TESTING.md](TESTING.md) and [PERFORMANCE.md](PERFORMANCE.md).

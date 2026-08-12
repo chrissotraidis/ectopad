@@ -1,0 +1,296 @@
+APPLY NOTE: generated against the full Aurora prerequisite sequence through
+2026-08-12-aurora-iphone-diagnostics-verification.patch. This is a zero-context
+Git patch; apply with `git apply --unidiff-zero`.
+-----
+diff --git a/lib/ios/OverlayBridge.mm b/lib/ios/OverlayBridge.mm
+index 2fdcd37..8f443ab 100644
+--- a/lib/ios/OverlayBridge.mm
++++ b/lib/ios/OverlayBridge.mm
+@@ -26,0 +27,11 @@
++/* Test-only entry points into the unchanged SunPad interaction implementation.
++ * These declarations expose existing methods without copying their behavior. */
++@interface SunPadGameOverlay (MetaforceInteractionTest)
++- (void)toggleSettingsPanel;
++- (void)beginLayoutEditing;
++- (void)finishLayoutEditing;
++- (void)selectControlForEditing:(UIView*)control;
++- (void)selectedSizeChanged:(UISlider*)slider;
++- (void)resetLayout;
++@end
++
+@@ -42,0 +54,71 @@ static BOOL ProcessHasArgument(NSString* argument) {
++static UIView* FindView(UIView* root, NSString* accessibilityLabel,
++                        NSString* accessibilityIdentifier) {
++    const BOOL labelMatches = accessibilityLabel == nil ||
++        [root.accessibilityLabel isEqualToString:accessibilityLabel];
++    const BOOL identifierMatches = accessibilityIdentifier == nil ||
++        [root.accessibilityIdentifier isEqualToString:accessibilityIdentifier];
++    if (labelMatches && identifierMatches)
++        return root;
++    for (UIView* child in root.subviews) {
++        UIView* match = FindView(child, accessibilityLabel, accessibilityIdentifier);
++        if (match != nil)
++            return match;
++    }
++    return nil;
++}
++
++static UIView* FindViewOfClass(UIView* root, Class expectedClass,
++                               NSString* accessibilityLabel,
++                               NSString* accessibilityIdentifier) {
++    UIView* match = FindView(root, accessibilityLabel, accessibilityIdentifier);
++    if ([match isKindOfClass:expectedClass])
++        return match;
++    for (UIView* child in root.subviews) {
++        match = FindViewOfClass(child, expectedClass, accessibilityLabel,
++                                accessibilityIdentifier);
++        if (match != nil)
++            return match;
++    }
++    return nil;
++}
++
++static void CollectMenuTitles(UIMenuElement* element, NSMutableSet<NSString*>* titles) {
++    if (element.title.length > 0)
++        [titles addObject:element.title];
++    if ([element isKindOfClass:UIMenu.class]) {
++        for (UIMenuElement* child in ((UIMenu*)element).children)
++            CollectMenuTitles(child, titles);
++    }
++}
++
++static NSDictionary<NSString*, id>* SaveDefaults(NSArray<NSString*>* keys) {
++    NSMutableDictionary<NSString*, id>* saved = [NSMutableDictionary dictionary];
++    NSUserDefaults* defaults = NSUserDefaults.standardUserDefaults;
++    for (NSString* key in keys) {
++        id value = [defaults objectForKey:key];
++        saved[key] = value ?: NSNull.null;
++    }
++    return saved;
++}
++
++static void RestoreDefaults(NSDictionary<NSString*, id>* saved) {
++    NSUserDefaults* defaults = NSUserDefaults.standardUserDefaults;
++    for (NSString* key in saved) {
++        id value = saved[key];
++        if (value == NSNull.null)
++            [defaults removeObjectForKey:key];
++        else
++            [defaults setObject:value forKey:key];
++    }
++    [defaults synchronize];
++
++    SunPadSettings* settings = SunPadSettings.sharedSettings;
++    [settings resetControlSizeScales];
++    NSDictionary<NSString*, NSNumber*>* sizes = saved[@"SunPadControlSizeScales"];
++    if ([sizes isKindOfClass:NSDictionary.class]) {
++        for (NSString* identifier in sizes)
++            [settings setSizeScale:sizes[identifier].doubleValue forControl:identifier];
++    }
++    [settings synchronize];
++}
++
+@@ -352,0 +435,169 @@ std::atomic_uint64_t g_presentedFrames{0};
++std::atomic_bool g_overlayRefreshPending{false};
++bool g_loggedMenuVisibility = false;
++
++void run_interaction_test() {
++  NSArray<NSString*>* defaultsKeys = @[
++    @"SunPadRenderScale", @"SunPadControlOpacity", @"SunPadControlSizeScale",
++    @"SunPadHideControlsOnController", @"SunPadModernCStickHorizontal",
++    @"SunPadControlOrigins", @"SunPadControlSizeScales",
++    @"SunPadExperimentalDPadOrigin", @"SunPadExperimentalDPadScale",
++  ];
++  NSDictionary<NSString*, id>* savedDefaults = SaveDefaults(defaultsKeys);
++  __block int result = 0;
++
++  UIButton* menuButton = (UIButton*)FindView(g_overlay, @"Menu", nil);
++  NSMutableSet<NSString*>* menuTitles = [NSMutableSet set];
++  if ([menuButton isKindOfClass:UIButton.class] && menuButton.menu != nil)
++    CollectMenuTitles(menuButton.menu, menuTitles);
++  NSSet<NSString*>* expectedMenuTitles = [NSSet setWithArray:@[
++    @"SunPad", @"Render Resolution", @"Aspect Ratio", @"Show FPS Counter",
++    @"Experimental 60 FPS (Restart Required)", @"Controller Button Mapping…",
++    @"Touch Control Settings…", @"Game Data & Saves",
++    @"Change or Reimport Game Data", @"Import from SunPad Folder",
++    @"Remove Stored Game Data", @"Share Diagnostic Log…",
++  ]];
++  if (menuButton == nil || ![expectedMenuTitles isSubsetOfSet:menuTitles])
++    result |= 1;
++
++  NSArray<NSString*>* controlIdentifiers = @[
++    @"move", @"c", @"A", @"B", @"X", @"Y", @"Z", @"Start", @"L", @"R",
++    @"D_U", @"D_D", @"D_L", @"D_R",
++  ];
++  for (NSString* identifier in controlIdentifiers) {
++    if (FindView(g_overlay, nil, identifier) == nil)
++      result |= 2;
++  }
++
++  UIControl* aButton = (UIControl*)FindView(g_overlay, @"A", @"A");
++  if (![aButton isKindOfClass:UIControl.class]) {
++    result |= 4;
++  } else {
++    [aButton sendActionsForControlEvents:UIControlEventTouchDown];
++    SunPadInputState pressed = [SunPadInputMixer.sharedMixer consumeMergedState];
++    [aButton sendActionsForControlEvents:UIControlEventTouchUpInside];
++    SunPadInputState released = [SunPadInputMixer.sharedMixer consumeMergedState];
++    if (!pressed.connected || !(pressed.buttons & SunPadButtonA) ||
++        (released.buttons & SunPadButtonA))
++      result |= 4;
++  }
++
++  [g_overlay toggleSettingsPanel];
++  UISegmentedControl* render =
++      (UISegmentedControl*)FindView(g_overlay, @"Render resolution", nil);
++  UISlider* opacity = (UISlider*)FindView(g_overlay, @"Control opacity", nil);
++  UISlider* allSizes = (UISlider*)FindView(g_overlay, @"Control size", nil);
++  UISwitch* hide =
++      (UISwitch*)FindView(g_overlay, @"Hide touch controls when controller connected", nil);
++  UISwitch* modern =
++      (UISwitch*)FindView(g_overlay, @"Modern C-stick left and right", nil);
++  if (![render isKindOfClass:UISegmentedControl.class] ||
++      ![opacity isKindOfClass:UISlider.class] ||
++      ![allSizes isKindOfClass:UISlider.class] ||
++      ![hide isKindOfClass:UISwitch.class] ||
++      ![modern isKindOfClass:UISwitch.class]) {
++    result |= 8;
++  } else {
++    render.selectedSegmentIndex = 1;
++    [render sendActionsForControlEvents:UIControlEventValueChanged];
++    opacity.value = 0.63f;
++    [opacity sendActionsForControlEvents:UIControlEventValueChanged];
++    allSizes.value = 1.12f;
++    [allSizes sendActionsForControlEvents:UIControlEventValueChanged];
++    hide.on = !hide.on;
++    [hide sendActionsForControlEvents:UIControlEventValueChanged];
++    modern.on = !modern.on;
++    [modern sendActionsForControlEvents:UIControlEventValueChanged];
++    SunPadSettings* settings = SunPadSettings.sharedSettings;
++    if (settings.renderScale != 2 || std::abs(settings.controlOpacity - 0.63) > 0.01 ||
++        std::abs(settings.controlSizeScale - 1.12) > 0.01 ||
++        settings.hideTouchControlsWhenControllerConnected != hide.on ||
++        settings.modernCStickHorizontal != modern.on)
++      result |= 8;
++  }
++  [g_overlay setNeedsLayout];
++  [g_overlay layoutIfNeeded];
++  NSLog(@"[SunPad] interaction test phase=settings result=%d menu=%lu controls=%lu",
++        result, (unsigned long)menuTitles.count, (unsigned long)controlIdentifiers.count);
++
++  dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(2.5 * NSEC_PER_SEC)),
++                 dispatch_get_main_queue(), ^{
++    [g_overlay beginLayoutEditing];
++    UIView* editableA = FindView(g_overlay, @"A", @"A");
++    [g_overlay selectControlForEditing:editableA];
++    UISlider* selected = (UISlider*)FindViewOfClass(
++        g_overlay, UISlider.class, @"A size", nil);
++    if (![selected isKindOfClass:UISlider.class] || !selected.enabled) {
++      result |= 16;
++    } else {
++      NSArray<NSString*>* actions =
++          [selected actionsForTarget:g_overlay forControlEvent:UIControlEventValueChanged];
++      selected.value = 1.25f;
++      [selected sendAction:@selector(selectedSizeChanged:) to:g_overlay forEvent:nil];
++      if (![actions containsObject:@"selectedSizeChanged:"] ||
++          std::abs([SunPadSettings.sharedSettings sizeScaleForControl:@"A"] - 1.25) > 0.01)
++        result |= 16;
++    }
++    [g_overlay setNeedsLayout];
++    [g_overlay layoutIfNeeded];
++    NSLog(@"[SunPad] interaction test phase=editor result=%d selected=%@ size=%.2f",
++          result, selected.accessibilityLabel,
++          [SunPadSettings.sharedSettings sizeScaleForControl:@"A"]);
++
++    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(2.5 * NSEC_PER_SEC)),
++                   dispatch_get_main_queue(), ^{
++      [g_overlay resetLayout];
++      if (std::abs([SunPadSettings.sharedSettings sizeScaleForControl:@"A"] - 1.0) > 0.01 ||
++          [NSUserDefaults.standardUserDefaults objectForKey:@"SunPadControlOrigins"] != nil ||
++          [NSUserDefaults.standardUserDefaults objectForKey:@"SunPadExperimentalDPadOrigin"] != nil)
++        result |= 32;
++      [g_overlay finishLayoutEditing];
++
++      UIViewController* presenter = g_overlay.window.rootViewController;
++      if (MetaforceGameDataImagesInDocumentsDirectory().count != 0) {
++        result |= 64;
++        NSLog(@"[SunPad] interaction test folder phase skipped: candidate game data present");
++      } else {
++        [g_delegate gameOverlayRequestsGameDataFolderImport:g_overlay];
++        UIAlertController* folder =
++            [presenter.presentedViewController isKindOfClass:UIAlertController.class]
++                ? (UIAlertController*)presenter.presentedViewController : nil;
++        if (![folder.title isEqualToString:@"Metaforce Folder"] ||
++            ![folder.message containsString:@"No ISO or GCM was found"])
++          result |= 64;
++        NSLog(@"[SunPad] interaction test phase=folder result=%d title=%@",
++              result, folder.title);
++      }
++
++      dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(2.5 * NSEC_PER_SEC)),
++                     dispatch_get_main_queue(), ^{
++        [presenter dismissViewControllerAnimated:NO completion:^{
++          [g_delegate gameOverlayRequestsGameDataChange:g_overlay];
++          /* A cold UIDocumentPicker launch starts DocumentManager out of
++           * process; wait long enough for its presentation transition. */
++          dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(2.0 * NSEC_PER_SEC)),
++                         dispatch_get_main_queue(), ^{
++            UIViewController* picker = presenter.presentedViewController;
++            if (![picker isKindOfClass:UIDocumentPickerViewController.class] ||
++                ((UIDocumentPickerViewController*)picker).delegate != g_delegate)
++              result |= 128;
++            NSLog(@"[SunPad] interaction test phase=files-picker result=%d class=%@ delegate=%@",
++                  result, NSStringFromClass(picker.class),
++                  [picker isKindOfClass:UIDocumentPickerViewController.class]
++                      ? NSStringFromClass(((UIDocumentPickerViewController*)picker).delegate.class)
++                      : @"none");
++
++            dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(2.5 * NSEC_PER_SEC)),
++                           dispatch_get_main_queue(), ^{
++              [presenter dismissViewControllerAnimated:NO completion:^{
++                RestoreDefaults(savedDefaults);
++                [g_overlay applySettings];
++                [SunPadInputMixer.sharedMixer clearInputFromTouch:YES];
++                NSLog(@"[SunPad] interaction test result=%d restored=verified", result);
++              }];
++            });
++          });
++        }];
++      });
++    });
++  });
++}
+@@ -413,0 +665,6 @@ bool attach_ios_overlay(SDL_Window* sdlWindow) noexcept {
++  if (ProcessHasArgument(@"--metaforce-sunpad-interaction-test")) {
++    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(0.75 * NSEC_PER_SEC)),
++                   dispatch_get_main_queue(), ^{
++      run_interaction_test();
++    });
++  }
+@@ -465 +722,25 @@ void ios_overlay_frame_presented() noexcept {
+-  g_presentedFrames.fetch_add(1, std::memory_order_relaxed);
++  const uint64_t frames = g_presentedFrames.fetch_add(1, std::memory_order_relaxed) + 1;
++  if (frames % 60 != 0 || g_overlayRefreshPending.exchange(true, std::memory_order_acq_rel))
++    return;
++
++  // SDL may update its UIKit/Metal view hierarchy after the overlay was
++  // attached. Reassert the window-level z-order once per second so SunPad's
++  // controls and three-dot menu remain above live gameplay without doing UI
++  // work from the render thread.
++  dispatch_async(dispatch_get_main_queue(), ^{
++    UIWindow* window = g_overlay.window;
++    if (window != nil) {
++      [window bringSubviewToFront:g_overlay];
++      if (g_fpsLabel != nil)
++        [window bringSubviewToFront:g_fpsLabel];
++      UIButton* menu = (UIButton*)FindView(g_overlay, @"Menu", nil);
++      if (!g_loggedMenuVisibility && [menu isKindOfClass:UIButton.class]) {
++        SunPadLog(@"menu visible=%d attached=%d frame=%@ menuItems=%lu",
++                  !menu.hidden && menu.alpha > 0.0, menu.window != nil,
++                  NSStringFromCGRect(menu.frame),
++                  (unsigned long)menu.menu.children.count);
++        g_loggedMenuVisibility = true;
++      }
++    }
++    g_overlayRefreshPending.store(false, std::memory_order_release);
++  });

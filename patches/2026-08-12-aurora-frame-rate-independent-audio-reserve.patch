@@ -1,0 +1,90 @@
+APPLY NOTE: generated against the full Aurora prerequisite sequence through
+2026-08-12-aurora-iphone-diagnostics-verification.patch. This is a zero-context
+Git patch; apply with `git apply --unidiff-zero`.
+-----
+diff --git a/include/aurora/audio.h b/include/aurora/audio.h
+index aa21b1c..eab6483 100644
+--- a/include/aurora/audio.h
++++ b/include/aurora/audio.h
+@@ -12 +12,2 @@ extern "C" {
+- * from the main thread inside aurora_audio_pump(), once per frame.
++ * from the main thread inside aurora_audio_pump(), which maintains a bounded
++ * wall-clock reserve independently of the current render frame rate.
+@@ -19 +20 @@ bool aurora_audio_open(int sampleRate, AuroraAudioSupplyCallback cb);
+-/** Feeds the device with audio; call once per frame from the main thread. */
++/** Tops up the device's bounded reserve; call once per frame from the main thread. */
+diff --git a/lib/audio.cpp b/lib/audio.cpp
+index e7b39ae..b3094fc 100644
+--- a/lib/audio.cpp
++++ b/lib/audio.cpp
+@@ -7,0 +8 @@
++#include <algorithm>
+@@ -8,0 +10 @@
++#include <cmath>
+@@ -20 +22,2 @@ int g_sampleRate = 32000;
+-bool g_initialFill = true;
++int g_outputSampleRate = 32000;
++int g_outputBytesPerFrame = 2 * sizeof(float);
+@@ -21,0 +25,3 @@ uint64_t g_pumpCount = 0;
++uint64_t g_underrunCount = 0;
++
++constexpr int kTargetBufferMilliseconds = 120;
+@@ -50,0 +57,2 @@ bool aurora_audio_open(int sampleRate, AuroraAudioSupplyCallback cb) {
++    g_outputSampleRate = actual.freq > 0 ? actual.freq : g_sampleRate;
++    g_outputBytesPerFrame = std::max(1, static_cast<int>(SDL_AUDIO_FRAMESIZE(actual)));
+@@ -53,0 +62,2 @@ bool aurora_audio_open(int sampleRate, AuroraAudioSupplyCallback cb) {
++    g_outputSampleRate = g_sampleRate;
++    g_outputBytesPerFrame = 2 * sizeof(float);
+@@ -72 +81,0 @@ bool aurora_audio_open(int sampleRate, AuroraAudioSupplyCallback cb) {
+-  g_initialFill = true;
+@@ -74 +83,3 @@ bool aurora_audio_open(int sampleRate, AuroraAudioSupplyCallback cb) {
+-  Log.info("aurora_audio_open: sampleRate={}", g_sampleRate);
++  g_underrunCount = 0;
++  Log.info("aurora_audio_open: sampleRate={} targetBufferMs={}", g_sampleRate,
++           kTargetBufferMilliseconds);
+@@ -82,10 +93,29 @@ void aurora_audio_pump(void) {
+-  // Steady state: supply one 60 Hz frame's worth of audio per pump (fractional
+-  // accumulator keeps the long-run average exactly sampleRate/60). On the
+-  // first call, burst extra frames so the device does not underrun at startup.
+-  static double s_frameAccum = 0.0;
+-  s_frameAccum += static_cast<double>(g_sampleRate) / 60.0;
+-  int frames = static_cast<int>(s_frameAccum);
+-  s_frameAccum -= frames;
+-  if (g_initialFill) {
+-    frames += g_sampleRate / 20;
+-    g_initialFill = false;
++  // Keep a bounded wall-clock reserve instead of assuming this function runs
++  // at 60 FPS. Rendering can temporarily fall below 60 FPS while pipelines
++  // compile or the host is busy; supplying exactly one video frame of audio
++  // per call made the device drain faster than Metaforce could refill it.
++  // SunPad settled on the same 120 ms reserve after its iOS audio work. Unlike
++  // its Dolphin mixer, this SDL stream already preserves its true queue
++  // position, so recovery only needs fresh samples -- never replayed data.
++  // Measure output-ready duration after SDL's format/rate conversion. Raw
++  // input bytes can be consumed into the converter before the device plays
++  // them and would therefore make the producer overfill the stream.
++  const int availableBytes = SDL_GetAudioStreamAvailable(g_stream);
++  if (availableBytes < 0) {
++    Log.warn("SDL_GetAudioStreamAvailable failed: {}", SDL_GetError());
++    return;
++  }
++
++  const int targetOutputFrames = g_outputSampleRate * kTargetBufferMilliseconds / 1000;
++  const int availableOutputFrames = availableBytes / g_outputBytesPerFrame;
++  const int missingOutputFrames = std::max(0, targetOutputFrames - availableOutputFrames);
++  const int frames = static_cast<int>(std::ceil(
++      static_cast<double>(missingOutputFrames) * g_sampleRate / g_outputSampleRate));
++  if (g_pumpCount > 0 && availableOutputFrames == 0) {
++    ++g_underrunCount;
++    Log.warn("Audio queue underrun detected; recovering with fresh samples (count={})",
++             g_underrunCount);
++  }
++  if (frames == 0) {
++    ++g_pumpCount;
++    return;
+@@ -100,2 +130,3 @@ void aurora_audio_pump(void) {
+-    Log.info("Audio pump: {} frames supplied, stream available bytes={}",
+-             frames, SDL_GetAudioStreamAvailable(g_stream));
++    Log.info("Audio pump: {} input frames supplied, availableOutputFrames={} targetOutputFrames={} underruns={}",
++             frames, SDL_GetAudioStreamAvailable(g_stream) / g_outputBytesPerFrame,
++             targetOutputFrames, g_underrunCount);
