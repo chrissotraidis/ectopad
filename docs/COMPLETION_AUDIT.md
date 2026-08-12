@@ -19,8 +19,8 @@ progress from evidence that actually satisfies each release requirement.
 | Gameplay breadth and progression | Frigate first-person gameplay and selected warp rendering proven | **Incomplete** | Full Frigate control checklist and representative Chozo/Tallon/Phendrana/Magmoor/Phazon sessions |
 | Performance, memory, thermals | FPS presentation works; lifecycle RSS spot-check exists | **Incomplete** | Quiet-system baselines with load snapshots; frame times, RSS/headroom, thermal state, long sessions |
 | iPhone layout | iPhone 17 Pro Simulator rendered the unchanged landscape controls plus diagnostic confirmation/share sheet without clipping | **Simulator presentation proven** | Exercise touch controls/editor/menu and gameplay, then repeat on physical iPhone |
-| Packaging/signing | Unsigned app bundle exists; no signing identity or device is available | **Incomplete; external prerequisite for device gates** | Development signing/install first, then reproducible audited IPA/app packaging |
-| Legal/prohibited-data boundary | `ref/` is ignored; root commits contain patches/docs only | **Ongoing invariant** | Audit every final staged tree and distributable artifact for game data, saves, secrets, and signing material |
+| Packaging/signing | arm64 device app now has valid numeric bundle versions; deterministic local unsigned IPA packages twice to the same SHA-256 and passes structure/platform/linkage/privacy/prohibited-content checks | **Unsigned validation packaging proven; signing incomplete** | Development-sign/install on hardware, then a post-sign audit that does not mutate the app |
+| Legal/prohibited-data boundary | `ref/` is ignored; packaging includes principal notices; the audit rejects game/save/log/signing extensions, disc headers, credentials, local paths, host dylibs, and a seeded `.gci` negative case | **Local artifact boundary proven; public redistribution blocked** | Assemble/review GPL corresponding source and LGPL static-relink materials; rebuild/remap upstream Dawn provenance strings; audit the final signed artifact |
 
 ## Current environment blockers
 

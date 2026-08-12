@@ -31,7 +31,16 @@ Last updated: 2026-08-11
 - Not distributable: the Metroid Prime disc image or any extracted Nintendo
   assets.
 - Every IPA/app/archive is audited before being called distributable
-  (see [TESTING.md](TESTING.md) release-audit checklist once established).
+  (see [TESTING.md](TESTING.md)). The current deterministic IPA is explicitly
+  an unsigned local validation artifact, not a distributable release.
+- The combined binary includes GPL-covered SunPad-derived code and zeus plus a
+  statically linked LGPL-2.1 soxr build. Public distribution remains blocked
+  until corresponding-source and LGPL relink materials are assembled and
+  reviewed; `THIRD_PARTY_NOTICES.md` alone is not sufficient.
+- The pinned prebuilt Dawn library embeds its upstream GitHub Actions builder
+  source paths (`/Users/runner/work/dawn-build/...`) in diagnostic strings.
+  They are non-local provenance, not user data, but a public release should
+  rebuild Dawn with path remapping or obtain a scrubbed upstream package.
 
 ## Public-facing language
 
@@ -44,4 +53,3 @@ Because Metroid Prime Remastered is a commercially active Nintendo product,
 elevated takedown/DMCA exposure is assumed; keep the above language factual and
 consistent, and never add ROM-download links, asset mirrors, bundled keys, or
 piracy-oriented instructions.
-

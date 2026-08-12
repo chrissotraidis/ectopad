@@ -1,0 +1,55 @@
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+index 9198b3d..eb2b776 100644
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -53,6 +53,20 @@ if (METAFORCE_WC_DESCRIBE)
+ else ()
+   set(METAFORCE_WC_DESCRIBE "UNKNOWN-VERSION")
+   set(METAFORCE_VERSION_STRING "0.0.0")
++  set(METAFORCE_SHORT_VERSION_STRING "0.0.1")
++endif ()
++
++set(METAFORCE_BUNDLE_SHORT_VERSION "${METAFORCE_SHORT_VERSION_STRING}" CACHE STRING
++    "Apple bundle marketing version (one to three dot-separated integers)")
++set(METAFORCE_BUNDLE_VERSION "1" CACHE STRING
++    "Apple bundle build version (one to three dot-separated integers)")
++if (APPLE)
++  if (NOT METAFORCE_BUNDLE_SHORT_VERSION MATCHES "^[0-9]+(\\.[0-9]+)?(\\.[0-9]+)?$")
++    message(FATAL_ERROR "Invalid Apple marketing version: ${METAFORCE_BUNDLE_SHORT_VERSION}")
++  endif ()
++  if (NOT METAFORCE_BUNDLE_VERSION MATCHES "^[1-9][0-9]*(\\.[0-9]+)?(\\.[0-9]+)?$")
++    message(FATAL_ERROR "Invalid Apple build version: ${METAFORCE_BUNDLE_VERSION}")
++  endif ()
+ endif ()
+ 
+ string(TIMESTAMP CURRENT_YEAR "%Y")
+@@ -85,6 +99,14 @@ endif()
+ set(CMAKE_CXX_STANDARD 20)
+ set(CMAKE_CXX_STANDARD_REQUIRED ON)
+ 
++# Avoid embedding developer-specific checkout and build roots in Apple
++# artifacts through __FILE__ strings and debug information.
++if (APPLE AND CMAKE_CXX_COMPILER_ID MATCHES "AppleClang|Clang")
++  add_compile_options(
++      "-ffile-prefix-map=${CMAKE_SOURCE_DIR}=metaforce"
++      "-ffile-prefix-map=${CMAKE_BINARY_DIR}=build")
++endif ()
++
+ set(BUILD_SHARED_LIBS OFF CACHE BOOL "Force shared libs off" FORCE)
+ set(BUILD_STATIC_LIBS ON CACHE BOOL "Force static libs on" FORCE)
+ 
+diff --git a/Runtime/CMakeLists.txt b/Runtime/CMakeLists.txt
+index e72d791..acc7cdf 100644
+--- a/Runtime/CMakeLists.txt
++++ b/Runtime/CMakeLists.txt
+@@ -278,8 +278,8 @@ if (APPLE)
+         MACOSX_BUNDLE_INFO_PLIST ${INFO_PLIST}
+         MACOSX_BUNDLE_BUNDLE_NAME Metaforce
+         MACOSX_BUNDLE_GUI_IDENTIFIER com.axiodl.Metaforce
+-        MACOSX_BUNDLE_BUNDLE_VERSION "${METAFORCE_VERSION_STRING}"
+-        MACOSX_BUNDLE_SHORT_VERSION_STRING "${METAFORCE_SHORT_VERSION_STRING}"
++        MACOSX_BUNDLE_BUNDLE_VERSION "${METAFORCE_BUNDLE_VERSION}"
++        MACOSX_BUNDLE_SHORT_VERSION_STRING "${METAFORCE_BUNDLE_SHORT_VERSION}"
+         OUTPUT_NAME Metaforce
+     )
+ endif ()

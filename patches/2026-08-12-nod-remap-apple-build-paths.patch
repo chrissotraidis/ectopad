@@ -1,0 +1,26 @@
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+index 38e03be..7a541d9 100644
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -51,6 +51,21 @@ corrosion_import_crate(
+     ${NOD_IMPORT_ARGS}
+ )
+ 
++# Rust's file!() and tracing metadata otherwise retain absolute checkout,
++# build, and Cargo registry paths in release executables.
++if (APPLE)
++    corrosion_add_target_rustflags(nod_ffi
++        "--remap-path-prefix=${CMAKE_SOURCE_DIR}=metaforce"
++        "--remap-path-prefix=${CMAKE_BINARY_DIR}=build")
++    if (DEFINED ENV{CARGO_HOME} AND NOT "$ENV{CARGO_HOME}" STREQUAL "")
++        corrosion_add_target_rustflags(nod_ffi
++            "--remap-path-prefix=$ENV{CARGO_HOME}=cargo")
++    elseif (DEFINED ENV{HOME} AND NOT "$ENV{HOME}" STREQUAL "")
++        corrosion_add_target_rustflags(nod_ffi
++            "--remap-path-prefix=$ENV{HOME}/.cargo=cargo")
++    endif()
++endif()
++
+ if (NOD_COMPRESS_BZIP2)
+     nod_require_bzip2(_nod_bzip2_target)
+     target_link_libraries(nod_ffi INTERFACE "${_nod_bzip2_target}")

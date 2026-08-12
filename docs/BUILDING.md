@@ -39,6 +39,25 @@ host libraries through pkg-config; Aurora skips that fallback and vendors a
 static zstd for iOS. Signing/install/launch still requires the user's identity
 and physical hardware.
 
+### Unsigned validation IPA
+
+After the device app builds, create a deterministic local validation archive:
+
+```sh
+./scripts/package-ios.sh \
+  ref/metaforce/build/ios-default/Binaries/Metaforce.app \
+  /tmp/Metaforce-unsigned-validation.ipa
+```
+
+The script works on a temporary copy, removes any signature/provisioning
+material, strips debug symbols, adds the project license/release notices,
+normalizes timestamps, and runs `scripts/audit-ios-package.sh`. It never
+modifies the source `.app`. This output is deliberately unsigned and is not a
+physical-device or public-release artifact. Signing must happen only after all
+bundle mutations in a separate device workflow; public distribution also
+requires the GPL corresponding-source and LGPL relink materials described in
+[LEGAL_AND_PROVENANCE.md](LEGAL_AND_PROVENANCE.md).
+
 ## iOS Simulator (arm64)
 
 ```sh

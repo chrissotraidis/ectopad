@@ -256,6 +256,31 @@ Last updated: 2026-08-12
   `/tmp/ipad-sunpad-clean-mobile-ui-2026-08-12.png`. Both Simulators were shut
   down; the iPhone and iPad runs were sequential.
 
+### 2026-08-12 — deterministic unsigned iOS packaging audit
+
+- Fixed the no-tag checkout fallback so the Apple marketing/build versions are
+  valid `0.0.1` and `1`, exposed validated cache overrides for real release
+  versions, and rebuilt the full arm64 iPhoneOS app successfully.
+- Remapped Metaforce C/C++ checkout/build roots and nod/Rust Cargo roots at
+  compile time. The rebuilt executable contains no current-user checkout or
+  Cargo-home paths. The prebuilt Dawn archive still contributes 241 unique
+  upstream `/Users/runner/work/dawn-build/...` diagnostic paths; the audit
+  reports these separately and rejects every other `/Users/` or `/Volumes/`
+  path.
+- Ported SunPad's deterministic `Payload/*.app` packaging/audit discipline.
+  The staged copy is unsigned, stripped, xattr-free in ZIP metadata, timestamp
+  normalized, license/notices complete, arm64-only, iPhoneOS-targeted, free of
+  host dylinks, and scanned for disc headers, saves, logs, credentials, local
+  paths, and signing material.
+- Two independent packages were byte-for-byte identical at SHA-256
+  `1348c52c9cbc8f3882f8f4a131fb6e0dc34c901d8ac91367c3c334d76c554835`.
+  A negative archive seeded with `leaked-save.gci` was rejected. Evidence:
+  `/tmp/Metaforce-unsigned-validation-final-2026-08-12.ipa` and
+  `/tmp/metaforce-negative-audit.log`.
+- This proves local unsigned validation packaging only. Public redistribution
+  remains blocked on GPL/LGPL release materials and scrubbed Dawn provenance;
+  physical install remains blocked on signing identity and hardware.
+
 ### 2026-08-11 — macOS rendering and keyboard fixes
 
 - In-game: `Metaforce -l --warp 2 2 +debugOverlay.* <iso>` — full-screen scene +
