@@ -27,9 +27,10 @@ than independently redesigned.
 `OverlayBridge.mm` is Metaforce-specific glue. It attaches the unchanged
 SunPad view above SDL's UIKit/Metal view, forwards the mixer's
 `SunPadInputState` into `aurora::touch::IosTouchState`, applies SunPad's render
-scale/aspect settings to Aurora, and displays successful surface-present rate
-when SunPad's FPS switch is enabled. It presents explicit "not available"
-alerts for the remaining engine actions. It must remain minimal; new menu
+scale/aspect settings to Aurora, displays successful surface-present rate when
+SunPad's FPS switch is enabled, and delegates game-data operations to a private
+import service. It presents an explicit "not available" alert for controller
+mapping. It must remain minimal; new menu
 behavior belongs behind this bridge, not in a restyled overlay.
 
 ## Feature parity and wiring
@@ -42,7 +43,7 @@ behavior belongs behind this bridge, not in a restyled overlay.
 | FPS counter | SunPad control present | Wired to successful Dawn surface presents and shown with SunPad's label styling; Simulator rendering verified |
 | Touch Control Settings | SunPad panel present, including opacity, global/per-control size, hide-on-controller, modern C-stick | Settings and layout state persist through SunPad code; current-build interaction awaits touch delivery/device verification |
 | Layout editor | SunPad drag, per-control resize, and reset code present | Current-build interaction awaits touch delivery/device verification |
-| Game Data & Saves | SunPad menu structure present | Bridge alerts only; private validation/import/atomic activation remains |
+| Game Data & Saves | SunPad menu structure unchanged | Files picker/folder import, exact GM8E01 Rev 2 validation, private staging, atomic activation, and save-preserving removal implemented; service path Simulator-verified, picker interaction awaits touch/device |
 | Share Diagnostic Log | SunPad menu, privacy confirmation, snapshot, and share sheet are ported directly | Implementation is already self-contained in the overlay; current-build interaction still awaits working touch delivery/device verification |
 | Controller Mapping | SunPad menu item present | Bridge alert only; mapping UI/engine action remains |
 
@@ -74,3 +75,9 @@ behavior belongs behind this bridge, not in a restyled overlay.
 - The 20.4/59.9 values visible in those screenshots are not performance
   baselines: another GPU/CPU-heavy app materially affected the first run. See
   [PERFORMANCE.md](PERFORMANCE.md) for the required clean-run discipline.
+- The unchanged Game Data & Saves actions now open a Files picker, import from
+  the app's Files-visible Documents folder, or remove only stored game data.
+  Invalid-size and corrupt-SHA imports left the active image and save untouched;
+  valid import/reimport and removal were verified through the same service used
+  by the delegate. A normal restart booted the activated image. Evidence:
+  `/tmp/metaforce-import-atomic-2026-08-12.log` and [GAME_DATA.md](GAME_DATA.md).

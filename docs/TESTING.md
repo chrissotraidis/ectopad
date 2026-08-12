@@ -19,7 +19,7 @@ Last updated: 2026-08-12
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | macOS ARM64 | ☑ | — | ☑ | — | ◐ software path | ☑ | ☑ | ☑ | — |
 | iPhone Simulator | ☐ | ☐ | ☐ | ☐ | — | ☐ | ☐ | ☐ | ☐ |
-| iPad Simulator | ☑ | ☐ | ☑ | ☐ | — | ☐ | ☐ | ☑ | ☐ |
+| iPad Simulator | ☑ | ◐ service | ☑ | ☐ | — | ☐ | ☑ preserved | ☑ | ☐ |
 | Physical iPhone | ☐ | ☐ | ☐ | ☐ | ☐ | ☐ | ☐ | ☐ | ☐ |
 | Physical iPad | ☐ | ☐ | ☐ | ☐ | ☐ | ☐ | ☐ | ☐ | ☐ |
 
@@ -175,6 +175,30 @@ Last updated: 2026-08-12
   clean pin `5143394`, passes `git diff --check`, and is byte-identical to the
   live nested source. Patch:
   `patches/2026-08-12-aurora-wire-sunpad-display-settings.patch`.
+
+### 2026-08-12 — private atomic iOS game-data import
+
+- Wired the unchanged SunPad Game Data & Saves actions to a Files picker,
+  Files-visible Documents-folder import, and save-preserving removal. The
+  importer validates exact raw-disc size, `GM8E01`, disc 0, revision 2, and
+  GameCube magic before copying; it then validates canonical SHA-1 on a
+  mode-0600 same-directory staging file before atomic `rename(2)` activation.
+- Invalid 4 KiB input was rejected without changing the active image or save.
+  A valid import changed the active inode and produced the canonical SHA-1; a
+  normal `--autostart` restart loaded Metroid Prime USA Build v1.111 through
+  Dawn/WebGPU → Metal. Removal deleted only `game.iso`, preserved the save, and
+  valid reimport restored the image.
+- A deliberately corrupted full-size clone passed header/size checks but was
+  rejected by staged SHA-1. The prior active inode and canonical hash stayed
+  intact, the save SHA-256 stayed
+  `107e0d4a0494f6905d47c6bcf85b0d68ba7b2160d37ed4596564f2b10b322f5d`,
+  and no staging file remained. Runtime log:
+  `/tmp/metaforce-import-atomic-2026-08-12.log`.
+- Final sources compile/link for iOS Simulator, macOS ARM64, and physical arm64
+  iOS. The device artifact is a Mach-O arm64 `Metaforce.app`; configuration was
+  hardened so cross-compiles vendor static zstd rather than link Homebrew's
+  macOS dylib. Production Files-picker tapping is still unverified because host
+  Simulator touch delivery is broken and no signed physical device is present.
 
 ### 2026-08-11 — macOS rendering and keyboard fixes
 

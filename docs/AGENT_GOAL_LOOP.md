@@ -133,8 +133,9 @@ Known open items:
   SDL3 invalid-ID handling and descriptor initialization. Start, analog Y, and
   A reached the real frontend through SDL → Aurora → `PADRead`. Physical Apple
   GameController hardware, hot-plug, rumble, and handoff remain untested.
-- Files import/validation + atomic staging, Share Diagnostic Log wiring (menu
-  present, actions stubbed), physical-device Gate 2/3 (needs user: signing
+- Production Files picker interaction and Share Diagnostic Log UI verification
+  (import service itself is implemented and Simulator-verified), controller
+  mapping, physical-device Gate 2/3 (needs user: signing
   identity + hardware), memory/performance measurements, later-area
   playthroughs.
 
@@ -159,16 +160,17 @@ Known open items:
 1. Restore Simulator host touch delivery or verify on a physical device, then
    re-test the `•••` menu, settings panel, editor, and mixer path on the current
    KI-015-fixed build.
-2. Continue wiring the ••• menu: render scale/aspect/FPS are now real and
-   Simulator-verified; next connect game data & saves to the private atomic
-   import flow, wire controller mapping, and verify the already ported
+2. Continue wiring the ••• menu: render scale/aspect/FPS and private atomic game
+   data are now real and Simulator service-verified; next wire controller
+   mapping and verify the production Files picker plus the already ported
    diagnostic share sheet. Do not claim the GM8E01 Experimental 60 FPS switch
    until a compatible implementation exists.
 3. Physical GameController verification (Apple GCController via SDL): the
    no-hardware SDL/Aurora/PAD path is proven; hardware discovery, reconnect,
    rumble, and touch/controller handoff still require a controller/device.
-4. Files import/validation + atomic staging (SunPad reference), save/data
-   separation.
+4. Re-test production Files picker/folder/removal interactions on working touch
+   or hardware; the underlying validated atomic service and save/data separation
+   are proven in Simulator.
 5. Physical-device Gate 2/3 (needs user prerequisites).
 6. Memory/performance measurements with competing CPU/GPU-heavy apps closed
    and process/system load recorded; later-area playthroughs.

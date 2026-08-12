@@ -1,6 +1,6 @@
 # Implementation Plan
 
-Last updated: 2026-08-11
+Last updated: 2026-08-12
 
 This plan is written **before major implementation**, per the project goal. It
 will be updated as gates produce evidence.
@@ -51,9 +51,14 @@ will be updated as gates produce evidence.
 
 ## 6. Private staging and activation
 
-- All generated data lives under git-ignored local paths (e.g. `ref/.private/`).
-- On iOS: prepare into the app container staging dir; activate via atomic
-  rename/commit; saves live in a separate location and survive reimport.
+- All generated data lives under ignored or private app-container paths.
+- **Implemented 2026-08-12:** iOS copies from the security-scoped Files URL to a
+  mode-0600 staging file beside private `game.iso`, fsyncs, verifies canonical
+  SHA-1, activates with atomic `rename(2)`, and fsyncs the directory. The service
+  is serialized; errors clean staging and preserve the active image. Saves live
+  separately and survive reimport and removal. Simulator evidence covers
+  invalid size, valid activation/boot, removal/reimport, and corrupt full-size
+  SHA rejection.
 
 ## 7. Engine architecture
 
@@ -147,12 +152,17 @@ will be updated as gates produce evidence.
 
 - `Runtime/platforms/ios` shell; leetal `ios.toolchain.cmake`; `PLATFORM=OS64`,
   deployment target 14.0; produce `Metaforce.app` (upstream CI precedent).
+- **Build proven 2026-08-12:** the device preset links a Mach-O arm64 app. The
+  cross-compile avoids host pkg-config libraries and vendors static zstd. Actual
+  signing/install/launch remains a physical-device prerequisite.
 
 ## 18. Files import flow
 
-- `••• → Game Data & Saves` → pick user's supported Prime image via Files →
-  validate → prepare privately → validate → activate atomically. Reimport must
-  not destroy saves; safe removal preserves saves.
+- **Implemented behind the unchanged SunPad UI:** `••• → Game Data & Saves` →
+  pick the user's ISO/GCM via Files (or the Files-visible app folder) → validate
+  exact GM8E01 Rev 2 header/size → prepare privately → validate staged SHA-1 →
+  activate atomically. Reimport and safe removal preserve saves. The service is
+  Simulator-proven; production picker tapping awaits touch/device verification.
 
 ## 19. Mobile data-storage design
 
@@ -180,9 +190,9 @@ will be updated as gates produce evidence.
   now wired through a thin bridge and Simulator-verified without modifying the
   SunPad sources. Remaining: restore host touch delivery or verify on a
   physical device, re-test the current menu/editor/mixer interactions, validate
-  iPhone/iPad layouts, wire game data and controller mapping, verify the ported
-  diagnostic share sheet, and add any compatible experimental frame-rate
-  behavior.
+  iPhone/iPad layouts, verify production data-picker interactions, wire
+  controller mapping, verify the ported diagnostic share sheet, and add any
+  compatible experimental frame-rate behavior.
 
 ## 22. iPhone layout
 

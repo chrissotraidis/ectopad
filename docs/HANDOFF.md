@@ -24,12 +24,22 @@ Last updated: 2026-08-12
   behind the unchanged menu source. Simulator evidence proves 2× 4:3
   (`1280x960`), 2× experimental 16:9 (`1707x960`), and the live
   presented-frame label. The Experimental 60 FPS switch remains intentionally
-  unwired for GM8E01, and Game Data/Controller Mapping remain bridge alerts.
+  unwired for GM8E01, and Controller Mapping remains a bridge alert.
+- Game Data & Saves is now real behind the unchanged SunPad UI: Files picker and
+  Documents-folder imports validate exact GM8E01 Rev 2, stage privately, verify
+  canonical SHA-1, and activate by same-directory atomic rename. Simulator
+  service tests proved valid import/restart, save-preserving removal/reimport,
+  invalid-size rejection, and full-size corrupt-SHA rejection without damage to
+  the active image or save. Production picker interaction awaits touch/device.
+- A physical arm64 iOS `Metaforce.app` now compiles and links. Aurora no longer
+  consults host pkg-config for zstd while cross-compiling, which had injected a
+  Homebrew macOS dylib into the iOS link. Install/launch remains blocked on
+  user signing identity and hardware.
 - Performance runs must close competing CPU/GPU-heavy apps and record load.
   The 20.4/59.9 Simulator samples were confounded and are functional FPS-label
   evidence only, not baselines.
-- Next unblocked work: implement private validated/atomic game-data import,
-  wire controller mapping, then re-test the touch menu/editor and the already
+- Next unblocked work: wire controller mapping, then re-test the touch
+  menu/editor and production Files picker plus the already
   ported diagnostic share sheet on hardware. Gate 2/3 still requires signing
   identity and physical devices.
 
@@ -39,6 +49,8 @@ Last updated: 2026-08-12
 2. Read [IMPLEMENTATION_PLAN.md](IMPLEMENTATION_PLAN.md) for the plan and gates.
 3. Follow [BUILDING.md](BUILDING.md) to configure/build.
 4. Append dated evidence to [TESTING.md](TESTING.md) and [PERFORMANCE.md](PERFORMANCE.md).
+5. Before any FPS comparison, close unrelated CPU/GPU-heavy apps and verify no
+   build, renderer, or extra Simulator process is competing; record load.
 
 ## Workspace invariants
 

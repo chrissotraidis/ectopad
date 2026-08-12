@@ -1,6 +1,6 @@
 # Game Data
 
-Last updated: 2026-08-11
+Last updated: 2026-08-12
 
 ## Supported disc
 
@@ -83,11 +83,18 @@ nod-backed `CDvdFile` — **no HECL extraction step exists in the current flow**
   ISO → copy it into private storage as `game.iso` (staging + atomic rename) →
   point the runtime at it. This matches the goal's preference to not force HECL
   into iOS when the architecture doesn't need it.
-- **iOS data design (planned):** `••• → Game Data & Saves` → Files picker
-  (security-scoped URL) → validate (size, game ID `GM8E01`, revision byte `0x02`,
-  SHA-1) → copy to `<store root>/game.iso` via staging → atomic activation →
-  runtime loads it. Saves/config remain in separate containers. A failed import
-  leaves the previous `game.iso` untouched.
+- **iOS data flow (implemented 2026-08-12):** the unchanged SunPad
+  `••• → Game Data & Saves` UI opens a Files picker (or lists ISO/GCM files in
+  the Files-visible Documents folder). The bridge holds the security-scoped URL
+  while a serial import service validates size/header, copies to a mode-0600
+  same-directory staging file, fsyncs it, validates the staged SHA-1, then uses
+  `rename(2)` for atomic activation as `<store root>/game.iso` and fsyncs the
+  directory. The imported image is excluded from backup and receives iOS file
+  protection where available. A failure removes staging and leaves the active
+  image untouched.
+- **Removal and separation:** removal deletes only `game.iso` and stale import
+  files. The Dolphin memory card, configuration, touch settings, caches, and
+  logs are not removed. Reimport likewise leaves saves untouched.
 - **Validation** before activation uses the procedure above; the canonical
   integrity reference is SHA-1 `1a737910b55b59c6ad91be9e3e3c43517fd52efb`.
 
@@ -104,6 +111,23 @@ nod-backed `CDvdFile` — **no HECL extraction step exists in the current flow**
   `Library/Application Support/axioDL/metaforce/game.iso` (the SDL pref path on
   iOS); the app loaded it and rendered the title screen. Confirms the iOS data
   path: place/validate the user's ISO at the store root.
+
+### Atomic import evidence (2026-08-12, iPad Simulator)
+
+- A 4 KiB invalid file was rejected on size; the existing canonical image,
+  save hash, and lack of staging files were unchanged.
+- A canonical image imported successfully. Its active inode changed, the
+  active SHA-1 remained canonical, and a normal `--autostart` restart loaded
+  **Metroid Prime USA (Build v1.111)** through Dawn/WebGPU → Metal.
+- Removing stored game data deleted `game.iso` while preserving the save hash;
+  a subsequent valid reimport restored a playable image.
+- A full-size image with a payload byte changed passed header/size checks but
+  failed staged SHA-1 validation. The prior active inode/SHA-1 and save hash
+  remained unchanged, and staging was cleaned.
+- Runtime log: `/tmp/metaforce-import-atomic-2026-08-12.log`. The production
+  picker/delegate and Files-visible plist keys compile for Simulator and arm64
+  iOS, but picker tapping still awaits working Simulator touch delivery or a
+  physical device. The tested hook calls the same import service.
 
 ## Privacy boundaries
 

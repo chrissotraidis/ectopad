@@ -1,6 +1,6 @@
 # Building
 
-Last updated: 2026-08-11
+Last updated: 2026-08-12
 
 ## Prerequisites (macOS)
 
@@ -30,11 +30,14 @@ Artifacts land in `ref/metaforce/build/` (git-ignored via `ref/`).
 ```sh
 cd ref/metaforce
 cmake --preset ios-default
-cmake --build --preset ios-default --target install
+cmake --build --preset ios-default --target metaforce -j8
 ```
 
-Upstream CI does exactly this on macOS runners (`x-ios-ci` preset) and produces
-`build/install/Metaforce.app` for arm64 iOS. Local reproduction is Gate 2 work.
+The local artifact is `build/ios-default/Binaries/Metaforce.app`. A full arm64
+iOS compile and link completed on 2026-08-12. Cross-compiling must not import
+host libraries through pkg-config; Aurora skips that fallback and vendors a
+static zstd for iOS. Signing/install/launch still requires the user's identity
+and physical hardware.
 
 ## iOS Simulator (arm64)
 
@@ -58,9 +61,10 @@ cmake -B build/ios-sim -G Ninja \
 cmake --build build/ios-sim --target install
 ```
 
-Then: `simctl boot <iPad>` → `simctl install <udid> build/ios-sim-install/Metaforce.app`
-→ copy the user's ISO to the app container as
-`Library/Application Support/axioDL/metaforce/game.iso` → `simctl launch`.
+Then: `simctl boot <iPad>` → `simctl install <udid>
+build/ios-sim/Binaries/Metaforce.app` → `simctl launch`. Production users import
+through the unchanged SunPad Game Data & Saves menu; manual container copying is
+only a development fallback. Run only one Simulator and shut it down afterward.
 
 This was proven 2026-08-11 on iPad Pro 13-inch (M5), iOS 26.5 (title screen
 rendered). One simulator at a time.

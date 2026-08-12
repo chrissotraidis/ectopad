@@ -1,0 +1,48 @@
+diff --git a/Runtime/CMain.cpp b/Runtime/CMain.cpp
+index 01880b2..20239eb 100644
+--- a/Runtime/CMain.cpp
++++ b/Runtime/CMain.cpp
+@@ -39,6 +39,10 @@
+ #include <dolphin/vi.h>
+ #include <SDL3/SDL_log.h>
+ #include <SDL3/SDL_messagebox.h>
++#if TARGET_OS_IOS
++extern "C" int MetaforceRunGameDataImportTest(const char* requestedPath);
++extern "C" int MetaforceRunGameDataRemovalTest(void);
++#endif
+ #if defined(ANDROID)
+ #include <spdlog/sinks/android_sink.h>
+ #endif
+@@ -607,6 +611,15 @@ int main(int argc, char** argv) {
+   metaforce::FileStoreManager fileMgr{"AxioDL", "metaforce"};
+   SetupBasics();
+ 
++#if TARGET_OS_IOS
++  for (int i = 1; i < argc; ++i) {
++    if (!strcmp(argv[i], "--metaforce-import-test") && i + 1 < argc)
++      return MetaforceRunGameDataImportTest(argv[i + 1]);
++    if (!strcmp(argv[i], "--metaforce-remove-data-test"))
++      return MetaforceRunGameDataRemovalTest();
++  }
++#endif
++
+   std::vector<std::string> args;
+   for (int i = 1; i < argc; ++i) {
+     args.emplace_back(argv[i]);
+diff --git a/Runtime/platforms/ios/Info.plist.in b/Runtime/platforms/ios/Info.plist.in
+index 54dfc51..411a2f6 100644
+--- a/Runtime/platforms/ios/Info.plist.in
++++ b/Runtime/platforms/ios/Info.plist.in
+@@ -55,6 +55,12 @@
+     <string>${DEPLOYMENT_TARGET}</string>
+     <key>LSRequiresIPhoneOS</key>
+     <true/>
++    <key>LSSupportsOpeningDocumentsInPlace</key>
++    <true/>
++    <key>UIFileSharingEnabled</key>
++    <true/>
++    <key>UIApplicationSupportsIndirectInputEvents</key>
++    <true/>
+     <key>LSApplicationCategoryType</key>
+     <string>public.app-category.adventure-games</string>
+     <key>UILaunchStoryboardName</key>

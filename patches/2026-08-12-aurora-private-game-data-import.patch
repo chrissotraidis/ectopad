@@ -1,0 +1,734 @@
+diff --git a/cmake/aurora_core.cmake b/cmake/aurora_core.cmake
+index 3b51904..87ee6a0 100644
+--- a/cmake/aurora_core.cmake
++++ b/cmake/aurora_core.cmake
+@@ -35,6 +35,7 @@ if (IOS)
+     target_link_libraries(aurora_core PUBLIC ${COREHAPTICS_FRAMEWORK})
+     target_sources(aurora_core PRIVATE
+             lib/ios/OverlayBridge.mm
++            lib/ios/MetaforceGameDataImport.mm
+             lib/ios/SunPadDiagnostics.mm
+             lib/ios/SunPadInputMixer.mm
+             lib/ios/SunPadSettings.mm
+@@ -42,6 +43,7 @@ if (IOS)
+     )
+     set_source_files_properties(
+             lib/ios/OverlayBridge.mm
++            lib/ios/MetaforceGameDataImport.mm
+             lib/ios/SunPadDiagnostics.mm
+             lib/ios/SunPadInputMixer.mm
+             lib/ios/SunPadSettings.mm
+@@ -51,7 +53,9 @@ if (IOS)
+     find_library(UIKIT_FRAMEWORK UIKit REQUIRED)
+     find_library(QUARTZCORE_FRAMEWORK QuartzCore REQUIRED)
+     find_library(GAMECONTROLLER_FRAMEWORK GameController REQUIRED)
+-    target_link_libraries(aurora_core PUBLIC ${UIKIT_FRAMEWORK} ${QUARTZCORE_FRAMEWORK} ${GAMECONTROLLER_FRAMEWORK})
++    find_library(UNIFORMTYPEIDENTIFIERS_FRAMEWORK UniformTypeIdentifiers REQUIRED)
++    target_link_libraries(aurora_core PUBLIC ${UIKIT_FRAMEWORK} ${QUARTZCORE_FRAMEWORK}
++            ${GAMECONTROLLER_FRAMEWORK} ${UNIFORMTYPEIDENTIFIERS_FRAMEWORK})
+ else ()
+     target_sources(aurora_core PRIVATE lib/ios_touch_stub.cpp)
+ endif ()
+diff --git a/extern/CMakeLists.txt b/extern/CMakeLists.txt
+index 8603f5f..ebc390d 100644
+--- a/extern/CMakeLists.txt
++++ b/extern/CMakeLists.txt
+@@ -252,7 +252,10 @@ if (AURORA_ENABLE_GX)
+ 
+   if (AURORA_CACHE_USE_ZSTD)
+     aurora_find_package_global(zstd CONFIG QUIET)
+-    if (NOT TARGET zstd::libzstd)
++    # pkg-config describes host libraries when cross-compiling (for example,
++    # Homebrew's macOS zstd while targeting iOS). Never import those into a
++    # cross-compiled target; fall through to the vendored static library.
++    if (NOT TARGET zstd::libzstd AND NOT CMAKE_CROSSCOMPILING)
+       find_package(PkgConfig QUIET)
+       if(PkgConfig_FOUND)
+         pkg_check_modules(ZSTD libzstd IMPORTED_TARGET GLOBAL)
+diff --git a/lib/ios/MetaforceGameDataImport.h b/lib/ios/MetaforceGameDataImport.h
+new file mode 100644
+index 0000000..26e2cce
+--- /dev/null
++++ b/lib/ios/MetaforceGameDataImport.h
+@@ -0,0 +1,44 @@
++#pragma once
++
++#import <Foundation/Foundation.h>
++
++NS_ASSUME_NONNULL_BEGIN
++
++typedef void (^MetaforceGameDataImportProgress)(NSString *status, double fraction);
++typedef void (^MetaforceGameDataImportCompletion)(BOOL success, NSString *message);
++
++/* The private SDL preference-root destination consumed by Metaforce on the
++ * next iOS/iPadOS launch. */
++NSString *MetaforceGameDataDestinationPath(void);
++
++/* Resolve an import-test path after the Simulator/device sandbox has been
++ * assigned. Production picker imports do not use this helper. */
++NSString *MetaforceResolveImportTestPath(NSString *requestedPath);
++
++/* Test-only early-launch hooks used to verify import/removal without running
++ * the game. They are not exposed by the production menu API. */
++#ifdef __cplusplus
++extern "C" {
++#endif
++int MetaforceRunGameDataImportTest(const char *requestedPath);
++int MetaforceRunGameDataRemovalTest(void);
++#ifdef __cplusplus
++}
++#endif
++
++/* ISO/GCM images placed in the Files-visible Documents directory. */
++NSArray<NSURL *> *MetaforceGameDataImagesInDocumentsDirectory(void);
++
++/* Validate GM8E01 Rev 2, stage in the destination directory, validate the
++ * staged SHA-1, and atomically rename it over game.iso. Completion is delivered
++ * on the main queue. */
++void MetaforceImportGameDataFromURL(
++    NSURL *url,
++    MetaforceGameDataImportProgress _Nullable progress,
++    MetaforceGameDataImportCompletion completion);
++
++/* Remove only private game.iso and stale import files. Saves, configuration,
++ * touch settings, caches, and diagnostic logs are deliberately untouched. */
++BOOL MetaforceRemoveStoredGameData(NSError **error);
++
++NS_ASSUME_NONNULL_END
+diff --git a/lib/ios/MetaforceGameDataImport.mm b/lib/ios/MetaforceGameDataImport.mm
+new file mode 100644
+index 0000000..658e967
+--- /dev/null
++++ b/lib/ios/MetaforceGameDataImport.mm
+@@ -0,0 +1,465 @@
++#import "MetaforceGameDataImport.h"
++
++#import "SunPadDiagnostics.h"
++#import "SunPadSettings.h"
++
++#include <CommonCrypto/CommonDigest.h>
++#include <SDL3/SDL_filesystem.h>
++#include <SDL3/SDL_stdinc.h>
++
++#include <cerrno>
++#include <cstring>
++#include <fcntl.h>
++#include <string>
++#include <sys/stat.h>
++#include <unistd.h>
++#include <vector>
++
++namespace {
++
++NSString *const MetaforceGameDataErrorDomain = @"MetaforceGameDataImport";
++constexpr uint64_t SupportedImageSize = 1459978240ULL;
++constexpr char SupportedGameId[] = "GM8E01";
++constexpr uint8_t SupportedDiscNumber = 0;
++constexpr uint8_t SupportedRevision = 2;
++constexpr uint32_t GameCubeMagic = 0xC2339F3D;
++NSString *const SupportedSHA1 = @"1a737910b55b59c6ad91be9e3e3c43517fd52efb";
++NSString *const StagingPrefix = @"game.iso.import-";
++
++NSError *ErrorWithMessage(NSInteger code, NSString *message) {
++  return [NSError errorWithDomain:MetaforceGameDataErrorDomain
++                             code:code
++                         userInfo:@{NSLocalizedDescriptionKey: message}];
++}
++
++NSError *POSIXError(NSInteger code, NSString *operation) {
++  NSString *detail = [NSString stringWithUTF8String:strerror(errno)];
++  return ErrorWithMessage(code, [NSString stringWithFormat:@"%@: %@", operation, detail]);
++}
++
++NSString *StoreRoot(void) {
++  char *path = SDL_GetPrefPath("AxioDL", "metaforce");
++  if (path == nullptr)
++    return @"";
++  NSString *root = [NSString stringWithUTF8String:path] ?: @"";
++  SDL_free(path);
++  return [root stringByStandardizingPath];
++}
++
++dispatch_queue_t ImportQueue(void) {
++  static dispatch_queue_t queue;
++  static dispatch_once_t onceToken;
++  dispatch_once(&onceToken, ^{
++    queue = dispatch_queue_create("com.axiodl.metaforce.game-data-import",
++                                  DISPATCH_QUEUE_SERIAL);
++  });
++  return queue;
++}
++
++void ReportProgress(MetaforceGameDataImportProgress progress,
++                    NSString *status, double fraction) {
++  if (progress == nil)
++    return;
++  dispatch_async(dispatch_get_main_queue(), ^{
++    progress(status, fraction);
++  });
++}
++
++BOOL ReadHeaderAndSize(NSString *path, NSError **error) {
++  int fd = open(path.fileSystemRepresentation, O_RDONLY);
++  if (fd < 0) {
++    if (error != nullptr)
++      *error = POSIXError(10, @"The selected file could not be opened");
++    return NO;
++  }
++
++  struct stat info = {};
++  uint8_t header[0x100] = {};
++  ssize_t headerLength = 0;
++  if (fstat(fd, &info) != 0) {
++    const int savedErrno = errno;
++    close(fd);
++    errno = savedErrno;
++    if (error != nullptr)
++      *error = POSIXError(11, @"The selected image size could not be read");
++    return NO;
++  }
++  do {
++    headerLength = pread(fd, header, sizeof(header), 0);
++  } while (headerLength < 0 && errno == EINTR);
++  const int savedErrno = headerLength < 0 ? errno : 0;
++  close(fd);
++
++  if (info.st_size != static_cast<off_t>(SupportedImageSize)) {
++    if (error != nullptr) {
++      *error = ErrorWithMessage(11,
++          @"The image size does not match Metroid Prime USA revision 2.");
++    }
++    return NO;
++  }
++  if (headerLength != static_cast<ssize_t>(sizeof(header))) {
++    if (savedErrno != 0) {
++      errno = savedErrno;
++      if (error != nullptr)
++        *error = POSIXError(12, @"The disc header could not be read");
++    } else if (error != nullptr) {
++      *error = ErrorWithMessage(12, @"The disc header is incomplete.");
++    }
++    return NO;
++  }
++
++  uint32_t magic = 0;
++  memcpy(&magic, header + 0x1c, sizeof(magic));
++  magic = CFSwapInt32BigToHost(magic);
++  if (magic != GameCubeMagic) {
++    if (error != nullptr) {
++      *error = ErrorWithMessage(13,
++          @"The selected file is not a GameCube disc image (bad magic).");
++    }
++    return NO;
++  }
++  if (memcmp(header, SupportedGameId, 6) != 0) {
++    char gameId[7] = {};
++    memcpy(gameId, header, 6);
++    NSString *actual = [[NSString alloc] initWithBytes:gameId
++                                                length:6
++                                              encoding:NSASCIIStringEncoding] ?: @"unknown";
++    if (error != nullptr) {
++      *error = ErrorWithMessage(14, [NSString stringWithFormat:
++          @"Unsupported game ID '%@'; this build requires GM8E01.", actual]);
++    }
++    return NO;
++  }
++  if (header[6] != SupportedDiscNumber || header[7] != SupportedRevision) {
++    if (error != nullptr) {
++      *error = ErrorWithMessage(15,
++          @"This build requires Metroid Prime USA disc 0, revision 2.");
++    }
++    return NO;
++  }
++  return YES;
++}
++
++NSString *SHA1ForFile(NSString *path, NSError **error) {
++  int fd = open(path.fileSystemRepresentation, O_RDONLY);
++  if (fd < 0) {
++    if (error != nullptr)
++      *error = POSIXError(20, @"The staged image could not be opened");
++    return nil;
++  }
++
++#pragma clang diagnostic push
++#pragma clang diagnostic ignored "-Wdeprecated-declarations"
++  CC_SHA1_CTX context;
++  CC_SHA1_Init(&context);
++  std::vector<uint8_t> buffer(1024 * 1024);
++  while (true) {
++    const ssize_t amount = read(fd, buffer.data(), buffer.size());
++    if (amount == 0)
++      break;
++    if (amount < 0) {
++      if (errno == EINTR)
++        continue;
++      if (error != nullptr)
++        *error = POSIXError(21, @"The staged image could not be verified");
++      close(fd);
++      return nil;
++    }
++    CC_SHA1_Update(&context, buffer.data(), static_cast<CC_LONG>(amount));
++  }
++  unsigned char digest[CC_SHA1_DIGEST_LENGTH];
++  CC_SHA1_Final(digest, &context);
++#pragma clang diagnostic pop
++  close(fd);
++
++  NSMutableString *hex = [NSMutableString stringWithCapacity:CC_SHA1_DIGEST_LENGTH * 2];
++  for (unsigned char byte : digest)
++    [hex appendFormat:@"%02x", byte];
++  return hex;
++}
++
++BOOL CopyToStaging(NSString *source, NSString *staging,
++                   MetaforceGameDataImportProgress progress, NSError **error) {
++  int sourceFd = open(source.fileSystemRepresentation, O_RDONLY);
++  if (sourceFd < 0) {
++    if (error != nullptr)
++      *error = POSIXError(30, @"The selected image could not be opened for copying");
++    return NO;
++  }
++  int stagingFd = open(staging.fileSystemRepresentation,
++                       O_WRONLY | O_CREAT | O_EXCL, S_IRUSR | S_IWUSR);
++  if (stagingFd < 0) {
++    if (error != nullptr)
++      *error = POSIXError(31, @"Private staging could not be created");
++    close(sourceFd);
++    return NO;
++  }
++
++  BOOL ok = YES;
++  uint64_t copied = 0;
++  uint64_t nextProgress = 64ULL * 1024 * 1024;
++  std::vector<uint8_t> buffer(1024 * 1024);
++  while (ok) {
++    ssize_t amount = read(sourceFd, buffer.data(), buffer.size());
++    if (amount == 0)
++      break;
++    if (amount < 0) {
++      if (errno == EINTR)
++        continue;
++      if (error != nullptr)
++        *error = POSIXError(32, @"The selected image could not be read");
++      ok = NO;
++      break;
++    }
++
++    ssize_t written = 0;
++    while (written < amount) {
++      const ssize_t result = write(stagingFd,
++                                   buffer.data() + static_cast<size_t>(written),
++                                   static_cast<size_t>(amount - written));
++      if (result < 0 && errno == EINTR)
++        continue;
++      if (result <= 0) {
++        if (error != nullptr)
++          *error = POSIXError(33, @"The private image copy could not be written");
++        ok = NO;
++        break;
++      }
++      written += result;
++    }
++    copied += static_cast<uint64_t>(amount);
++    if (copied >= nextProgress) {
++      ReportProgress(progress, @"Copying the disc…",
++                     MIN(0.85, 0.05 + 0.8 * static_cast<double>(copied) /
++                                      static_cast<double>(SupportedImageSize)));
++      nextProgress += 64ULL * 1024 * 1024;
++    }
++  }
++  if (ok && copied != SupportedImageSize) {
++    if (error != nullptr)
++      *error = ErrorWithMessage(34, @"The copied image size changed during import.");
++    ok = NO;
++  }
++  if (ok && fsync(stagingFd) != 0) {
++    if (error != nullptr)
++      *error = POSIXError(35, @"The private image copy could not be synchronized");
++    ok = NO;
++  }
++  close(stagingFd);
++  close(sourceFd);
++  return ok;
++}
++
++void RemoveStaleImports(NSString *root, NSString *exceptPath) {
++  NSArray<NSString *> *entries = [[NSFileManager defaultManager]
++      contentsOfDirectoryAtPath:root error:nil];
++  for (NSString *entry in entries) {
++    if (![entry hasPrefix:StagingPrefix])
++      continue;
++    NSString *path = [root stringByAppendingPathComponent:entry];
++    if (![path isEqualToString:exceptPath])
++      [[NSFileManager defaultManager] removeItemAtPath:path error:nil];
++  }
++}
++
++void SyncDirectory(NSString *root) {
++  int fd = open(root.fileSystemRepresentation, O_RDONLY);
++  if (fd >= 0) {
++    if (fsync(fd) != 0)
++      SunPadLog(@"game data directory sync warning errno=%d", errno);
++    close(fd);
++  }
++}
++
++} // namespace
++
++NSString *MetaforceGameDataDestinationPath(void) {
++  NSString *root = StoreRoot();
++  return root.length == 0 ? @"" : [root stringByAppendingPathComponent:@"game.iso"];
++}
++
++NSString *MetaforceResolveImportTestPath(NSString *requestedPath) {
++  if ([[NSFileManager defaultManager] fileExistsAtPath:requestedPath])
++    return requestedPath;
++  NSString *prefix = @"/tmp/";
++  if ([requestedPath hasPrefix:prefix]) {
++    NSString *relative = [requestedPath substringFromIndex:prefix.length];
++    NSString *sandboxPath = [NSTemporaryDirectory() stringByAppendingPathComponent:relative];
++    if ([[NSFileManager defaultManager] fileExistsAtPath:sandboxPath])
++      return sandboxPath;
++  }
++  return requestedPath;
++}
++
++extern "C" int MetaforceRunGameDataImportTest(const char *requestedPath) {
++  NSString *requested = requestedPath == nullptr
++      ? @"" : [NSString stringWithUTF8String:requestedPath];
++  NSString *resolved = MetaforceResolveImportTestPath(requested ?: @"");
++  dispatch_semaphore_t done = dispatch_semaphore_create(0);
++  __block BOOL succeeded = NO;
++  SunPadDiagnosticsStart();
++  SunPadLog(@"game data import test requested filename=%@", resolved.lastPathComponent);
++  MetaforceImportGameDataFromURL([NSURL fileURLWithPath:resolved], nil,
++      ^(BOOL success, NSString *) {
++        succeeded = success;
++        dispatch_semaphore_signal(done);
++      });
++  while (dispatch_semaphore_wait(
++      done, dispatch_time(DISPATCH_TIME_NOW, 100 * NSEC_PER_MSEC)) != 0) {
++    [[NSRunLoop mainRunLoop]
++        runUntilDate:[NSDate dateWithTimeIntervalSinceNow:0.01]];
++  }
++  return succeeded ? 0 : 2;
++}
++
++extern "C" int MetaforceRunGameDataRemovalTest(void) {
++  SunPadDiagnosticsStart();
++  NSError *error = nil;
++  if (MetaforceRemoveStoredGameData(&error))
++    return 0;
++  SunPadLog(@"stored game data removal failed reason=%@",
++            error.localizedDescription ?: @"unknown");
++  return 3;
++}
++
++NSArray<NSURL *> *MetaforceGameDataImagesInDocumentsDirectory(void) {
++  NSURL *documents = [[[NSFileManager defaultManager]
++      URLsForDirectory:NSDocumentDirectory inDomains:NSUserDomainMask] firstObject];
++  if (documents == nil)
++    return @[];
++  NSArray<NSURL *> *entries = [[NSFileManager defaultManager]
++      contentsOfDirectoryAtURL:documents
++    includingPropertiesForKeys:@[NSURLIsRegularFileKey]
++                       options:NSDirectoryEnumerationSkipsHiddenFiles
++                         error:nil];
++  NSMutableArray<NSURL *> *images = [NSMutableArray array];
++  NSSet<NSString *> *extensions = [NSSet setWithArray:@[@"iso", @"gcm"]];
++  for (NSURL *entry in entries) {
++    NSNumber *regular = nil;
++    [entry getResourceValue:&regular forKey:NSURLIsRegularFileKey error:nil];
++    if (regular.boolValue &&
++        [extensions containsObject:entry.pathExtension.lowercaseString]) {
++      [images addObject:entry];
++    }
++  }
++  [images sortUsingComparator:^NSComparisonResult(NSURL *left, NSURL *right) {
++    return [left.lastPathComponent localizedStandardCompare:right.lastPathComponent];
++  }];
++  return images;
++}
++
++void MetaforceImportGameDataFromURL(
++    NSURL *url, MetaforceGameDataImportProgress progress,
++    MetaforceGameDataImportCompletion completion) {
++  dispatch_async(ImportQueue(), ^{
++    NSString *root = StoreRoot();
++    NSString *destination = MetaforceGameDataDestinationPath();
++    NSString *staging = root.length == 0 ? @"" : [root stringByAppendingPathComponent:
++        [StagingPrefix stringByAppendingString:NSUUID.UUID.UUIDString]];
++    __block NSError *operationError = nil;
++    __block BOOL success = NO;
++
++    BOOL securityScoped = [url startAccessingSecurityScopedResource];
++    SunPadLog(@"game data import begin filename=%@", url.lastPathComponent ?: @"unknown");
++    ReportProgress(progress, @"Validating the selected disc…", 0.02);
++
++    if (root.length == 0 || destination.length == 0) {
++      operationError = ErrorWithMessage(40, @"Metaforce private storage is unavailable.");
++    } else if (![[NSFileManager defaultManager]
++                   createDirectoryAtPath:root
++             withIntermediateDirectories:YES attributes:nil error:&operationError]) {
++      // createDirectoryAtPath also succeeds when the directory already exists.
++    } else {
++      RemoveStaleImports(root, staging);
++      // UIDocumentPicker is configured with asCopy:YES, so its URL is already a
++      // stable local copy. Match SunPad's import path by opening that URL
++      // directly while security-scoped access is active.
++      if (ReadHeaderAndSize(url.path, &operationError)) {
++        SunPadLog(@"game data source header validated id=GM8E01 revision=2");
++        ReportProgress(progress, @"Copying the disc into private storage…", 0.05);
++        CopyToStaging(url.path, staging, progress, &operationError);
++      }
++    }
++
++    if (securityScoped)
++      [url stopAccessingSecurityScopedResource];
++
++    if (operationError == nil) {
++      ReportProgress(progress, @"Verifying the private copy…", 0.88);
++      if (ReadHeaderAndSize(staging, &operationError)) {
++        NSString *sha1 = SHA1ForFile(staging, &operationError);
++        if (operationError == nil && ![sha1 isEqualToString:SupportedSHA1]) {
++          operationError = ErrorWithMessage(41,
++              @"The image SHA-1 does not match Metroid Prime USA revision 2.");
++        }
++        if (operationError == nil) {
++          SunPadLog(@"game data staged image validated sha1=%@", sha1);
++          ReportProgress(progress, @"Activating the verified disc…", 0.98);
++          if (rename(staging.fileSystemRepresentation,
++                     destination.fileSystemRepresentation) != 0) {
++            operationError = POSIXError(42, @"The verified image could not be activated");
++          } else {
++            SyncDirectory(root);
++            NSURL *destinationURL = [NSURL fileURLWithPath:destination];
++            NSError *metadataError = nil;
++            if (![destinationURL setResourceValue:@YES
++                                           forKey:NSURLIsExcludedFromBackupKey
++                                             error:&metadataError]) {
++              SunPadLog(@"game data backup-exclusion warning=%@",
++                        metadataError.localizedDescription);
++            }
++            metadataError = nil;
++            if (![[NSFileManager defaultManager]
++                setAttributes:@{NSFileProtectionKey:
++                    NSFileProtectionCompleteUntilFirstUserAuthentication}
++                 ofItemAtPath:destination error:&metadataError]) {
++              SunPadLog(@"game data protection warning=%@",
++                        metadataError.localizedDescription);
++            }
++            SunPadSettings *settings = [SunPadSettings sharedSettings];
++            settings.retainedGameDataPath = destination;
++            settings.extractedGameRoot = nil;
++            [settings synchronize];
++            SunPadLog(@"game data import activated filename=game.iso");
++            success = YES;
++          }
++        }
++      }
++    }
++
++    if (!success && staging.length > 0)
++      [[NSFileManager defaultManager] removeItemAtPath:staging error:nil];
++    NSString *message = success
++        ? @"Metroid Prime USA revision 2 was verified and stored privately. Restart Metaforce to use it."
++        : operationError.localizedDescription ?: @"The game-data import failed.";
++    if (!success)
++      SunPadLog(@"game data import rejected reason=%@", message);
++    dispatch_async(dispatch_get_main_queue(), ^{
++      completion(success, message);
++    });
++  });
++}
++
++BOOL MetaforceRemoveStoredGameData(NSError **error) {
++  NSString *root = StoreRoot();
++  NSString *destination = MetaforceGameDataDestinationPath();
++  if (root.length == 0 || destination.length == 0) {
++    if (error != nullptr)
++      *error = ErrorWithMessage(50, @"Metaforce private storage is unavailable.");
++    return NO;
++  }
++
++  RemoveStaleImports(root, @"");
++  if (unlink(destination.fileSystemRepresentation) != 0 && errno != ENOENT) {
++    if (error != nullptr)
++      *error = POSIXError(51, @"Stored game data could not be removed");
++    return NO;
++  }
++  SyncDirectory(root);
++  SunPadSettings *settings = [SunPadSettings sharedSettings];
++  settings.retainedGameDataPath = nil;
++  settings.extractedGameRoot = nil;
++  [settings synchronize];
++  SunPadLog(@"stored game data removed filename=game.iso savesPreserved=yes");
++  return YES;
++}
+diff --git a/lib/ios/OverlayBridge.mm b/lib/ios/OverlayBridge.mm
+index e827cbc..a010abf 100644
+--- a/lib/ios/OverlayBridge.mm
++++ b/lib/ios/OverlayBridge.mm
+@@ -2,6 +2,7 @@
+ 
+ #import <Foundation/Foundation.h>
+ #import <UIKit/UIKit.h>
++#import <UniformTypeIdentifiers/UniformTypeIdentifiers.h>
+ 
+ #include <SDL3/SDL_video.h>
+ 
+@@ -9,17 +10,20 @@
+ 
+ #include "../window.hpp"
+ 
++#import "MetaforceGameDataImport.h"
+ #import "SunPadDiagnostics.h"
+ #import "SunPadGameOverlay.h"
+ #import "SunPadInputMixer.h"
+ #import "SunPadSettings.h"
+ 
+-/* Delegate for the SunPad overlay's menu actions that touch game data or
+- * controller mapping. Wired to the shared app services as they land; for now
+- * they surface a "coming soon" alert so the menu stays fully navigable. */
+-@interface TouchOverlayDelegate : NSObject <SunPadGameOverlayDelegate>
++/* Metaforce-specific services behind the unchanged SunPad menu. */
++@interface TouchOverlayDelegate : NSObject <SunPadGameOverlayDelegate, UIDocumentPickerDelegate>
++@property(nonatomic, weak) SunPadGameOverlay* overlay;
+ - (void)presentComingSoon:(SunPadGameOverlay*)overlay title:(NSString*)title;
+ - (void)applyEngineSettings;
++- (void)presentGameDataImport:(SunPadGameOverlay*)overlay;
++- (void)presentGameDataFolderImport:(SunPadGameOverlay*)overlay;
++- (void)importGameDataFromURL:(NSURL*)url overlay:(SunPadGameOverlay*)overlay;
+ @end
+ 
+ @implementation TouchOverlayDelegate
+@@ -78,21 +82,109 @@
+ }
+ 
+ - (void)gameOverlayRequestsGameDataChange:(SunPadGameOverlay*)overlay {
+-    [self presentComingSoon:overlay title:@"Game Data"];
++    [self presentGameDataImport:overlay];
+ }
+ 
+ - (void)gameOverlayRequestsGameDataFolderImport:(SunPadGameOverlay*)overlay {
+-    [self presentComingSoon:overlay title:@"Import Game Data"];
++    [self presentGameDataFolderImport:overlay];
+ }
+ 
+ - (void)gameOverlayRequestsGameDataRemoval:(SunPadGameOverlay*)overlay {
+-    [self presentComingSoon:overlay title:@"Remove Game Data"];
++    NSError* error = nil;
++    BOOL removed = MetaforceRemoveStoredGameData(&error);
++    UIViewController* presenter = overlay.window.rootViewController;
++    UIAlertController* alert =
++        [UIAlertController alertControllerWithTitle:removed ? @"Game Data Removed" : @"Removal Failed"
++                                            message:removed
++                                                ? @"The private game image was removed. Saves, settings, caches, and logs were preserved. Restart Metaforce before importing or playing again."
++                                                : error.localizedDescription
++                                     preferredStyle:UIAlertControllerStyleAlert];
++    [alert addAction:[UIAlertAction actionWithTitle:@"OK"
++                                             style:UIAlertActionStyleDefault
++                                           handler:nil]];
++    [presenter presentViewController:alert animated:YES completion:nil];
+ }
+ 
+ - (void)gameOverlayRequestsControllerMapping:(SunPadGameOverlay*)overlay {
+     [self presentComingSoon:overlay title:@"Controller Mapping"];
+ }
+ 
++- (void)presentGameDataImport:(SunPadGameOverlay*)overlay {
++    NSArray<UTType*>* types = @[
++        [UTType typeWithFilenameExtension:@"iso"],
++        [UTType typeWithFilenameExtension:@"gcm"],
++        UTTypeData,
++    ];
++    UIDocumentPickerViewController* picker =
++        [[UIDocumentPickerViewController alloc] initForOpeningContentTypes:types
++                                                               asCopy:YES];
++    picker.delegate = self;
++    picker.allowsMultipleSelection = NO;
++    picker.shouldShowFileExtensions = YES;
++    [overlay.window.rootViewController presentViewController:picker animated:YES completion:nil];
++}
++
++- (void)presentGameDataFolderImport:(SunPadGameOverlay*)overlay {
++    NSArray<NSURL*>* images = MetaforceGameDataImagesInDocumentsDirectory();
++    if (images.count == 1) {
++        [self importGameDataFromURL:images.firstObject overlay:overlay];
++        return;
++    }
++
++    NSString* message = images.count == 0
++        ? @"No ISO or GCM was found. In Files, place the image directly in On My iPhone/iPad → Metaforce, then try again."
++        : @"Choose an image from the Metaforce folder.";
++    UIAlertController* alert =
++        [UIAlertController alertControllerWithTitle:@"Metaforce Folder"
++                                            message:message
++                                     preferredStyle:UIAlertControllerStyleAlert];
++    __weak TouchOverlayDelegate* weakSelf = self;
++    for (NSURL* image in images) {
++        [alert addAction:[UIAlertAction actionWithTitle:image.lastPathComponent
++                                                  style:UIAlertActionStyleDefault
++                                                handler:^(__kindof UIAlertAction*) {
++            [weakSelf importGameDataFromURL:image overlay:overlay];
++        }]];
++    }
++    [alert addAction:[UIAlertAction actionWithTitle:@"Cancel"
++                                              style:UIAlertActionStyleCancel
++                                            handler:nil]];
++    [overlay.window.rootViewController presentViewController:alert animated:YES completion:nil];
++}
++
++- (void)documentPicker:(UIDocumentPickerViewController*)controller
++    didPickDocumentsAtURLs:(NSArray<NSURL*>*)urls {
++    (void)controller;
++    NSURL* url = urls.firstObject;
++    if (url != nil && self.overlay != nil)
++        [self importGameDataFromURL:url overlay:self.overlay];
++}
++
++- (void)importGameDataFromURL:(NSURL*)url overlay:(SunPadGameOverlay*)overlay {
++    UIViewController* presenter = overlay.window.rootViewController;
++    UIAlertController* progress =
++        [UIAlertController alertControllerWithTitle:@"Importing Game Data"
++                                            message:@"Validating the selected disc…"
++                                     preferredStyle:UIAlertControllerStyleAlert];
++    [presenter presentViewController:progress animated:YES completion:nil];
++    MetaforceImportGameDataFromURL(url,
++        ^(NSString* status, double fraction) {
++            progress.message = [NSString stringWithFormat:@"%@ (%.0f%%)", status, fraction * 100.0];
++        },
++        ^(BOOL success, NSString* message) {
++            [progress dismissViewControllerAnimated:YES completion:^{
++                UIAlertController* result =
++                    [UIAlertController alertControllerWithTitle:success ? @"Game Data Ready" : @"Import Failed"
++                                                        message:message
++                                                 preferredStyle:UIAlertControllerStyleAlert];
++                [result addAction:[UIAlertAction actionWithTitle:@"OK"
++                                                          style:UIAlertActionStyleDefault
++                                                        handler:nil]];
++                [presenter presentViewController:result animated:YES completion:nil];
++            }];
++        });
++}
++
+ @end
+ 
+ namespace aurora::touch {
+@@ -151,6 +243,7 @@ bool attach_ios_overlay(SDL_Window* sdlWindow) noexcept {
+   SunPadGameOverlay* overlay = [[SunPadGameOverlay alloc] initWithFrame:window.bounds];
+   overlay.autoresizingMask = UIViewAutoresizingFlexibleWidth | UIViewAutoresizingFlexibleHeight;
+   g_delegate = [TouchOverlayDelegate new];
++  g_delegate.overlay = overlay;
+   overlay.delegate = g_delegate;
+   // Add at the window level so the overlay stays above the SDL Metal view.
+   [window addSubview:overlay];
+@@ -169,6 +262,7 @@ bool attach_ios_overlay(SDL_Window* sdlWindow) noexcept {
+                                                  block:^(NSTimer*) {
+     update_fps_label();
+   }];
++
+   return true;
+ }
+ 
