@@ -171,15 +171,14 @@ will be updated as gates produce evidence.
   scanning, menus, pause. Research the original control scheme before assigning
   hit targets. Keep the original control model available; any optional enhanced
   mode must be clean and documented.
-- **Status (2026-08-12): first version shipped** in aurora (`lib/touch.cpp`,
-  rendered via the ImGui pass): move/look sticks, D-pad mapped to the original
-  Prime beam (left/right) and visor (up/down) selectors, A/B/X/Y/Z, L
-  (fire/charge), R (lock-on), START (pause). Touch merges with physical
-  controllers (no mode switch). Gear = edit mode (drag to reposition), RESET =
-  defaults; normalized per-orientation layout persists to `touch_overlay.ini`.
-  Verified on the iPad Simulator in Frigate Orpheon (stick movement, START/B
-  menu, edit mode, persistence across relaunch). Remaining: iPhone layout
-  playtesting, radial beam/visor option, settings-menu entry, on-device tuning.
+- **Status (2026-08-12): SunPad direct port in place.** The earlier independent
+  ImGui implementation was rejected and superseded. Aurora now hosts SunPad's
+  UIKit overlay, settings, input mixer/state, layout editor, and diagnostics
+  nearly verbatim; see [SUNPAD_PARITY.md](SUNPAD_PARITY.md). KI-015 attachment
+  is fixed and the controls render over Dawn/Metal on the iPad Simulator.
+  Remaining: restore host touch delivery or verify on a physical device,
+  re-test the current build's menu/editor/mixer interactions, validate iPhone
+  and iPad layouts on hardware, and wire every menu action to the engine.
 
 ## 22. iPhone layout
 

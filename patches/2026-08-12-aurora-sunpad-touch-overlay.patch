@@ -1,19 +1,8 @@
 diff --git a/cmake/aurora_core.cmake b/cmake/aurora_core.cmake
-index 774c52a..d2e5502 100644
+index 414937d..3b51904 100644
 --- a/cmake/aurora_core.cmake
 +++ b/cmake/aurora_core.cmake
-@@ -1,8 +1,10 @@
- add_library(aurora_core STATIC
-         lib/aurora.cpp
-+        lib/audio.cpp
-         lib/device.cpp
-         lib/device.hpp
-         lib/input.cpp
-+        lib/ios_touch_stub.cpp
-         lib/window.cpp
-         lib/logging.cpp
-         lib/system_info.cpp
-@@ -32,6 +34,25 @@ if (IOS)
+@@ -33,6 +33,27 @@ if (IOS)
      target_sources(aurora_core PRIVATE lib/device_ios.mm)
      set_source_files_properties(lib/device_ios.mm PROPERTIES COMPILE_FLAGS -fobjc-arc)
      target_link_libraries(aurora_core PUBLIC ${COREHAPTICS_FRAMEWORK})
@@ -36,6 +25,8 @@ index 774c52a..d2e5502 100644
 +    find_library(QUARTZCORE_FRAMEWORK QuartzCore REQUIRED)
 +    find_library(GAMECONTROLLER_FRAMEWORK GameController REQUIRED)
 +    target_link_libraries(aurora_core PUBLIC ${UIKIT_FRAMEWORK} ${QUARTZCORE_FRAMEWORK} ${GAMECONTROLLER_FRAMEWORK})
++else ()
++    target_sources(aurora_core PRIVATE lib/ios_touch_stub.cpp)
  endif ()
  
  if (AURORA_ENABLE_GX)
@@ -2466,13 +2457,12 @@ index 0000000..67bcf7c
 +@end
 diff --git a/lib/ios_touch_stub.cpp b/lib/ios_touch_stub.cpp
 new file mode 100644
-index 0000000..5deefdb
+index 0000000..edeb3a6
 --- /dev/null
 +++ b/lib/ios_touch_stub.cpp
-@@ -0,0 +1,13 @@
+@@ -0,0 +1,11 @@
 +#include <aurora/touch.hpp>
 +
-+#if !defined(SDL_PLATFORM_IOS) && !defined(SDL_PLATFORM_TVOS)
 +namespace aurora::touch {
 +bool attach_ios_overlay(SDL_Window*) noexcept {
 +  return false;
@@ -2482,4 +2472,3 @@ index 0000000..5deefdb
 +  return false;
 +}
 +} // namespace aurora::touch
-+#endif

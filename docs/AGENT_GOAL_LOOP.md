@@ -86,14 +86,11 @@ begins with an evidence-based audit:
 2. Inspect the aurora working tree
    (`ref/metaforce/extern/aurora`): `git status --short` and the diff vs the
    pinned `5143394` — understand every uncommitted change.
-3. **Known regression to fix first:** the ported SunPad overlay was verified
-   rendering (screenshots `/tmp/ios_sunpad_overlay2.png`, `/tmp/ios_menu_open2.png`)
-   but after cleanup the attach now fails with
-   "Failed to attach the UIKit touch overlay to the window" — root-cause and
-   fix it. Hypothesis: `SDL_PROP_WINDOW_UIKIT_WINDOW_POINTER` is null at the
-   attach point in `aurora.cpp::initialize()` (after `show_window()`); consider
-   attaching after the first frame / after the Metal surface exists, and log
-   which check fails in `OverlayBridge.mm`.
+3. Re-verify KI-015 remains fixed. Its root cause was duplicate static-library
+   implementations: `ios_touch_stub.cpp` was compiled for iOS and linked before
+   `OverlayBridge.mm`, so the real bridge was never loaded. CMake now includes
+   the stub only for non-iOS builds. Current evidence:
+   `/tmp/ki015-overlay-fixed-2026-08-12.{png,log}`.
 4. Rebuild both presets (`macos-default-relwithdebinfo`, `ios-sim`) and run
    the app to verify each claimed result before relying on it. Verify with
    dated screenshots + logs in `/tmp`.
@@ -125,8 +122,6 @@ Proven (with dated evidence in `/tmp`):
   3×.
 
 Known open items:
-- **Overlay attach regression** (§3.3) — the port renders but currently fails
-  to attach after cleanup. Fix first.
 - **Simulator host touch forwarding is currently broken** (mouse clicks in the
   device area stopped producing touches mid-session; the Simulator's
   "Send Pointer to Device" state is stuck; clicks on the Simulator's own UI
@@ -158,9 +153,9 @@ Known open items:
 
 ## 6. Next priorities (in order)
 
-1. Fix the overlay attach regression; verify the SunPad overlay renders +
-   ••• menu + settings panel on the iPad Simulator; fix host touch delivery or
-   document it; verify input via the mixer path.
+1. Restore Simulator host touch delivery or verify on a physical device, then
+   re-test the `•••` menu, settings panel, editor, and mixer path on the current
+   KI-015-fixed build.
 2. Wire the ••• menu actions to real behavior (render scale/aspect/FPS to the
    engine; game data & saves to the import flow; Share Diagnostic Log to the
    ported diagnostics).

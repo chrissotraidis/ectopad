@@ -1,13 +1,23 @@
 # Handoff
 
-Last updated: 2026-08-11
+Last updated: 2026-08-12
 
 ## Where things stand
 
-- Research phase in progress: environment, dump validation, repo pins, and
-  architecture are documented (see STATUS/DEPENDENCIES/GAME_DATA/ARCHITECTURE).
-- Next: Gate 1 (macOS ARM64 build) and `docs/IMPLEMENTATION_PLAN.md` are the
-  immediate deliverables.
+- Gate 1 macOS is proven. iPad Simulator reaches Dawn/WebGPU → Metal, the full
+  New Game flow, Frigate gameplay, audio, saves, and lifecycle handling.
+- KI-015 is fixed: the SunPad overlay bridge had been shadowed by a non-iOS stub
+  linked first from Aurora's static archive. The stub now compiles only on
+  non-iOS targets. Both macOS and iOS Simulator presets rebuild successfully;
+  current iPad Simulator evidence is
+  `/tmp/ki015-overlay-fixed-2026-08-12.{png,log}`.
+- The overlay/settings/input sources are audited against SunPad `7d84cec`; see
+  [SUNPAD_PARITY.md](SUNPAD_PARITY.md). Current Simulator host clicks still do
+  not deliver touch, so current-build menu/editor interaction remains blocked
+  by test infrastructure rather than claimed as verified.
+- Next unblocked work: verify the virtual GameController path, wire the SunPad
+  menu actions, and implement private validated/atomic game-data import. Gate
+  2/3 physical-device work still requires signing identity and hardware.
 
 ## How to resume
 
@@ -23,4 +33,3 @@ Last updated: 2026-08-11
   files, saves, logs with sensitive data, provisioning profiles, certificates,
   or signing material.
 - Preserve unrelated user changes; do not rewrite history unnecessarily.
-

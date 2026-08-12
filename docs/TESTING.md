@@ -94,42 +94,33 @@ Last updated: 2026-08-11
   tutorial prompt ("Press and hold [L] to lock onto targets") appeared.
   Evidence: `/tmp/ios_touch1.png`, `/tmp/ios_touch_after.png`,
 
-### 2026-08-12 — Prime-native touch overlay (visible controls, edit mode, persistence)
+### 2026-08-12 — SunPad UIKit overlay port and KI-015
 
-- Replaced the invisible zone layout with a rendered overlay in aurora
-  (`lib/touch.cpp` + `include/aurora/touch.hpp`, drawn in the ImGui pass so it
-  composites over the game): left stick (move), right stick (look/C-stick),
-  D-pad (beams left/right, visors up/down — the original Prime mapping),
-  A/B/X/Y face buttons, Z (jump), L (fire/charge) and R (lock-on) shoulder
-  tabs, START (pause), plus a gear (edit-mode toggle) and RESET.
-  Patch: `patches/2026-08-12-aurora-touch-overlay.patch` (applies after the
-  lifecycle + ImGui-shutdown patches on aurora @ `5143394`).
-- Touch hit-testing is explicit (buttons first, sticks last); touch and
-  physical-controller input merge through the existing
-  `PADSetVirtualStatus`/`merge_virtual_status` path (buttons OR'd, dominant
-  stick wins) — seamless handoff with no mode switch.
-- Layout customization: the gear enters edit mode (yellow highlight, banner,
-  RESET button); dragging repositions a control; positions are stored
-  normalized per orientation in `<userPath>/touch_overlay.ini`
-  (`[landscape]`/`[portrait]` sections) and reloaded on launch. Reset restores
-  defaults. Verified on the iPad Pro 13-inch (M5) Simulator inside Frigate
-  Orpheon gameplay:
-  - left-stick drags move/turn Samus (view changed; raw finger events logged);
-  - START tap opens the pause/inventory screen, B tap closes it;
-  - gear tap enters edit mode (yellow banner + RESET visible);
-  - dragging the A button moved it to (0.964, 0.842) and wrote
-    `touch_overlay.ini`; after relaunch the button rendered at the new spot
-    (persistence verified), then the layout was reset to defaults.
-  Evidence: `/tmp/ios_overlay_play1.png` (overlay in gameplay),
-  `/tmp/ios_start3_after.png` (pause menu via START),
-  `/tmp/ios_editmode_confirm.png` (edit mode),
-  `/tmp/touch_overlay_test_layout.ini` (archived test layout),
-  `/tmp/ios_persist_check.png` (layout loaded after relaunch).
-- Notes: the iPad Simulator always reports a virtual Apple gamepad
-  (vid 05ac, pid 0004), so controller-presence cannot be used to auto-hide the
-  overlay on the Simulator; the overlay renders regardless and input merges
-  (real-device handoff is automatic via the same merge path).
-  `/tmp/ios_touch_after2.png`.
+- The independent ImGui overlay was rejected and superseded. The current UI is
+  a direct port of `SunPadGameOverlay`, `SunPadSettings`, `SunPadInputMixer`,
+  `SunPadInputState`, and `SunPadDiagnostics`; see
+  [SUNPAD_PARITY.md](SUNPAD_PARITY.md) for the file-by-file audit.
+- Root-caused KI-015 without changing SunPad UI code. Both
+  `ios_touch_stub.cpp` and `OverlayBridge.mm` defined
+  `aurora::touch::attach_ios_overlay()` in `libaurora_core.a`. The stub's SDL
+  platform macros were unavailable, so it emitted an iOS symbol; archive order
+  caused the linker to select it and omit the bridge. CMake now includes the
+  stub only for non-iOS targets.
+- Rebuilt `ios-sim` successfully (2529 targets after CMake regenerated Dawn and
+  SDL), installed `build/ios-sim/Binaries/Metaforce.app`, and launched with
+  `--autostart` on the one booted iPad Pro 13-inch (M5) Simulator. Evidence:
+  `[SunPad] session start`, Dawn adapter `Apple iOS simulator GPU`, unchanged
+  SunPad controls over the live intro/game, audio active, and clean
+  `simctl terminate` exit 0. Screenshot/log:
+  `/tmp/ki015-overlay-fixed-2026-08-12.png`,
+  `/tmp/ki015-overlay-fixed-2026-08-12.log`.
+- The current Simulator host still did not forward device-area clicks to the
+  app, so this run could not reopen the menu/settings. Earlier evidence
+  `/tmp/ios_menu_open2.png` proves the directly ported menu rendered before the
+  linker regression. Current-build menu interaction remains unverified rather
+  than inferred.
+- Rebuilt `macos-default-relwithdebinfo`; the app reached Dawn/WebGPU → Metal
+  on Apple M2 and exited 0 after SIGINT.
 - In-game: `Metaforce -l --warp 2 2 +debugOverlay.* <iso>` — full-screen scene +
   HUD, 1760 draw calls, 60 FPS; then ImGui segfault (KI-002).
 - Artifacts: logs `/tmp/metaforce-run.log`, `/tmp/metaforce-fe.log`,

@@ -28,9 +28,9 @@ Last updated: 2026-08-12
 | iOS Simulator (iPad) execution | **Proven** | iOS Simulator build succeeded (after fixing Dawn cross-compile host-tool issues: host protoc + GLFW disabled); **rebuilt 2026-08-11 23:20 with the vendored audio stack + CInputStream byte-order fix + kabufuda card-persistence fix**; installed and launched on iPad Pro 13-inch (M5) Simulator; loaded the user's ISO; Dawn/WebGPU reached Metal ("Apple iOS simulator GPU"); amuse audio initialized (32 kHz SDL backend); rendered the **Metroid Prime title screen**, and — via the `--autostart` test hook — ran the **full New Game flow: intro cinematic → first-person Frigate Orpheon gameplay** (visor HUD, ENERGY 99, arm cannon, radar) at 60 FPS, and **persisted a `GM8E01`/`MetroidPrime B` save to the sim's card** |
 | Audio on iPad Simulator | **Proven (Simulator-only)** | amuse engine + SDL backend initialize on the iPad Pro 13-inch (M5) Simulator (device 44100 Hz, engine 32 kHz); audio groups load into amuse (Misc/MiscSamus/UI/Weapons/ZZZ at frontend); `CStaticAudioPlayer` streams `frontend_1.rsf`/`frontend_2.rsf`; `SDLBackend: 2 voices (2 running), 3 submixes`, stable 534-frame audio pump, no underruns; see KNOWN_ISSUES KI-003 |
 | Dawn/WebGPU reaching Metal on iOS device | **Not yet tested** | Principal technical unknown (Gate 2); simulator rendering (host GPU/Metal path) works — physical-device verification pending signing identity + hardware |
-| Touch controls (iPhone/iPad layouts) | **Not yet tested** | |
+| Touch controls (iPhone/iPad layouts) | **Partially proven (Simulator)** | Direct SunPad UIKit port renders on iPad Simulator and its source parity is audited; earlier session exercised the menu/layout controls, but current host touch delivery is blocked and physical iPhone/iPad layouts remain unverified. See [SUNPAD_PARITY.md](SUNPAD_PARITY.md). |
 | GameController support | **Not yet tested** | |
-| Touch controls / menu (iPad) | **Port in place, attach regression (Simulator)** | SunPad's UIKit overlay is ported nearly verbatim into `ref/metaforce/extern/aurora/lib/ios/` (SunPadGameOverlay, Settings, InputMixer, InputState, Diagnostics) + `OverlayBridge.mm`, rendering identically to SunPad (verified 2026-08-12: green A, red B, gray X/Y, purple Z, gold C-stick, D-pad, L/R shoulders, START, ••• menu). **Open regression (KI-015):** attach currently fails after a cleanup pass — see KNOWN_ISSUES and `docs/AGENT_GOAL_LOOP.md` §3. |
+| Touch controls / menu (iPad) | **Partially proven (Simulator; KI-015 fixed)** | SunPad's UIKit overlay is ported directly into `ref/metaforce/extern/aurora/lib/ios/`; all UI/settings/mixer/input files are byte-identical and diagnostics has one app-name path change. The corrected current build renders the controls over Dawn/Metal gameplay. Earlier evidence proves the `•••` menu visually; current-build menu/settings interaction is blocked by Simulator host touch delivery and is not claimed as re-verified. See [SUNPAD_PARITY.md](SUNPAD_PARITY.md) and KI-015. |
 | Save/reload behavior | **Proven (macOS)** | Full cycle verified 2026-08-11 after the kabufuda queue/commit fix (KI-011): new game → save slot `GM8E01`/`MetroidPrime B` persisted to the raw card on disk → clean quit → relaunch → file select shows the save → A loads the saved game (intro narration + gameplay at 60 FPS). In-game save-station save/reload not yet exercised (requires navigating to a save station) |
 | Frigate Orpheon / later-area gameplay | **Partially proven** | New Game now reaches **actual first-person gameplay** in Frigate Orpheon after the KI-009 fix: intro cinematic (space, gunship, Samus model) renders at 60 FPS; gameplay view renders with visor HUD (energy 99), arm cannon, minimap at 60 FPS, 1000+ draw calls; keyboard movement works. Full playthrough + save station + later areas not yet verified |
 | App lifecycle (background/foreground) on iPad Simulator | **Proven (Simulator-only)** | Full background → foreground cycles verified 2026-08-12 on iPad Pro 13-inch (M5) Simulator with the aurora iOS lifecycle fix: Home → app backgrounds (home screen, process alive) → relaunch foregrounds → Frigate Orpheon gameplay resumes cleanly with HUD/state intact (ENERGY 99), CPU returns to gameplay levels, RSS stable (~581 MB, no leak across 2 cycles). See detail below |
@@ -152,28 +152,19 @@ Last updated: 2026-08-12
     voices (2 running), 3 submixes` with a stable 534-frame audio pump. Evidence:
     log `/tmp/mf_ios_sim_audio.log`, screenshots `/tmp/ios_audio_check2.png`
     (title screen) and `/tmp/ios_audio_final.png`.
-- **Prime-native touch overlay (2026-08-12, iPad Pro 13-inch M5, iOS 26.5):**
-    replaced the invisible zone layout with a rendered, customizable overlay in
-    aurora (`lib/touch.cpp`, drawn in the ImGui pass above the game): left stick
-    (move), right stick (look), D-pad (beam left/right, visor up/down — the
-    original Prime mapping), A/B/X/Y face buttons, Z (jump), L (fire/charge),
-    R (lock-on), START (pause), a gear (edit mode) and RESET. Touch input
-    merges with physical controllers via the existing virtual-status path (no
-    mode switch = seamless handoff). Edit mode (gear) enables drag-repositioning
-    of any control; positions persist normalized per orientation in
-    `<userPath>/touch_overlay.ini` (`[landscape]`/`[portrait]`) and reload on
-    launch; RESET restores defaults. Verified in Frigate Orpheon gameplay via
-    Simulator GUI touches: stick drags moved/turned Samus; START opened the
-    pause/inventory screen; B closed it; dragging the A button moved it to
-    (0.964, 0.842), the layout saved and rendered at the new position after a
-    relaunch, then was reset to defaults. The iPad Simulator always reports a
-    virtual Apple gamepad (vid 05ac, pid 0004), so controller presence cannot
-    auto-hide the overlay on the sim — input simply merges. Patch:
-    `patches/2026-08-12-aurora-touch-overlay.patch` (replaces the earlier
-    `2026-08-12-aurora-touch-input-virtual-pad.patch`). Evidence:
-    `/tmp/ios_overlay_play1.png`, `/tmp/ios_start3_after.png`,
-    `/tmp/ios_editmode_confirm.png`, `/tmp/ios_persist_check.png`,
-    `/tmp/touch_overlay_test_layout.ini`.
+- **SunPad UIKit touch overlay (2026-08-12, iPad Pro 13-inch M5, iOS 26.5):**
+    the earlier independent ImGui overlay was superseded and is not the product
+    UI. The current implementation directly ports SunPad's UIKit overlay,
+    settings, mixer, input state, and diagnostics into Aurora. KI-015 was a
+    static-archive collision: the non-iOS stub was compiled for iOS and linked
+    before `OverlayBridge.mm`. CMake now excludes the stub on iOS. The corrected
+    build logged `[SunPad] session start`, rendered the controls over the live
+    intro/game, reached Dawn→Metal, and exited cleanly. Host Simulator clicks
+    still did not deliver touch, so the current build's menu/settings interaction
+    is not re-proven; earlier screenshots prove the ported `•••` menu rendering.
+    Evidence: `/tmp/ki015-overlay-fixed-2026-08-12.png`,
+    `/tmp/ki015-overlay-fixed-2026-08-12.log`,
+    `/tmp/ios_menu_open2.png`; see [SUNPAD_PARITY.md](SUNPAD_PARITY.md).
 - **Lifecycle on iPad Simulator (2026-08-12, iPad Pro 13-inch M5, iOS 26.5):**
     verified background → foreground behavior twice from inside Frigate Orpheon
     first-person gameplay. **Root-cause finding:** SDL3's iOS backend reports
