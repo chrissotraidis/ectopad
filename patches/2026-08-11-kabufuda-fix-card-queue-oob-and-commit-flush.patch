@@ -1,0 +1,52 @@
+diff --git a/lib/kabufuda/AsyncIOPosix.cpp b/lib/kabufuda/AsyncIOPosix.cpp
+index e429108..4e29c9b 100644
+--- a/lib/kabufuda/AsyncIOPosix.cpp
++++ b/lib/kabufuda/AsyncIOPosix.cpp
+@@ -12,7 +12,9 @@ AsyncIO::AsyncIO(std::string_view filename, bool truncate) {
+ 
+ AsyncIO::~AsyncIO() {
+   if (*this) {
+-    aio_cancel(m_fd, nullptr);
++    /* Flush any pending AIO operations (e.g. card save writes queued by
++     * Card::commit) instead of cancelling them, so data is durable. */
++    waitForCompletion();
+     close(m_fd);
+   }
+ }
+@@ -49,6 +51,12 @@ void AsyncIO::_waitForOperation(size_t qIdx) const {
+ }
+ 
+ bool AsyncIO::asyncRead(size_t qIdx, void* buf, size_t length, off_t offset) {
++  if (qIdx >= m_queue.size()) {
++    /* File-data blocks use the block number as the queue index; grow the
++     * queue on demand so blocks beyond the initial resize (Card::open only
++     * reserves the 5 system blocks) do not write out of bounds. */
++    m_queue.resize(qIdx + 1);
++  }
+   struct aiocb& aio = m_queue[qIdx].first;
+   if (aio.aio_fildes) {
+ #ifndef NDEBUG
+@@ -66,6 +74,9 @@ bool AsyncIO::asyncRead(size_t qIdx, void* buf, size_t length, off_t offset) {
+ }
+ 
+ bool AsyncIO::asyncWrite(size_t qIdx, const void* buf, size_t length, off_t offset) {
++  if (qIdx >= m_queue.size()) {
++    m_queue.resize(qIdx + 1);
++  }
+   struct aiocb& aio = m_queue[qIdx].first;
+   if (aio.aio_fildes) {
+ #ifndef NDEBUG
+diff --git a/lib/kabufuda/Card.cpp b/lib/kabufuda/Card.cpp
+index 47098dc..b9ff39e 100644
+--- a/lib/kabufuda/Card.cpp
++++ b/lib/kabufuda/Card.cpp
+@@ -863,6 +863,9 @@ void Card::commit() {
+     m_tmpBats[1].swapEndian();
+     m_fileHandle.asyncWrite(4, m_tmpBats[1].raw.data(), BlockSize, BlockSize * 4);
+     m_dirty = false;
++    /* Wait for the queued writes to complete so the card is durable on disk
++     * before we return (otherwise pending aio ops may be lost at close). */
++    m_fileHandle.waitForCompletion();
+   }
+ }
+ 

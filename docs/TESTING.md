@@ -51,6 +51,20 @@ Last updated: 2026-08-11
 - Screenshot: full-frame Metroid Prime title screen (gold logo, [PRESS START],
   4:3). Evidence: log `/tmp/mf_ios_sim_audio.log`; screenshots
   `/tmp/ios_audio_check2.png`, `/tmp/ios_audio_final.png`.
+
+### 2026-08-11 — macOS save/reload cycle (KI-011 fix)
+
+- New game from the file select created a save slot (`GM8E01` / `MetroidPrime B`)
+  and persisted it to the raw Dolphin card
+  (`~/Library/Application Support/dolphin-emu/GC/MemoryCardA.USA.raw`, directory
+  entry at offset 0x2040) — previously the card was never written because
+  kabufuda indexed the AIO queue with block numbers beyond the 5-slot queue
+  (`Card::open` → `resizeQueue(5)`) and `AsyncIO::~AsyncIO` cancelled pending
+  aio writes.
+- Clean SIGINT exit → relaunch → file select showed the save → pressing A
+  loaded the saved game (intro narration card → cinematic at 60 FPS, 10+ audio
+  voices). Evidence: screenshots `/tmp/mf_reload_a2.png`,
+  `/tmp/mf_reload_game.png`; logs `/tmp/mf_savefix.log`, `/tmp/mf_reload.log`.
 - In-game: `Metaforce -l --warp 2 2 +debugOverlay.* <iso>` — full-screen scene +
   HUD, 1760 draw calls, 60 FPS; then ImGui segfault (KI-002).
 - Artifacts: logs `/tmp/metaforce-run.log`, `/tmp/metaforce-fe.log`,

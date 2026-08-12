@@ -30,7 +30,7 @@ Last updated: 2026-08-11
 | Dawn/WebGPU reaching Metal on iOS device | **Not yet tested** | Principal technical unknown (Gate 2); simulator rendering (host GPU/Metal path) works — physical-device verification pending signing identity + hardware |
 | Touch controls (iPhone/iPad layouts) | **Not yet tested** | |
 | GameController support | **Not yet tested** | |
-| Save/reload behavior | **Partially proven** | New-game save slot creation and the full CARD flow work after the CInputStream byte-order fix (KI-009); the game state round-trips correctly. **Open:** kabufuda does not persist the card to the raw file on disk (async I/O flush), so saves do not survive a relaunch yet (KI-011) |
+| Save/reload behavior | **Proven (macOS)** | Full cycle verified 2026-08-11 after the kabufuda queue/commit fix (KI-011): new game → save slot `GM8E01`/`MetroidPrime B` persisted to the raw card on disk → clean quit → relaunch → file select shows the save → A loads the saved game (intro narration + gameplay at 60 FPS). In-game save-station save/reload not yet exercised (requires navigating to a save station) |
 | Frigate Orpheon / later-area gameplay | **Partially proven** | New Game now reaches **actual first-person gameplay** in Frigate Orpheon after the KI-009 fix: intro cinematic (space, gunship, Samus model) renders at 60 FPS; gameplay view renders with visor HUD (energy 99), arm cannon, minimap at 60 FPS, 1000+ draw calls; keyboard movement works. Full playthrough + save station + later areas not yet verified |
 
 ## Upstream context
@@ -73,6 +73,14 @@ Last updated: 2026-08-11
   Evidence: `/tmp/mf_f2.png`, `/tmp/mf_gx4.png`, `/tmp/mf_gx5.png`,
   `/tmp/mf_gx6.png`, `/tmp/mf_play1.png`, logs `/tmp/mf_fixed2.log`,
   `/tmp/mf_savetest.log`.
+- **Save/reload round trip (2026-08-11, after KI-011 fix):** new game wrote
+  `GM8E01`/`MetroidPrime B` into the card directory block on disk (previously
+  never persisted); after a clean SIGINT exit and relaunch, the file select
+  loaded the save and pressing A started the saved game (intro narration text
+  card → cinematic at 60 FPS, 10+ audio voices). Evidence:
+  `/tmp/mf_reload_a2.png`, `/tmp/mf_reload_game.png`, card hexdump at
+  `~/Library/Application Support/dolphin-emu/GC/MemoryCardA.USA.raw` (entry at
+  offset 0x2040), logs `/tmp/mf_savefix.log`, `/tmp/mf_reload.log`.
 
 ### Partially proven
 - **Gamepad input:** wired via aurora PAD → SDL_Gamepad (untested — no controller
