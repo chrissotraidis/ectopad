@@ -2,6 +2,14 @@ diff --git a/lib/audio.cpp b/lib/audio.cpp
 index f6e7c7f..cdaa79b 100644
 --- a/lib/audio.cpp
 +++ b/lib/audio.cpp
+@@ -25,5 +25,7 @@ uint64_t g_pumpCount = 0;
+ bool aurora_audio_open(int sampleRate, AuroraAudioSupplyCallback cb) {
+   if (g_running.exchange(true, std::memory_order_acq_rel)) {
++    // Already open: allow the host to re-register the supply callback.
++    g_cb = cb;
+     return true;
+   }
+   if (!SDL_InitSubSystem(SDL_INIT_AUDIO)) {
 @@ -105,16 +105,21 @@
  void aurora_audio_close(void) {
    if (!g_running.exchange(false, std::memory_order_acq_rel)) {

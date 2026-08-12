@@ -1,6 +1,6 @@
 # Performance
 
-Last updated: 2026-08-11
+Last updated: 2026-08-12
 
 ## Intent
 
@@ -13,5 +13,19 @@ Last updated: 2026-08-11
 
 ## Baseline
 
-No measurements yet. First measurements land with Gate 1 (macOS).
+No controlled performance baseline has been recorded yet. Existing 60 FPS
+gameplay observations are functional evidence, not benchmark results.
 
+## Measurement discipline
+
+- Before a performance run, close unrelated CPU/GPU-heavy applications and
+  verify no competing render, build, encoding, or Simulator process is active.
+- Record the target, scene, render scale/aspect, elapsed sample window, FPS or
+  frame-time series, thermal state, and a process/system-load snapshot with the
+  result.
+- Treat a run with material competing load as invalid for performance
+  comparison, while retaining any independent functional evidence it provides.
+- The 2026-08-12 iPad Simulator display-wiring screenshots showed 20.4 FPS with
+  another heavy app running and 59.9 FPS after it was closed. This demonstrates
+  the confounder and the live FPS display, but neither number is a baseline or a
+  physical-device performance claim.

@@ -5,6 +5,8 @@ Last updated: 2026-08-12
 ## Discipline
 
 - Run only **one** iOS Simulator at a time.
+- Close unrelated CPU/GPU-heavy apps before performance-sensitive runs and
+  record process/system load; otherwise invalidate the performance comparison.
 - Record dated, command-level evidence for every claim.
 - Never classify a Simulator-only failure as a device blocker without testing on
   the device architecture.
@@ -146,6 +148,33 @@ Last updated: 2026-08-12
 - Rebuilt both final-source gates: `macos-default-relwithdebinfo` completed,
   and the recovered `ios-sim` Ninja journal rebuilt and linked all 2,527
   targets successfully.
+
+### 2026-08-12 — SunPad display menu engine wiring
+
+- Kept all audited SunPad UI/settings/mixer/input files unchanged and added the
+  Metaforce-specific behavior only in `OverlayBridge.mm` and generic Aurora
+  framebuffer APIs.
+- Applied persisted SunPad settings before launch to test the exact menu action
+  path without relying on the currently broken Simulator host-touch delivery.
+  At 2× + Original 4:3 the app logged `renderScale=2 aspectMode=0` and Aurora
+  created a `1280x960` framebuffer. At 2× + experimental 16:9 it logged
+  `renderScale=2 aspectMode=1` and created a `1707x960` framebuffer. Both runs
+  reached Dawn/WebGPU → Metal and live Metroid rendering with the unchanged
+  SunPad touch overlay.
+- Enabled SunPad's FPS setting and verified its label is driven by successful
+  surface presents. Evidence:
+  `/tmp/sunpad-menu-wiring-2x-fps-2026-08-12.png` and
+  `/tmp/sunpad-menu-wiring-16x9-2026-08-12.png`.
+- The visible 20.4 FPS sample was captured while another heavy app was running;
+  the later image showed 59.9 after that app closed. These samples prove the
+  counter changes with presented-frame rate, but neither is accepted as a
+  benchmark or physical-device result. Future performance runs must follow
+  [PERFORMANCE.md](PERFORMANCE.md).
+- Final Aurora sources compiled and linked for iOS Simulator; the corresponding
+  macOS preset also rebuilt. The full seven-patch Aurora sequence applies from
+  clean pin `5143394`, passes `git diff --check`, and is byte-identical to the
+  live nested source. Patch:
+  `patches/2026-08-12-aurora-wire-sunpad-display-settings.patch`.
 
 ### 2026-08-11 — macOS rendering and keyboard fixes
 

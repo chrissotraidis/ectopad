@@ -26,23 +26,24 @@ than independently redesigned.
 
 `OverlayBridge.mm` is Metaforce-specific glue. It attaches the unchanged
 SunPad view above SDL's UIKit/Metal view, forwards the mixer's
-`SunPadInputState` into `aurora::touch::IosTouchState`, and currently presents
-explicit "not available" alerts for engine actions that have not yet been
-wired. It must remain minimal; new menu behavior belongs behind this bridge,
-not in a restyled overlay.
+`SunPadInputState` into `aurora::touch::IosTouchState`, applies SunPad's render
+scale/aspect settings to Aurora, and displays successful surface-present rate
+when SunPad's FPS switch is enabled. It presents explicit "not available"
+alerts for the remaining engine actions. It must remain minimal; new menu
+behavior belongs behind this bridge, not in a restyled overlay.
 
 ## Feature parity and wiring
 
 | Surface | UI parity | Engine wiring |
 | --- | --- | --- |
 | Visible GameCube controls and `•••` menu | Ported directly; Simulator rendering verified | Mixer → Aurora virtual GC pad is implemented; current host Simulator clicks are not delivering touches, so current-build interaction is not re-verified |
-| Render Resolution | SunPad control present | Stub; must drive Dawn/Metaforce render scale |
-| Aspect Ratio | SunPad control present | Stub; must drive game presentation |
-| FPS counter | SunPad control present | Settings persist; engine FPS source/display wiring remains |
+| Render Resolution | SunPad control present | Wired live to Aurora's framebuffer scale; 2× produced 1280×960 in Simulator |
+| Aspect Ratio | SunPad control present | Original 4:3, experimental 16:9, and native-surface fill drive framebuffer presentation; 16:9 produced 1707×960 at 2× in Simulator |
+| FPS counter | SunPad control present | Wired to successful Dawn surface presents and shown with SunPad's label styling; Simulator rendering verified |
 | Touch Control Settings | SunPad panel present, including opacity, global/per-control size, hide-on-controller, modern C-stick | Settings and layout state persist through SunPad code; current-build interaction awaits touch delivery/device verification |
 | Layout editor | SunPad drag, per-control resize, and reset code present | Current-build interaction awaits touch delivery/device verification |
 | Game Data & Saves | SunPad menu structure present | Bridge alerts only; private validation/import/atomic activation remains |
-| Share Diagnostic Log | SunPad menu and snapshot implementation present | Share-sheet action remains to be wired through the bridge |
+| Share Diagnostic Log | SunPad menu, privacy confirmation, snapshot, and share sheet are ported directly | Implementation is already self-contained in the overlay; current-build interaction still awaits working touch delivery/device verification |
 | Controller Mapping | SunPad menu item present | Bridge alert only; mapping UI/engine action remains |
 
 ## Verification record
@@ -63,3 +64,13 @@ not in a restyled overlay.
   This is recorded as a test-infrastructure limitation, not as proof that the
   app-side mixer or menu interaction is broken. Physical-device verification
   remains required.
+- The real engine side of three display actions was verified independently of
+  host touch delivery by changing the same persisted SunPad settings before
+  launch. The app logged `renderScale=2 aspectMode=0` with framebuffer
+  `1280x960`, then `renderScale=2 aspectMode=1` with framebuffer `1707x960`;
+  both runs retained the unchanged touch overlay and showed the presented-frame
+  FPS label. Evidence: `/tmp/sunpad-menu-wiring-2x-fps-2026-08-12.png` and
+  `/tmp/sunpad-menu-wiring-16x9-2026-08-12.png`.
+- The 20.4/59.9 values visible in those screenshots are not performance
+  baselines: another GPU/CPU-heavy app materially affected the first run. See
+  [PERFORMANCE.md](PERFORMANCE.md) for the required clean-run discipline.

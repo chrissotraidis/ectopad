@@ -159,16 +159,19 @@ Known open items:
 1. Restore Simulator host touch delivery or verify on a physical device, then
    re-test the `•••` menu, settings panel, editor, and mixer path on the current
    KI-015-fixed build.
-2. Wire the ••• menu actions to real behavior (render scale/aspect/FPS to the
-   engine; game data & saves to the import flow; Share Diagnostic Log to the
-   ported diagnostics).
+2. Continue wiring the ••• menu: render scale/aspect/FPS are now real and
+   Simulator-verified; next connect game data & saves to the private atomic
+   import flow, wire controller mapping, and verify the already ported
+   diagnostic share sheet. Do not claim the GM8E01 Experimental 60 FPS switch
+   until a compatible implementation exists.
 3. Physical GameController verification (Apple GCController via SDL): the
    no-hardware SDL/Aurora/PAD path is proven; hardware discovery, reconnect,
    rumble, and touch/controller handoff still require a controller/device.
 4. Files import/validation + atomic staging (SunPad reference), save/data
    separation.
 5. Physical-device Gate 2/3 (needs user prerequisites).
-6. Memory/performance measurements; later-area playthroughs.
+6. Memory/performance measurements with competing CPU/GPU-heavy apps closed
+   and process/system load recorded; later-area playthroughs.
 
 See `docs/STATUS.md`, `docs/KNOWN_ISSUES.md`, `docs/IMPLEMENTATION_PLAN.md`,
 and `docs/HANDOFF.md` for the full evidence trail.

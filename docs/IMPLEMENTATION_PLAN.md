@@ -176,9 +176,13 @@ will be updated as gates produce evidence.
   UIKit overlay, settings, input mixer/state, layout editor, and diagnostics
   nearly verbatim; see [SUNPAD_PARITY.md](SUNPAD_PARITY.md). KI-015 attachment
   is fixed and the controls render over Dawn/Metal on the iPad Simulator.
-  Remaining: restore host touch delivery or verify on a physical device,
-  re-test the current build's menu/editor/mixer interactions, validate iPhone
-  and iPad layouts on hardware, and wire every menu action to the engine.
+  Render scale, aspect presentation, and the successful-present FPS counter are
+  now wired through a thin bridge and Simulator-verified without modifying the
+  SunPad sources. Remaining: restore host touch delivery or verify on a
+  physical device, re-test the current menu/editor/mixer interactions, validate
+  iPhone/iPad layouts, wire game data and controller mapping, verify the ported
+  diagnostic share sheet, and add any compatible experimental frame-rate
+  behavior.
 
 ## 22. iPhone layout
 

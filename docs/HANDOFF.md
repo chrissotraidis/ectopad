@@ -20,9 +20,18 @@ Last updated: 2026-08-12
   Start, left-stick Y, and A reached the real Metroid frontend through normal
   SDL → Aurora → `PADRead` handling. This is software-path evidence only;
   physical Apple GameController behavior remains untested.
-- Next unblocked work: wire the SunPad menu actions and implement private
-  validated/atomic game-data import. Gate 2/3 physical-device work still
-  requires signing identity and hardware.
+- SunPad's real render-scale, aspect-presentation, and FPS actions are now wired
+  behind the unchanged menu source. Simulator evidence proves 2× 4:3
+  (`1280x960`), 2× experimental 16:9 (`1707x960`), and the live
+  presented-frame label. The Experimental 60 FPS switch remains intentionally
+  unwired for GM8E01, and Game Data/Controller Mapping remain bridge alerts.
+- Performance runs must close competing CPU/GPU-heavy apps and record load.
+  The 20.4/59.9 Simulator samples were confounded and are functional FPS-label
+  evidence only, not baselines.
+- Next unblocked work: implement private validated/atomic game-data import,
+  wire controller mapping, then re-test the touch menu/editor and the already
+  ported diagnostic share sheet on hardware. Gate 2/3 still requires signing
+  identity and physical devices.
 
 ## How to resume
 
