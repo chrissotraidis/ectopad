@@ -18,10 +18,16 @@ physical-device claim.
 - SunPad reference pin: `7d84cec8bb607c32d76499af0e7bd7435ac82d5e`.
 - Host: Apple Silicon `arm64`, macOS 26.5 (25F71), Xcode 26.6 (17F113),
   CMake 3.27.1, Ninja 1.13.2.
-- Code signing: `security find-identity -p codesigning` reports zero valid
-  identities.
-- Devices: `xcrun devicectl list devices` reports no connected devices.
-- Physical-device Gates 2 and 3 therefore remain unexecuted, not failed.
+- Code signing: `security find-identity -p codesigning -v` reports zero valid
+  identities; the login keychain holds no `Apple Development` certificate and
+  `~/Library/MobileDevice/Provisioning Profiles/` does not exist.
+- Devices: `xcrun devicectl list devices` and `xctrace list devices` report no
+  physical iPhone/iPad (Mac plus Simulators only).
+- Re-verified 2026-08-12 for the scoped physical pass: all three prerequisites
+  (identity, profile, hardware) are missing, so physical-device Gates 2 and 3
+  remain unexecuted, not failed. No engine/UI change was made; the source app
+  at `ref/metaforce/build/ios-default/Binaries/Metaforce.app` remains unsigned
+  and untouched. Evidence: `/tmp/ectopad-gate2-prereq-blocked-2026-08-12.md`.
 
 `ref/` is ignored and contains separate working trees plus private user game
 data. No `ref/` change is committed directly. Every source delta is mirrored

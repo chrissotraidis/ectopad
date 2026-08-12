@@ -28,6 +28,11 @@ ordered remaining checklist.
 
 - `security find-identity -p codesigning` reports zero valid identities.
 - `xcrun devicectl list devices` reports no connected physical devices.
+- 2026-08-12 re-verification: still zero valid identities (no `Apple
+  Development` certificate, no `Provisioning Profiles` directory) and no
+  physical device; the scoped Gate 2/3 pass stayed blocked without any
+  engine/UI change. Evidence:
+  `/tmp/ectopad-gate2-prereq-blocked-2026-08-12.md`.
 - Simulator host touch delivery is unreliable; deterministic test hooks may
   prove service/UI presentation but do not replace physical interaction proof.
 

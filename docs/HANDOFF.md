@@ -8,6 +8,11 @@ Last updated: 2026-08-12
   It records the exact pins, artifacts, hash, proof boundaries, blockers, and
   remaining checklist. Older limitations below are superseded where that file
   cites newer evidence.
+- 2026-08-12 physical attempt: the exact prerequisites were re-verified and are
+  still missing — no valid Apple Development identity, no provisioning-profile
+  directory, no connected iPad/iPhone. The scoped Gate 2/3 pass therefore did
+  not start; no engine/UI change was made (blocked, not failed). Evidence:
+  `/tmp/ectopad-gate2-prereq-blocked-2026-08-12.md`.
 
 - Gate 1 macOS is proven. iPad Simulator reaches Dawn/WebGPU → Metal, the full
   New Game flow, Frigate gameplay, audio, saves, and lifecycle handling.
