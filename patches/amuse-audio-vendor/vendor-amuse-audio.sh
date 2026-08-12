@@ -16,6 +16,7 @@ declare -A PINS=(
   [athena]=6adba82abd8b7f48e6eca9f74361d0c605bc9ec8
   [logvisor]=208a8c1f84f9968695d712b8e5625c0dc85edbae
   [lzokay]=db2df1fcbebc2ed06c10f727f72567d40f06a2be
+  [soxr]=945b592b70470e29f917f4de89b4281fbbd540c0
 )
 
 clone() {
@@ -34,12 +35,13 @@ clone amuse "https://github.com/AxioDL/amuse.git"
 clone athena "https://github.com/encounter/athena.git"
 clone logvisor "https://github.com/AxioDL/logvisor.git"
 clone lzokay "https://github.com/AxioDL/lzokay.git"
+clone soxr "https://github.com/chirlu/soxr.git"
 
 # athena's extern submodules (fmt, lzokay, zlib, yaml)
 git -C "$EXT/athena" submodule update --init --depth 1
 
 echo "Applying patches..."
-for name in amuse athena logvisor lzokay; do
+for name in amuse athena logvisor lzokay soxr; do
   if [ -s "$PATCHDIR/$name.patch" ]; then
     git -C "$EXT/$name" apply "$PATCHDIR/$name.patch"
     echo "  applied $name.patch"

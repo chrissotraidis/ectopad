@@ -1,0 +1,13 @@
+--- a/src/CMakeLists.txt	2026-08-11 20:51:07
++++ b/src/CMakeLists.txt	2026-08-11 20:55:39
+@@ -78,6 +78,10 @@
+ 
+ add_library (${PROJECT_NAME} ${LIB_TYPE} ${SOURCES})
+ target_link_libraries (${PROJECT_NAME} PRIVATE ${LIBS} ${LIBM_LIBRARIES})
++# Expose headers + generated soxr-config.h to consumers.
++target_include_directories (${PROJECT_NAME} PUBLIC
++  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>
++  $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/../>)
+ set_target_properties (${PROJECT_NAME} PROPERTIES
+   VERSION "${SO_VERSION}"
+   SOVERSION ${SO_VERSION_MAJOR}

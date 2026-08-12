@@ -67,6 +67,7 @@ and is linked **shared** (aurora warns that static SDL3 is unavailable via Homeb
 | athena (vendored, amuse dep) | MIT (encounter/athena), pin `6adba82` |
 | logvisor (vendored, amuse dep) | MIT (AxioDL/logvisor), pin `208a8c1` |
 | lzokay (vendored, amuse dep) | MIT (AxioDL/lzokay), pin `db2df1f` |
+| soxr (vendored, mixer resampler) | LGPL-2.1 (chirlu/soxr), pin `945b592` |
 | libjpeg-turbo | BSD-3 / IJG |
 | SDL3 | Zlib |
 | Dawn | Apache-2.0 / BSD-3 (Chromium) |
