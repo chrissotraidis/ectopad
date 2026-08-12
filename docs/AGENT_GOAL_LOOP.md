@@ -129,11 +129,14 @@ Known open items:
   fresh Simulator/device; the app-side input path (mixer → pad → game) is
   SunPad's own code.
 - Virtual gamepad test hook (env `AURORA_VIRTUAL_GAMEPAD=1`, FIFO
-  `/tmp/aurora_vg_cmds` in `lib/input.cpp`) — uncommitted, unverified.
-- GameController, Files import/validation + atomic staging, Share Diagnostic
-  Log wiring (menu present, actions stubbed), physical-device Gate 2/3 (needs
-  user: signing identity + hardware), memory/performance measurements,
-  later-area playthroughs.
+  `/tmp/aurora_vg_cmds` in `lib/input.cpp`) — verified 2026-08-12 after fixing
+  SDL3 invalid-ID handling and descriptor initialization. Start, analog Y, and
+  A reached the real frontend through SDL → Aurora → `PADRead`. Physical Apple
+  GameController hardware, hot-plug, rumble, and handoff remain untested.
+- Files import/validation + atomic staging, Share Diagnostic Log wiring (menu
+  present, actions stubbed), physical-device Gate 2/3 (needs user: signing
+  identity + hardware), memory/performance measurements, later-area
+  playthroughs.
 
 ## 5. Working process (keep)
 
@@ -159,8 +162,9 @@ Known open items:
 2. Wire the ••• menu actions to real behavior (render scale/aspect/FPS to the
    engine; game data & saves to the import flow; Share Diagnostic Log to the
    ported diagnostics).
-3. GameController verification (Apple GCController via SDL; the virtual
-   gamepad hook is the no-hardware test path).
+3. Physical GameController verification (Apple GCController via SDL): the
+   no-hardware SDL/Aurora/PAD path is proven; hardware discovery, reconnect,
+   rumble, and touch/controller handoff still require a controller/device.
 4. Files import/validation + atomic staging (SunPad reference), save/data
    separation.
 5. Physical-device Gate 2/3 (needs user prerequisites).

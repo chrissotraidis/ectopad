@@ -21,7 +21,7 @@ Last updated: 2026-08-12
 | Architecture investigation | **Proven** | Current tree renders via Aurora GX-on-WebGPU (Dawn) → Metal on Apple; see [ARCHITECTURE.md](ARCHITECTURE.md) |
 | macOS ARM64 build of current Metaforce | **Proven** | Clean RelWithDebInfo build, 862/862 steps, arm64 Mach-O, 2026-08-11 |
 | Metaforce launch on macOS (Metal, frame, title flow) | **Proven** | Launches; Dawn initializes Metal (Apple M2 IntegratedGPU); 60 FPS; **frontend renders full-frame (title screen "METROID PRIME" logo + emblem verified)**; in-game warp renders fully (1752 draw calls, HUD) — after the KI-001 scissor/viewport fix |
-| Input on macOS (keyboard/mouse/controller) | **Proven (keyboard, local patch)** | Keyboard/mouse wired locally (was disabled upstream via `#if 0`); verified: Enter=Start advances title → save dialog, arrows/S navigate menus, D-pad/stick state reflected in the input overlay; gamepad path untested (no controller connected) |
+| Input on macOS (keyboard/mouse/controller) | **Partially proven (keyboard/mouse + software gamepad)** | Keyboard/mouse wired locally (was disabled upstream via `#if 0`); verified: Enter=Start advances title → save dialog, arrows/S navigate menus, D-pad/stick state reflected in the input overlay. On 2026-08-12 an SDL virtual gamepad exercised the same gamepad-added/event/Aurora/PAD path: Start advanced title → main menu, left-stick Y moved the controller overlay, and A began the game. Physical Apple GameController connection/reconnection and rumble remain untested. |
 | Audio on macOS | **Proven (frontend + in-game, local patches)** | SDL3 device (44100 Hz stereo) + amuse engine with a software mixer backend + **soxr voice resampler** + **streamed DSP audio & MIDI sequencer restored** (`CStreamAudioManager` + `CMidiManager`): all 28 Prime audio groups load into amuse; in-game warp plays area music + SFX continuously (6–7 voices, 3 submixes) at 60 FPS; non-32 kHz voices (24/16/12/4 kHz) resample to correct pitch; frontend RSF music plays; stable pump, clean exit; see KNOWN_ISSUES KI-003 |
 | HECL/game-data extraction from supplied ISO | **Proven** | Disc identified and all assets loaded from ISO at runtime ("Metroid Prime USA (Build v1.111 3/10/2003 17:56:21)"); raw ISO, no conversion required |
 | iOS/iPadOS ARM64 device build | **Proven** | Local ARM64 iOS build succeeded (`build/install/Metaforce.app`, platform 2/iOS, minos 14.0) after fixing an upstream zstd link issue (Homebrew macOS dylib leaking into the iOS link) |
@@ -29,7 +29,7 @@ Last updated: 2026-08-12
 | Audio on iPad Simulator | **Proven (Simulator-only)** | amuse engine + SDL backend initialize on the iPad Pro 13-inch (M5) Simulator (device 44100 Hz, engine 32 kHz); audio groups load into amuse (Misc/MiscSamus/UI/Weapons/ZZZ at frontend); `CStaticAudioPlayer` streams `frontend_1.rsf`/`frontend_2.rsf`; `SDLBackend: 2 voices (2 running), 3 submixes`, stable 534-frame audio pump, no underruns; see KNOWN_ISSUES KI-003 |
 | Dawn/WebGPU reaching Metal on iOS device | **Not yet tested** | Principal technical unknown (Gate 2); simulator rendering (host GPU/Metal path) works — physical-device verification pending signing identity + hardware |
 | Touch controls (iPhone/iPad layouts) | **Partially proven (Simulator)** | Direct SunPad UIKit port renders on iPad Simulator and its source parity is audited; earlier session exercised the menu/layout controls, but current host touch delivery is blocked and physical iPhone/iPad layouts remain unverified. See [SUNPAD_PARITY.md](SUNPAD_PARITY.md). |
-| GameController support | **Not yet tested** | |
+| GameController support | **Partially proven (software path)** | `AURORA_VIRTUAL_GAMEPAD=1` attaches an SDL3 standard gamepad and accepts FIFO commands only for test. After correcting the hook's SDL3 joystick-ID and descriptor initialization, Metaforce logged `Aurora Virtual Gamepad`, Start advanced the title to the main menu, analog Y displaced the controller overlay, and A began the game. This proves SDL events → Aurora controller assignment → `PADRead`; physical Apple GCController hardware, hot-plug/reconnect, rumble, and touch/controller handoff remain untested. Evidence: `/tmp/virtual-gamepad-a-select-2026-08-12.png`. |
 | Touch controls / menu (iPad) | **Partially proven (Simulator; KI-015 fixed)** | SunPad's UIKit overlay is ported directly into `ref/metaforce/extern/aurora/lib/ios/`; all UI/settings/mixer/input files are byte-identical and diagnostics has one app-name path change. The corrected current build renders the controls over Dawn/Metal gameplay. Earlier evidence proves the `•••` menu visually; current-build menu/settings interaction is blocked by Simulator host touch delivery and is not claimed as re-verified. See [SUNPAD_PARITY.md](SUNPAD_PARITY.md) and KI-015. |
 | Save/reload behavior | **Proven (macOS)** | Full cycle verified 2026-08-11 after the kabufuda queue/commit fix (KI-011): new game → save slot `GM8E01`/`MetroidPrime B` persisted to the raw card on disk → clean quit → relaunch → file select shows the save → A loads the saved game (intro narration + gameplay at 60 FPS). In-game save-station save/reload not yet exercised (requires navigating to a save station) |
 | Frigate Orpheon / later-area gameplay | **Partially proven** | New Game now reaches **actual first-person gameplay** in Frigate Orpheon after the KI-009 fix: intro cinematic (space, gunship, Samus model) renders at 60 FPS; gameplay view renders with visor HUD (energy 99), arm cannon, minimap at 60 FPS, 1000+ draw calls; keyboard movement works. Full playthrough + save station + later areas not yet verified |
@@ -98,8 +98,17 @@ Last updated: 2026-08-12
   `/tmp/ios_auto2.png`, `/tmp/ios_auto3.png`.
 
 ### Partially proven
-- **Gamepad input:** wired via aurora PAD → SDL_Gamepad (untested — no controller
-    connected). Keyboard/mouse is now wired locally (see above).
+- **Gamepad input (2026-08-12):** an opt-in SDL3 virtual-gamepad test hook
+  exercised the normal SDL gamepad-added/event → Aurora player assignment →
+  `PADRead` path without keyboard, mouse, touch, or frontend automation. Start
+  advanced the title to the main menu, left-stick Y moved the live controller
+  overlay, and A began the game. The hook initially could not attach because
+  SDL3 uses joystick ID `0` as invalid and requires `SDL_INIT_INTERFACE` for
+  `SDL_VirtualJoystickDesc`; both errors are fixed and mirrored in
+  `patches/2026-08-12-aurora-virtual-gamepad-test-hook.patch`. This is software
+  path evidence, not a physical Apple GameController claim. Keyboard/mouse is
+  also wired locally (see above). Evidence:
+  `/tmp/virtual-gamepad-a-select-2026-08-12.png`.
 
 ### Blocked
 

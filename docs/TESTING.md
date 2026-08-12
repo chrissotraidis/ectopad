@@ -1,6 +1,6 @@
 # Testing
 
-Last updated: 2026-08-11
+Last updated: 2026-08-12
 
 ## Discipline
 
@@ -15,7 +15,7 @@ Last updated: 2026-08-11
 
 | Target | Launch | Import UI | Rendering | Touch | Controller | Gameplay | Saves | Audio | Lifecycle |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| macOS ARM64 | ☑ | — | ☑ | — | ☐ | ☐ | ☐ | ☑ | ☐ |
+| macOS ARM64 | ☑ | — | ☑ | — | ◐ software path | ☑ | ☑ | ☑ | — |
 | iPhone Simulator | ☐ | ☐ | ☐ | ☐ | — | ☐ | ☐ | ☐ | ☐ |
 | iPad Simulator | ☑ | ☐ | ☑ | ☐ | — | ☐ | ☐ | ☑ | ☐ |
 | Physical iPhone | ☐ | ☐ | ☐ | ☐ | ☐ | ☐ | ☐ | ☐ | ☐ |
@@ -121,6 +121,34 @@ Last updated: 2026-08-11
   than inferred.
 - Rebuilt `macos-default-relwithdebinfo`; the app reached Dawn/WebGPU → Metal
   on Apple M2 and exited 0 after SIGINT.
+
+### 2026-08-12 — macOS virtual GameController path
+
+- Enabled the opt-in Aurora test hook with `AURORA_VIRTUAL_GAMEPAD=1`. It
+  attaches an SDL3 standard virtual joystick and reads axis/button commands
+  from `/tmp/aurora_vg_cmds`; no keyboard, mouse, touch, `--autostart`, or
+  Metaforce-specific input injection participates after launch.
+- Fixed two defects found before accepting the test: SDL3 joystick ID `0` is
+  invalid (the unsigned ID had incorrectly used `-1` and signed comparisons),
+  and `SDL_VirtualJoystickDesc` must use `SDL_INIT_INTERFACE` rather than a
+  hard-coded version. The running app then logged both the virtual attachment
+  and normal controller addition.
+- With the validated GM8E01 Rev 2 image loaded, SDL Start (`button 6`) advanced
+  `[PRESS START]` to the game's main menu; left-stick Y (`axis 1`) visibly
+  displaced the live Aurora controller overlay; SDL A (`button 0`) selected
+  the menu item and began the game intro. The normal window-close path returned
+  without the FIFO-reader teardown hanging.
+- Result: the software SDL event → Aurora controller assignment → `PADRead` →
+  Metroid frontend path is proven. Physical Apple GCController discovery,
+  hot-plug/reconnect, rumble, and touch/controller handoff are still untested.
+  Evidence: `/tmp/virtual-gamepad-a-select-2026-08-12.png`; mirrored patch:
+  `patches/2026-08-12-aurora-virtual-gamepad-test-hook.patch`.
+- Rebuilt both final-source gates: `macos-default-relwithdebinfo` completed,
+  and the recovered `ios-sim` Ninja journal rebuilt and linked all 2,527
+  targets successfully.
+
+### 2026-08-11 — macOS rendering and keyboard fixes
+
 - In-game: `Metaforce -l --warp 2 2 +debugOverlay.* <iso>` — full-screen scene +
   HUD, 1760 draw calls, 60 FPS; then ImGui segfault (KI-002).
 - Artifacts: logs `/tmp/metaforce-run.log`, `/tmp/metaforce-fe.log`,

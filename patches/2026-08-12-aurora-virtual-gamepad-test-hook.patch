@@ -50,7 +50,7 @@ index 20ac5f7..ddc9de4 100644
 + *   exit
 + */
 +constexpr char kVgFifoPath[] = "/tmp/aurora_vg_cmds";
-+SDL_JoystickID g_virtualGamepadId = -1;
++SDL_JoystickID g_virtualGamepadId = 0;
 +SDL_Joystick* g_virtualJoystick = nullptr;
 +SDL_Thread* g_virtualThread = nullptr;
 +std::atomic_bool g_virtualStop{false};
@@ -86,12 +86,12 @@ index 20ac5f7..ddc9de4 100644
 +  if (SDL_getenv("AURORA_VIRTUAL_GAMEPAD") == nullptr) {
 +    return;
 +  }
-+  if (g_virtualGamepadId >= 0) {
++  if (g_virtualGamepadId != 0) {
 +    return;
 +  }
 +  ::mkfifo(kVgFifoPath, 0600); // ignore EEXIST
 +  SDL_VirtualJoystickDesc desc{};
-+  desc.version = 1;
++  SDL_INIT_INTERFACE(&desc);
 +  desc.type = SDL_JOYSTICK_TYPE_GAMEPAD;
 +  desc.vendor_id = 0xFFFF;
 +  desc.product_id = 0x1234;
@@ -101,7 +101,7 @@ index 20ac5f7..ddc9de4 100644
 +  desc.axis_mask = (1u << SDL_GAMEPAD_AXIS_COUNT) - 1;
 +  desc.name = "Aurora Virtual Gamepad";
 +  g_virtualGamepadId = SDL_AttachVirtualJoystick(&desc);
-+  if (g_virtualGamepadId < 0) {
++  if (g_virtualGamepadId == 0) {
 +    Log.warn("virtual gamepad: attach failed: {}", SDL_GetError());
 +    return;
 +  }
@@ -109,7 +109,7 @@ index 20ac5f7..ddc9de4 100644
 +  if (g_virtualJoystick == nullptr) {
 +    Log.warn("virtual gamepad: open failed: {}", SDL_GetError());
 +    SDL_DetachVirtualJoystick(g_virtualGamepadId);
-+    g_virtualGamepadId = -1;
++    g_virtualGamepadId = 0;
 +    return;
 +  }
 +  Log.info("virtual gamepad: attached (id {}), reading commands from {}", g_virtualGamepadId, kVgFifoPath);
@@ -118,7 +118,7 @@ index 20ac5f7..ddc9de4 100644
 +}
 +
 +void detach_virtual_gamepad() noexcept {
-+  if (g_virtualGamepadId < 0) {
++  if (g_virtualGamepadId == 0) {
 +    return;
 +  }
 +  g_virtualStop.store(true);
@@ -136,6 +136,6 @@ index 20ac5f7..ddc9de4 100644
 +    g_virtualJoystick = nullptr;
 +  }
 +  SDL_DetachVirtualJoystick(g_virtualGamepadId);
-+  g_virtualGamepadId = -1;
++  g_virtualGamepadId = 0;
 +}
  } // namespace aurora::input

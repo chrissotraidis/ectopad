@@ -15,9 +15,14 @@ Last updated: 2026-08-12
   [SUNPAD_PARITY.md](SUNPAD_PARITY.md). Current Simulator host clicks still do
   not deliver touch, so current-build menu/editor interaction remains blocked
   by test infrastructure rather than claimed as verified.
-- Next unblocked work: verify the virtual GameController path, wire the SunPad
-  menu actions, and implement private validated/atomic game-data import. Gate
-  2/3 physical-device work still requires signing identity and hardware.
+- The virtual GameController test path is now verified end-to-end. After fixing
+  SDL3 invalid-ID handling and descriptor initialization in the opt-in hook,
+  Start, left-stick Y, and A reached the real Metroid frontend through normal
+  SDL → Aurora → `PADRead` handling. This is software-path evidence only;
+  physical Apple GameController behavior remains untested.
+- Next unblocked work: wire the SunPad menu actions and implement private
+  validated/atomic game-data import. Gate 2/3 physical-device work still
+  requires signing identity and hardware.
 
 ## How to resume
 
