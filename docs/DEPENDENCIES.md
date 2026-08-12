@@ -45,6 +45,22 @@ Build-time note (2026-08-11, macOS): `AURORA_DAWN_PROVIDER=package` resolved to 
 prebuilt Dawn package; `AURORA_SDL3_PROVIDER=system` resolved to Homebrew SDL3 3.4.12
 and is linked **shared** (aurora warns that static SDL3 is unavailable via Homebrew).
 
+## Vendored audio stack (local additions to `ref/metaforce/extern/`)
+
+Added 2026-08-11 by `patches/amuse-audio-vendor/vendor-amuse-audio.sh` for in-game
+audio (amuse engine) and the SDL mixer resampler. Public OSS repos, vendored with
+local patches (see `patches/amuse-audio-vendor/`; license texts in each repo).
+
+| Component | URL | Pinned SHA | License | Purpose |
+| --- | --- | --- | --- | --- |
+| amuse | https://github.com/AxioDL/amuse | `ad9bc96af472dae03fde215163446bdec80be67f` | MIT | Prime audio engine (SFX, sequencer, streamed DSP) |
+| athena | https://github.com/encounter/athena | `6adba82abd8b7f48e6eca9f74361d0c605bc9ec8` | MIT | Binary DNA reader; atdna codegen skipped without LLVM (pre-generated sources) |
+| logvisor | https://github.com/AxioDL/logvisor | `208a8c1f84f9968695d712b8e5625c0dc85edbae` | MIT | Logging |
+| lzokay | https://github.com/AxioDL/lzokay | `db2df1fcbebc2ed06c10f727f72567d40f06a2be` | MIT | LZO decompression |
+| soxr | https://github.com/chirlu/soxr | `945b592b70470e29f917f4de89b4281fbbd540c0` | LGPL-2.1 | Voice sample-rate conversion (24/16/12/4 kHz → 32 kHz mix) |
+
+All five build for macOS ARM64 and the iOS Simulator SDK (verified 2026-08-11).
+
 ## Build environment (this machine, 2026-08-11)
 
 - Apple M2 (8 cores), 24 GB RAM, macOS 26.5 (Build 25F71)

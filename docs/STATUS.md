@@ -22,10 +22,11 @@ Last updated: 2026-08-11
 | macOS ARM64 build of current Metaforce | **Proven** | Clean RelWithDebInfo build, 862/862 steps, arm64 Mach-O, 2026-08-11 |
 | Metaforce launch on macOS (Metal, frame, title flow) | **Proven** | Launches; Dawn initializes Metal (Apple M2 IntegratedGPU); 60 FPS; **frontend renders full-frame (title screen "METROID PRIME" logo + emblem verified)**; in-game warp renders fully (1752 draw calls, HUD) — after the KI-001 scissor/viewport fix |
 | Input on macOS (keyboard/mouse/controller) | **Proven (keyboard, local patch)** | Keyboard/mouse wired locally (was disabled upstream via `#if 0`); verified: Enter=Start advances title → save dialog, arrows/S navigate menus, D-pad/stick state reflected in the input overlay; gamepad path untested (no controller connected) |
-| Audio on macOS | **Proven (frontend + in-game, local patches)** | SDL3 device (44100 Hz stereo) + amuse engine with a software mixer backend + **soxr voice resampler**: all 28 Prime audio groups load into amuse; in-game warp plays SFX continuously (4–5 voices, 3 submixes) at 60 FPS; non-32 kHz voices (24/16/12/4 kHz) resample to correct pitch; frontend RSF music plays; stable pump, clean exit. Remaining: streamed music/sequences (`CStreamAudioManager`/`CMidiManager`); see KNOWN_ISSUES KI-003 |
+| Audio on macOS | **Proven (frontend + in-game, local patches)** | SDL3 device (44100 Hz stereo) + amuse engine with a software mixer backend + **soxr voice resampler** + **streamed DSP audio & MIDI sequencer restored** (`CStreamAudioManager` + `CMidiManager`): all 28 Prime audio groups load into amuse; in-game warp plays area music + SFX continuously (6–7 voices, 3 submixes) at 60 FPS; non-32 kHz voices (24/16/12/4 kHz) resample to correct pitch; frontend RSF music plays; stable pump, clean exit; see KNOWN_ISSUES KI-003 |
 | HECL/game-data extraction from supplied ISO | **Proven** | Disc identified and all assets loaded from ISO at runtime ("Metroid Prime USA (Build v1.111 3/10/2003 17:56:21)"); raw ISO, no conversion required |
 | iOS/iPadOS ARM64 device build | **Proven** | Local ARM64 iOS build succeeded (`build/install/Metaforce.app`, platform 2/iOS, minos 14.0) after fixing an upstream zstd link issue (Homebrew macOS dylib leaking into the iOS link) |
-| iOS Simulator (iPad) execution | **Proven** | iOS Simulator build succeeded (after fixing Dawn cross-compile host-tool issues: host protoc + GLFW disabled); installed and launched on iPad Pro 13-inch (M5) Simulator; loaded the user's ISO from the app container and rendered the **Metroid Prime title screen** (gold logo + [PRESS START], 4:3) via Dawn/WebGPU |
+| iOS Simulator (iPad) execution | **Proven** | iOS Simulator build succeeded (after fixing Dawn cross-compile host-tool issues: host protoc + GLFW disabled); **rebuilt 2026-08-11 21:20 with the vendored audio stack (amuse/athena/logvisor/soxr) — compiles and links for the sim SDK**; installed and launched on iPad Pro 13-inch (M5) Simulator; loaded the user's ISO from the app container; Dawn/WebGPU reached Metal ("Apple iOS simulator GPU"); amuse audio initialized (32 kHz SDL backend) and frontend RSF music played (2 voices, 3 submixes); rendered the **Metroid Prime title screen** (gold logo + [PRESS START], 4:3) |
+| Audio on iPad Simulator | **Proven (Simulator-only)** | amuse engine + SDL backend initialize on the iPad Pro 13-inch (M5) Simulator (device 44100 Hz, engine 32 kHz); audio groups load into amuse (Misc/MiscSamus/UI/Weapons/ZZZ at frontend); `CStaticAudioPlayer` streams `frontend_1.rsf`/`frontend_2.rsf`; `SDLBackend: 2 voices (2 running), 3 submixes`, stable 534-frame audio pump, no underruns; see KNOWN_ISSUES KI-003 |
 | Dawn/WebGPU reaching Metal on iOS device | **Not yet tested** | Principal technical unknown (Gate 2); simulator rendering (host GPU/Metal path) works — physical-device verification pending signing identity + hardware |
 | Touch controls (iPhone/iPad layouts) | **Not yet tested** | |
 | GameController support | **Not yet tested** | |
@@ -71,10 +72,9 @@ Last updated: 2026-08-11
 
 ### Blocked
 
-- **Streamed music/sequences:** `CStreamAudioManager` (DSP stream playback) and
-    `CMidiManager` (sequenced music) are still commented out upstream; SFX and
-    frontend music work, but area/ambient music via the sequencer is the next
-    audio item.
+- **Physical-device Gate 2/3:** requires a code-signing identity and physical
+    iPhone/iPad (user-side prerequisite; no signing identity installed, no
+    device connected as of 2026-08-11). Not an engine blocker.
 
 ### Fixed this session
 
@@ -102,10 +102,25 @@ Last updated: 2026-08-11
     stick, IJKL right stick, J/K/I/U/H/Q/E = A/B/X/Y/Z/L/R, Enter = Start,
     arrows = D-pad) pushed when no gamepad is connected. Verified: Enter at the
     title opens the save/memory-card dialog; arrows/S navigate menus.
+- **Streamed DSP audio + MIDI sequencer restored (KI-003):** restored
+    `CStreamAudioManager` stream voice supply (DSPADPCM decode via amuse
+    `DSPDecompressFrame`/`DSPDecompressFrameRanged`), stream voices through the
+    `SDLBackendVoice` custom supply callback with per-stream-file
+    `ResetSampleRate`, and `CMidiManager` `seqPlay`/`stopSong`/`setVolume` via
+    the amuse sequencer. In-game voice count rose to 6–7 (area music + SFX) at
+    60 FPS with no resampler warnings. Patch:
+    `patches/2026-08-11-metaforce-amuse-in-game-audio.patch` +
+    `patches/amuse-audio-vendor/soxr.patch`.
 
 ### Simulator-only
 
-- Nothing yet.
+- **Audio on iPad Simulator (2026-08-11, iPad Pro 13-inch M5, iOS 26.5):** the
+    full vendored audio stack builds for the sim SDK and runs — Metal adapter
+    "Apple iOS simulator GPU", amuse engine initialized (SDL backend, 32 kHz),
+    audio groups load into amuse, frontend RSF music streams, `SDLBackend: 2
+    voices (2 running), 3 submixes` with a stable 534-frame audio pump. Evidence:
+    log `/tmp/mf_ios_sim_audio.log`, screenshots `/tmp/ios_audio_check2.png`
+    (title screen) and `/tmp/ios_audio_final.png`.
 
 ### Physical-device verified
 

@@ -98,16 +98,19 @@ will be updated as gates produce evidence.
 - **Implementation plan:**
   1. ~~Add a minimal audio device module (SDL3 audio — aurora already links SDL3
      with CoreAudio on macOS and the AudioToolbox/CoreAudio stack on iOS).~~ **Done**
-  2. ~~Restore the DSP stream path in `CStreamAudioManager` (DSPADPCM → PCM decode~~ (partially —
-     SFX voices play via amuse; streamed music/sequences still pending)
-     via musyx's decoder; feed the ring buffers to the device).
+  2. ~~Restore the DSP stream path in `CStreamAudioManager` (DSPADPCM → PCM decode
+     via musyx's decoder; feed the ring buffers to the device).~~ **Done**
+     (stream voices via the SDLBackendVoice supply callback with per-stream-file
+     `ResetSampleRate`; verified 6–7 voices in-game, 2026-08-11)
   3. ~~Initialize the amuse engine and connect `CSfxManager`/`CAudioSys`~~ **Done**
      (group sets load into amuse; SFX verified in-game).
   4. ~~Wire the per-frame mix pump to the device callback~~ **Done**
      (amuse mix summed with the static player in the SDL supply callback).
-  5. Add a voice resampler (soxr) so non-32 kHz samples (24/16/12/4 kHz) play
+  5. ~~Add a voice resampler (soxr) so non-32 kHz samples (24/16/12/4 kHz) play
      at correct pitch; restore `CStreamAudioManager`/`CMidiManager` streamed
-     music/sequences.
+     music/sequences.~~ **Done**
+     (soxr vendored; streamed DSP + MIDI sequencer restored; verified on macOS
+     and the iPad Simulator, 2026-08-11)
   6. Verify: music, ambience, weapons, voice/SFX, transitions, suspend/resume on
      macOS, then iOS Simulator and device.
 - This is the last major Gate 1 item; the rest of Gate 1 is proven (build,

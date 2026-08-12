@@ -65,6 +65,12 @@ Then: `simctl boot <iPad>` → `simctl install <udid> build/ios-sim-install/Meta
 This was proven 2026-08-11 on iPad Pro 13-inch (M5), iOS 26.5 (title screen
 rendered). One simulator at a time.
 
+Audio note: the Simulator build was rebuilt 2026-08-11 (21:20) with the vendored
+audio stack (amuse/athena/logvisor/soxr in `extern/`, added unconditionally by
+`extern/CMakeLists.txt`); it compiles and links for the sim SDK and runs with
+audio (amuse 32 kHz SDL backend, frontend RSF music, 2 voices, stable pump) —
+see STATUS.md and KNOWN_ISSUES KI-003.
+
 ## Notes / known environment quirks
 
 - The project README says builds are "currently unavailable while the project

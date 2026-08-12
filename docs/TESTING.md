@@ -15,9 +15,9 @@ Last updated: 2026-08-11
 
 | Target | Launch | Import UI | Rendering | Touch | Controller | Gameplay | Saves | Audio | Lifecycle |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| macOS ARM64 | ☐ | — | ☐ | — | ☐ | ☐ | ☐ | ☐ | ☐ |
+| macOS ARM64 | ☑ | — | ☑ | — | ☐ | ☐ | ☐ | ☑ | ☐ |
 | iPhone Simulator | ☐ | ☐ | ☐ | ☐ | — | ☐ | ☐ | ☐ | ☐ |
-| iPad Simulator | ☐ | ☐ | ☐ | ☐ | — | ☐ | ☐ | ☐ | ☐ |
+| iPad Simulator | ☑ | ☐ | ☑ | ☐ | — | ☐ | ☐ | ☑ | ☐ |
 | Physical iPhone | ☐ | ☐ | ☐ | ☐ | ☐ | ☐ | ☐ | ☐ | ☐ |
 | Physical iPad | ☐ | ☐ | ☐ | ☐ | ☐ | ☐ | ☐ | ☐ | ☐ |
 
@@ -38,6 +38,19 @@ Last updated: 2026-08-11
   `Binaries/Metaforce.app` (arm64 Mach-O, Metal.framework weak-linked, 25 MB).
 - Boot (no dev console): `Metaforce -l <iso>` — Metal selected, 60.1 FPS,
   disc identified, assets loaded, no errors.
+
+### 2026-08-11 — iPad Pro 13-inch (M5) Simulator, audio stack
+
+- Rebuilt `build/ios-sim` with the vendored audio stack (amuse/athena/logvisor/soxr):
+  clean configure + build (2522 steps) + install; app linked for the sim SDK.
+- Launched `com.axiodl.Metaforce` with the user ISO staged in the app container:
+  Metal adapter "Apple iOS simulator GPU", amuse engine initialized (SDL backend,
+  32 kHz), audio groups loaded into amuse, frontend RSF music
+  (`frontend_1.rsf`/`frontend_2.rsf`) streaming, `SDLBackend: 2 voices (2 running),
+  3 submixes`, 534-frame audio pump steady, no underruns.
+- Screenshot: full-frame Metroid Prime title screen (gold logo, [PRESS START],
+  4:3). Evidence: log `/tmp/mf_ios_sim_audio.log`; screenshots
+  `/tmp/ios_audio_check2.png`, `/tmp/ios_audio_final.png`.
 - In-game: `Metaforce -l --warp 2 2 +debugOverlay.* <iso>` — full-screen scene +
   HUD, 1760 draw calls, 60 FPS; then ImGui segfault (KI-002).
 - Artifacts: logs `/tmp/metaforce-run.log`, `/tmp/metaforce-fe.log`,
