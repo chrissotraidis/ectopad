@@ -1,0 +1,28 @@
+diff --git a/lib/audio.cpp b/lib/audio.cpp
+index f6e7c7f..cdaa79b 100644
+--- a/lib/audio.cpp
++++ b/lib/audio.cpp
+@@ -105,16 +105,21 @@
+ void aurora_audio_close(void) {
+   if (!g_running.exchange(false, std::memory_order_acq_rel)) {
+     return;
+   }
+   if (g_stream != nullptr) {
+     SDL_UnbindAudioStream(g_stream);
+-    SDL_DestroyAudioStream(g_stream);
+-    g_stream = nullptr;
+   }
+   if (g_device != 0) {
++    // Close the device before destroying the stream: the SDL audio thread is
++    // still draining from the stream while the device closes, so destroying
++    // the stream first can stall the device close (observed hang on iOS).
+     SDL_CloseAudioDevice(g_device);
+     g_device = 0;
+   }
++  if (g_stream != nullptr) {
++    SDL_DestroyAudioStream(g_stream);
++    g_stream = nullptr;
++  }
+   g_cb = nullptr;
+   SDL_QuitSubSystem(SDL_INIT_AUDIO);
+ }

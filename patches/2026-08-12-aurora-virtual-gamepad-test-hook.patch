@@ -1,0 +1,141 @@
+diff --git a/lib/input.cpp b/lib/input.cpp
+index 20ac5f7..ddc9de4 100644
+--- a/lib/input.cpp
++++ b/lib/input.cpp
+@@ -12,7 +12,11 @@
+ #include <absl/container/flat_hash_map.h>
+ #include <algorithm>
+ #include <array>
++#include <atomic>
++#include <cstdio>
++#include <cstring>
+ #include <string>
++#include <sys/stat.h>
+ #include <utility>
+ 
+ using namespace std::string_view_literals;
+@@ -21,6 +25,9 @@ namespace aurora::input {
+ Module Log("aurora::input");
+ absl::flat_hash_map<Uint32, GameController> g_GameControllers;
+ 
++void attach_virtual_gamepad() noexcept;
++void detach_virtual_gamepad() noexcept;
++
+ namespace {
+ constexpr uint32_t kPortPreferencesMagic = SBIG('CPRT');
+ constexpr uint32_t kPortPreferencesVersion = 3;
+@@ -495,6 +502,7 @@ void initialize() noexcept {
+    * as expected */
+   ASSERT(SDL_Init(SDL_INIT_HAPTIC | SDL_INIT_JOYSTICK | SDL_INIT_GAMEPAD | SDL_INIT_SENSOR),
+          "Failed to initialize SDL subsystems: {}", SDL_GetError());
++  attach_virtual_gamepad();
+ }
+ 
+ struct MouseScrollStatus {
+@@ -523,6 +531,106 @@ void shutdown() noexcept {
+     }
+     controller_rumble(controller.first, 0, 0, 0);
+   }
++  detach_virtual_gamepad();
+   device::shutdown();
+ }
++
++namespace {
++/* --- Virtual gamepad test hook (AURORA_VIRTUAL_GAMEPAD=1) ---
++ * Attaches an SDL3 virtual joystick shaped like a standard gamepad and drives
++ * it from a FIFO, exercising the exact SDL_EVENT_GAMEPAD_ADDED -> aurora ->
++ * PADRead path that real Apple GameController devices use. The FIFO accepts:
++ *   axis <n> <value>     (SDL_GamepadAxis index, -32768..32767)
++ *   button <n> <0|1>     (SDL_GamepadButton index)
++ *   exit
++ */
++constexpr char kVgFifoPath[] = "/tmp/aurora_vg_cmds";
++SDL_JoystickID g_virtualGamepadId = -1;
++SDL_Joystick* g_virtualJoystick = nullptr;
++SDL_Thread* g_virtualThread = nullptr;
++std::atomic_bool g_virtualStop{false};
++
++int SDLCALL virtual_gamepad_thread(void*) {
++  while (!g_virtualStop.load(std::memory_order_relaxed)) {
++    FILE* f = std::fopen(kVgFifoPath, "r"); // blocks until a writer opens the FIFO
++    if (f == nullptr) {
++      break;
++    }
++    char line[80];
++    while (!g_virtualStop.load(std::memory_order_relaxed) && std::fgets(line, sizeof(line), f) != nullptr) {
++      char cmd[8];
++      int a = 0, b = 0;
++      if (std::sscanf(line, "%7s %d %d", cmd, &a, &b) == 3) {
++        if (std::strcmp(cmd, "axis") == 0 && g_virtualJoystick != nullptr) {
++          SDL_SetJoystickVirtualAxis(g_virtualJoystick, a, static_cast<Sint16>(b));
++        } else if (std::strcmp(cmd, "button") == 0 && g_virtualJoystick != nullptr) {
++          SDL_SetJoystickVirtualButton(g_virtualJoystick, a, b != 0);
++        }
++      } else if (std::strncmp(line, "exit", 4) == 0) {
++        g_virtualStop.store(true);
++        break;
++      }
++    }
++    std::fclose(f);
++  }
++  return 0;
++}
++} // namespace
++
++void attach_virtual_gamepad() noexcept {
++  if (SDL_getenv("AURORA_VIRTUAL_GAMEPAD") == nullptr) {
++    return;
++  }
++  if (g_virtualGamepadId >= 0) {
++    return;
++  }
++  ::mkfifo(kVgFifoPath, 0600); // ignore EEXIST
++  SDL_VirtualJoystickDesc desc{};
++  desc.version = 1;
++  desc.type = SDL_JOYSTICK_TYPE_GAMEPAD;
++  desc.vendor_id = 0xFFFF;
++  desc.product_id = 0x1234;
++  desc.naxes = SDL_GAMEPAD_AXIS_COUNT;
++  desc.nbuttons = SDL_GAMEPAD_BUTTON_COUNT;
++  desc.button_mask = (1u << SDL_GAMEPAD_BUTTON_COUNT) - 1;
++  desc.axis_mask = (1u << SDL_GAMEPAD_AXIS_COUNT) - 1;
++  desc.name = "Aurora Virtual Gamepad";
++  g_virtualGamepadId = SDL_AttachVirtualJoystick(&desc);
++  if (g_virtualGamepadId < 0) {
++    Log.warn("virtual gamepad: attach failed: {}", SDL_GetError());
++    return;
++  }
++  g_virtualJoystick = SDL_OpenJoystick(g_virtualGamepadId);
++  if (g_virtualJoystick == nullptr) {
++    Log.warn("virtual gamepad: open failed: {}", SDL_GetError());
++    SDL_DetachVirtualJoystick(g_virtualGamepadId);
++    g_virtualGamepadId = -1;
++    return;
++  }
++  Log.info("virtual gamepad: attached (id {}), reading commands from {}", g_virtualGamepadId, kVgFifoPath);
++  g_virtualStop.store(false);
++  g_virtualThread = SDL_CreateThread(virtual_gamepad_thread, "aurora-vg", nullptr);
++}
++
++void detach_virtual_gamepad() noexcept {
++  if (g_virtualGamepadId < 0) {
++    return;
++  }
++  g_virtualStop.store(true);
++  if (g_virtualThread != nullptr) {
++    // Wake a blocked FIFO read so the thread can exit.
++    if (FILE* f = std::fopen(kVgFifoPath, "w")) {
++      std::fputs("exit\n", f);
++      std::fclose(f);
++    }
++    SDL_WaitThread(g_virtualThread, nullptr);
++    g_virtualThread = nullptr;
++  }
++  if (g_virtualJoystick != nullptr) {
++    SDL_CloseJoystick(g_virtualJoystick);
++    g_virtualJoystick = nullptr;
++  }
++  SDL_DetachVirtualJoystick(g_virtualGamepadId);
++  g_virtualGamepadId = -1;
++}
+ } // namespace aurora::input
