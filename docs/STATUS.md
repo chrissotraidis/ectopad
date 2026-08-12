@@ -30,8 +30,8 @@ Last updated: 2026-08-11
 | Dawn/WebGPU reaching Metal on iOS device | **Not yet tested** | Principal technical unknown (Gate 2); simulator rendering (host GPU/Metal path) works — physical-device verification pending signing identity + hardware |
 | Touch controls (iPhone/iPad layouts) | **Not yet tested** | |
 | GameController support | **Not yet tested** | |
-| Save/reload behavior | **Not yet tested** | |
-| Frigate Orpheon / later-area gameplay | **Not yet tested** | |
+| Save/reload behavior | **Partially proven** | New-game save slot creation and the full CARD flow work after the CInputStream byte-order fix (KI-009); the game state round-trips correctly. **Open:** kabufuda does not persist the card to the raw file on disk (async I/O flush), so saves do not survive a relaunch yet (KI-011) |
+| Frigate Orpheon / later-area gameplay | **Partially proven** | New Game now reaches **actual first-person gameplay** in Frigate Orpheon after the KI-009 fix: intro cinematic (space, gunship, Samus model) renders at 60 FPS; gameplay view renders with visor HUD (energy 99), arm cannon, minimap at 60 FPS, 1000+ draw calls; keyboard movement works. Full playthrough + save station + later areas not yet verified |
 
 ## Upstream context
 
@@ -65,6 +65,14 @@ Last updated: 2026-08-11
   - In-game rendering via `--warp 2 2`: full-screen first-person scene with HUD at
     60 FPS (Frame 3291, draw calls 1760, merged 14448) before an ImGui-overlay
     segfault (see KNOWN_ISSUES).
+- **New Game path (2026-08-11, after KI-009 fix):** title → file select →
+  new game → intro cinematic (space starfield, planet, gunship, Samus model,
+  frame ~5772, 60 FPS) → **first-person gameplay inside Frigate Orpheon**
+  (viso HUD, energy 99, arm cannon, minimap; frame ~10635, 60 FPS, ~1000 draw
+  calls; W moves the player). Audio: 10–15 amuse voices during the intro.
+  Evidence: `/tmp/mf_f2.png`, `/tmp/mf_gx4.png`, `/tmp/mf_gx5.png`,
+  `/tmp/mf_gx6.png`, `/tmp/mf_play1.png`, logs `/tmp/mf_fixed2.log`,
+  `/tmp/mf_savetest.log`.
 
 ### Partially proven
 - **Gamepad input:** wired via aurora PAD → SDL_Gamepad (untested — no controller

@@ -1,0 +1,233 @@
+diff --git a/Runtime/Audio/CStaticAudioPlayer.cpp b/Runtime/Audio/CStaticAudioPlayer.cpp
+index b85a2e2..2930f51 100644
+--- a/Runtime/Audio/CStaticAudioPlayer.cpp
++++ b/Runtime/Audio/CStaticAudioPlayer.cpp
+@@ -2,42 +2,79 @@
+ 
+ #include "Runtime/CDvdFile.hpp"
+ #include "Runtime/CDvdRequest.hpp"
++#include <spdlog/spdlog.h>
+ 
+ namespace metaforce {
+ 
+ #define RSF_BUFFER_SIZE 0x20000
+ 
+-//CStaticAudioPlayer::CStaticAudioPlayer(boo::IAudioVoiceEngine& engine, std::string_view path, int loopStart,
+-//                                       int loopEnd)
+-//: x0_path(path)
+-//, x1c_loopStartSamp(loopStart & 0xfffffffe)
+-//, x20_loopEndSamp(loopEnd & 0xfffffffe)
+-//, m_voiceCallback(*this)
+-//, m_voice(engine.allocateNewStereoVoice(32000, &m_voiceCallback)) {
+-//  // These are mixed directly into boo voice engine instead
+-//  // x28_dmaLeft.reset(new u8[640]);
+-//  // x30_dmaRight.reset(new u8[640]);
+-//
+-//  CDvdFile file(path);
+-//  x10_rsfRem = file.Length();
+-//  x14_rsfLength = x10_rsfRem;
+-//
+-//  u32 bufCount = (x10_rsfRem + RSF_BUFFER_SIZE - 1) / RSF_BUFFER_SIZE;
+-//  x48_buffers.reserve(bufCount);
+-//  x38_dvdRequests.reserve(bufCount);
+-//
+-//  for (int remBytes = x10_rsfRem; remBytes > 0; remBytes -= RSF_BUFFER_SIZE) {
+-//    u32 thisSz = RSF_BUFFER_SIZE;
+-//    if (remBytes < RSF_BUFFER_SIZE)
+-//      thisSz = ROUND_UP_32(remBytes);
+-//
+-//    x48_buffers.emplace_back(new u8[thisSz]);
+-//    x38_dvdRequests.push_back(file.AsyncRead(x48_buffers.back().get(), thisSz));
+-//  }
+-//
+-//  g72x_init_state(&x58_leftState);
+-//  g72x_init_state(&x8c_rightState);
+-//}
++namespace {
++CStaticAudioPlayer* s_activePlayer = nullptr;
++} // namespace
++
++CStaticAudioPlayer::CStaticAudioPlayer(std::string_view path, int loopStart, int loopEnd)
++: x0_path(path)
++, x1c_loopStartSamp(loopStart & 0xfffffffe)
++, x20_loopEndSamp(loopEnd & 0xfffffffe) {
++  if (!aurora_audio_is_open()) {
++    aurora_audio_open(32000, SupplyCallback);
++  }
++
++  CDvdFile file(path);
++  x10_rsfRem = file.Length();
++  x14_rsfLength = x10_rsfRem;
++  spdlog::info("CStaticAudioPlayer: opened '{}' ({} bytes, loop {}-{})", path, x10_rsfRem,
++               x1c_loopStartSamp, x20_loopEndSamp);
++
++  u32 bufCount = (x10_rsfRem + RSF_BUFFER_SIZE - 1) / RSF_BUFFER_SIZE;
++  x48_buffers.reserve(bufCount);
++  x38_dvdRequests.reserve(bufCount);
++
++  for (int remBytes = x10_rsfRem; remBytes > 0; remBytes -= RSF_BUFFER_SIZE) {
++    u32 thisSz = RSF_BUFFER_SIZE;
++    if (remBytes < RSF_BUFFER_SIZE)
++      thisSz = ROUND_UP_32(remBytes);
++
++    x48_buffers.emplace_back(new u8[thisSz]);
++    x38_dvdRequests.push_back(file.AsyncRead(x48_buffers.back().get(), thisSz));
++  }
++
++  g72x_init_state(&x58_leftState);
++  g72x_init_state(&x8c_rightState);
++}
++
++void CStaticAudioPlayer::StartMixing() {
++  s_activePlayer = this;
++  x18_curSamp = 0;
++  g72x_init_state(&x58_leftState);
++  g72x_init_state(&x8c_rightState);
++  m_leftStateLoop.reset();
++  m_rightStateLoop.reset();
++}
++
++void CStaticAudioPlayer::StopMixing() {
++  if (s_activePlayer == this) {
++    s_activePlayer = nullptr;
++  }
++}
++
++void CStaticAudioPlayer::SupplyCallback(float* data, int frames) {
++  CStaticAudioPlayer* self = s_activePlayer;
++  if (self == nullptr) {
++    aurora_audio_fill_silence(data, frames);
++    return;
++  }
++  if (!self->IsReady()) {
++    aurora_audio_fill_silence(data, frames);
++    return;
++  }
++  self->x38_dvdRequests.clear();
++  std::vector<s16> tmp(static_cast<size_t>(frames) * 2);
++  self->Decode(tmp.data(), frames);
++  for (int i = 0; i < frames * 2; ++i) {
++    data[i] = tmp[static_cast<size_t>(i)] / 32768.f;
++  }
++}
+ 
+ bool CStaticAudioPlayer::IsReady() {
+   if (x38_dvdRequests.size())
+@@ -47,18 +84,24 @@ bool CStaticAudioPlayer::IsReady() {
+ 
+ void CStaticAudioPlayer::DecodeMonoAndMix(s16* bufOut, u32 numSamples, u32 cur, u32 loopEndCur, u32 loopStartCur,
+                                           int vol, g72x_state& state, std::optional<g72x_state>& loopState) const {
++  // Guard against a degenerate/zero loop range (e.g. an object whose state was
++  // lost): without this, remTillLoop can be 0 forever and the mix spins.
++  const bool hasLoop = loopEndCur > loopStartCur;
+   for (u32 remBytes = numSamples / 2; remBytes;) {
+     u32 curBuf = cur / RSF_BUFFER_SIZE;
+     u32 thisBytes = (curBuf + 1) * RSF_BUFFER_SIZE - cur;
+     thisBytes = std::min(thisBytes, remBytes);
+-    u32 remTillLoop = loopEndCur - cur;
+-    remTillLoop = std::min(remTillLoop, thisBytes);
++    u32 remTillLoop = hasLoop ? std::min(loopEndCur - cur, thisBytes) : thisBytes;
++    if (remTillLoop == 0) {
++      /* No forward progress possible; stop decoding. */
++      break;
++    }
+ 
+     const std::unique_ptr<u8[]>& buf = x48_buffers[curBuf];
+     const u8* byte = &buf[cur - curBuf * RSF_BUFFER_SIZE];
+ 
+     for (u32 i = 0; i < remTillLoop; ++i, ++byte) {
+-      if (!loopState && cur + i == loopStartCur)
++      if (hasLoop && !loopState && cur + i == loopStartCur)
+         loopState.emplace(state);
+ 
+       *bufOut = SampClamp(((g721_decoder(*byte & 0xf, &state) * vol) >> 15));
+@@ -70,7 +113,7 @@ void CStaticAudioPlayer::DecodeMonoAndMix(s16* bufOut, u32 numSamples, u32 cur,
+ 
+     cur += remTillLoop;
+     remBytes -= remTillLoop;
+-    if (cur == loopEndCur) {
++    if (hasLoop && cur == loopEndCur) {
+       cur = loopStartCur;
+       if (loopState)
+         state = *loopState;
+@@ -87,6 +130,11 @@ void CStaticAudioPlayer::Decode(s16* bufOut, u32 numSamples) {
+                    x1c_loopStartSamp / 2 + halfway, xc0_volume, x8c_rightState, m_rightStateLoop);
+ 
+   for (u32 remSamples = numSamples; remSamples;) {
++    if (x20_loopEndSamp == x1c_loopStartSamp) {
++      /* Degenerate loop range; avoid an infinite wrap. */
++      x18_curSamp = 0;
++      break;
++    }
+     u32 remTillLoop = x20_loopEndSamp - x18_curSamp;
+     remTillLoop = std::min(remTillLoop, remSamples);
+ 
+diff --git a/Runtime/Audio/CStaticAudioPlayer.hpp b/Runtime/Audio/CStaticAudioPlayer.hpp
+index fb39fe3..6de88d9 100644
+--- a/Runtime/Audio/CStaticAudioPlayer.hpp
++++ b/Runtime/Audio/CStaticAudioPlayer.hpp
+@@ -8,10 +8,9 @@
+ #include "Runtime/RetroTypes.hpp"
+ #include "Runtime/Audio/CAudioSys.hpp"
+ 
+-#include "g721.h"
++#include <aurora/audio.h>
+ 
+-//#include <boo/audiodev/IAudioVoice.hpp>
+-//#include <boo/audiodev/IAudioVoiceEngine.hpp>
++#include "g721.h"
+ 
+ namespace metaforce {
+ class IDvdRequest;
+@@ -23,9 +22,6 @@ class CStaticAudioPlayer {
+   u32 x18_curSamp = 0;
+   u32 x1c_loopStartSamp;
+   u32 x20_loopEndSamp;
+-  // u32 x24_ = 0;
+-  // std::unique_ptr<u8[]> x28_dmaLeft;
+-  // std::unique_ptr<u8[]> x30_dmaRight;
+   std::vector<std::shared_ptr<IDvdRequest>> x38_dvdRequests;
+   std::vector<std::unique_ptr<u8[]>> x48_buffers;
+   g72x_state x58_leftState;
+@@ -41,35 +37,19 @@ class CStaticAudioPlayer {
+       val = 32767;
+     return val;
+   }
+-/*
+-  struct AudioVoiceCallback  {
+-    CStaticAudioPlayer& m_parent;
+-    void preSupplyAudio(boo::IAudioVoice&, double) override {}
+-    size_t supplyAudio(boo::IAudioVoice& voice, size_t frames, int16_t* data) override {
+-      if (m_parent.IsReady()) {
+-        m_parent.x38_dvdRequests.clear();
+-        m_parent.Decode(data, frames);
+-      } else
+-        memset(data, 0, 4 * frames);
+-      return frames;
+-    }
+-    explicit AudioVoiceCallback(CStaticAudioPlayer& p) : m_parent(p) {}
+-  } m_voiceCallback;
+-  boo::ObjToken<boo::IAudioVoice> m_voice;
+-*/
+ public:
+-//  CStaticAudioPlayer(boo::IAudioVoiceEngine& engine, std::string_view path, int loopStart, int loopEnd);
+-//  CStaticAudioPlayer(std::string_view path, int loopStart, int loopEnd)
+-//  : CStaticAudioPlayer(*CAudioSys::GetVoiceEngine(), path, loopStart, loopEnd) {}
++  CStaticAudioPlayer(std::string_view path, int loopStart, int loopEnd);
++  ~CStaticAudioPlayer() { StopMixing(); }
+ 
+   bool IsReady();
+   void DecodeMonoAndMix(s16* bufOut, u32 numSamples, u32 cur, u32 loopEndCur, u32 loopStartCur, int vol,
+                         g72x_state& state, std::optional<g72x_state>& loopState) const;
+   void Decode(s16* bufOut, u32 numSamples);
+   void SetVolume(float vol) { xc0_volume = zeus::clamp(0.f, vol, 1.f) * 32768.f; }
+-//
+-//  void StartMixing() { m_voice->start(); }
+-//  void StopMixing() { m_voice->stop(); }
++  void StartMixing();
++  void StopMixing();
++
++  static void SupplyCallback(float* data, int frames);
+ };
+ 
+ } // namespace metaforce

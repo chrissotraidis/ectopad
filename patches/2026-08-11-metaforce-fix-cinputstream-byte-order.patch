@@ -1,0 +1,13 @@
+diff --git a/Runtime/Streams/CInputStream.cpp b/Runtime/Streams/CInputStream.cpp
+index d7446dd..3b54ffe 100644
+--- a/Runtime/Streams/CInputStream.cpp
++++ b/Runtime/Streams/CInputStream.cpp
+@@ -106,7 +106,7 @@ u32 CInputStream::ReadBits(u32 bitCount) {
+     x20_bitOffset = 0;
+     const u32 len = (shiftAmt / 8) + static_cast<unsigned int>((shiftAmt % 8) != 0);
+     Get(reinterpret_cast<u8*>(&x1c_bitWord), len);
+-#if METAFORCE_TARGET_BYTE_ORDER == __LITTLE_ENDIAN
++#if METAFORCE_TARGET_BYTE_ORDER == __ORDER_LITTLE_ENDIAN__
+     x1c_bitWord = CBasics::SwapBytes(x1c_bitWord);
+ #endif
+     const u32 mask2 = shiftAmt == 32 ? 0xffffffff : (1 << shiftAmt) - 1;
