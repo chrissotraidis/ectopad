@@ -147,8 +147,9 @@ Last updated: 2026-08-12
 - The current Simulator host still did not forward device-area clicks to the
   app, so this run could not reopen the menu/settings. Earlier evidence
   `/tmp/ios_menu_open2.png` proves the directly ported menu rendered before the
-  linker regression. Current-build menu interaction remains unverified rather
-  than inferred.
+  linker regression. At that timestamp current-build menu interaction remained
+  unverified rather than inferred; the later final harness entry supersedes
+  this limitation with deterministic `result=0` wiring evidence.
 - Rebuilt `macos-default-relwithdebinfo`; the app reached Dawn/WebGPU → Metal
   on Apple M2 and exited 0 after SIGINT.
 
@@ -308,6 +309,17 @@ Last updated: 2026-08-12
 - This proves local unsigned validation packaging only. Public redistribution
   remains blocked on GPL/LGPL release materials and scrubbed Dawn provenance;
   physical install remains blocked on signing identity and hardware.
+
+### 2026-08-12 — final menu/audio package superseding prior package hash
+
+- After the final menu-visibility and frame-rate-independent audio patches, the
+  device app was rebuilt and packaged twice. Both archives were identical.
+- Exact artifact: `/tmp/Metaforce-unsigned-menu-audio-2026-08-12.ipa`.
+- SHA-256:
+  `308f9e26861327b42e28359406237902f8b9ab60e30ba3c8751419055111617d`.
+- The same structure/platform/linkage/privacy/prohibited-content audit passed.
+  This supersedes the earlier `1348c52c…` package as the final local validation
+  artifact; it remains unsigned, uninstalled, and non-public.
 
 ### 2026-08-11 — macOS rendering and keyboard fixes
 

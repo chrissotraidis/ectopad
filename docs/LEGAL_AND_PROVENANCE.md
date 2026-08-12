@@ -1,6 +1,6 @@
 # Legal & Provenance
 
-Last updated: 2026-08-11
+Last updated: 2026-08-12
 
 ## Boundaries
 
@@ -33,6 +33,9 @@ Last updated: 2026-08-11
 - Every IPA/app/archive is audited before being called distributable
   (see [TESTING.md](TESTING.md)). The current deterministic IPA is explicitly
   an unsigned local validation artifact, not a distributable release.
+- Exact final local validation artifact: SHA-256
+  `308f9e26861327b42e28359406237902f8b9ab60e30ba3c8751419055111617d`.
+  It was reproduced byte-identically, but remains unsigned and non-public.
 - The combined binary includes GPL-covered SunPad-derived code and zeus plus a
   statically linked LGPL-2.1 soxr build. Public distribution remains blocked
   until corresponding-source and LGPL relink materials are assembled and

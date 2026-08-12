@@ -1,6 +1,6 @@
 # Architecture
 
-Last updated: 2026-08-11
+Last updated: 2026-08-12
 
 ## Current Metaforce architecture (pinned `621ee0f`)
 
@@ -28,8 +28,8 @@ Key findings (all verified in the cloned tree, 2026-08-11):
 2. **Dawn backends on Apple are Metal-only.** `AuroraDawnProvider.cmake` sets
    `DAWN_ENABLE_METAL ON` and D3D12/D3D11/Vulkan/GL off on `APPLE`. This is the
    `Metaforce → Aurora (GX) → Dawn → Metal` path the project requires.
-3. **Dawn is pinned** to encounter/dawn `v20260807.225922` / ref
-   `1155e0ed…`, and **prebuilt packages exist for `darwin-arm64` and `ios-arm64`**,
+3. **The operative Dawn pin** in Metaforce's Aurora `5143394` is
+   `v20260603.191052`, and **prebuilt packages exist for `darwin-arm64` and `ios-arm64`**,
    so neither Gate 1 nor Gate 2 needs a Dawn source build by default
    (`AURORA_DAWN_PROVIDER=package`).
 4. **App layer is SDL3** (aurora::main): windowing, input, audio on Windows, Linux,
@@ -49,18 +49,23 @@ Key findings (all verified in the cloned tree, 2026-08-11):
      kbm `CFinalInput` (WASD/IJKL sticks, J/K/I/U/H/Q/E buttons, Enter=Start,
      arrows=D-pad) whenever no gamepad is connected. Mapping constants live in
      `CFinalInput.cpp`; easy to remap for the Prime-native control design.
-8. **Saves:** `CMemoryCardSys*` (OSX/Nix/Win variants) — CARD-compatible save
-   handling via kabufuda; layout to be documented once exercised.
+8. **Saves:** `CMemoryCardSys*` uses CARD-compatible kabufuda storage. macOS
+   save/reload and mobile save-preserving game-data removal/reimport are proven.
 9. **Android exists in-tree** (`android/` dir, presets) but is not our target; we
    reuse its toolchain patterns where useful and do not assume its assumptions
    hold on iOS.
-10. **Audio is mid-refactor upstream:** the boo voice engine and amuse/musyx
-    playback calls are commented out in the pinned tree; no audio output device
-    code exists yet (KI-003). The port will need to (re)wire output — SDL3 audio
-    via aurora (macOS + iOS), or CoreAudio/AVAudioSession directly.
+10. **Audio is restored locally:** Metaforce drives amuse SFX/sequencing and
+    streamed DSP/MIDI into Aurora's SDL3 output through soxr voice resampling.
+    The producer measures converted output-ready depth and tops a 120 ms reserve
+    independently of render FPS. Physical routes/interruptions still need proof.
 11. **Disc access is Rust-backed:** nod (Rust, via corrosion + nod-ffi) reads the
     ISO; the iOS build targets `aarch64-apple-ios` (rustup target added
     2026-08-11).
+12. **Mobile presentation is SunPad-owned:** unchanged UIKit overlay/settings/
+    mixer/mapping sources sit above SDL's UIKit/Metal hierarchy through a thin
+    `OverlayBridge.mm`. iOS desktop ImGui presentation is suppressed. The bridge
+    also delegates private atomic game-data import, diagnostics, and display
+    settings while keeping SunPad UI source unchanged.
 
 ## Target Apple rendering path
 

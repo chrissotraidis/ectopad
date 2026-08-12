@@ -34,7 +34,8 @@ cmake --build --preset ios-default --target metaforce -j8
 ```
 
 The local artifact is `build/ios-default/Binaries/Metaforce.app`. A full arm64
-iOS compile and link completed on 2026-08-12. Cross-compiling must not import
+iOS compile and link completed from final menu/audio sources on 2026-08-12.
+Cross-compiling must not import
 host libraries through pkg-config; Aurora skips that fallback and vendors a
 static zstd for iOS. Signing/install/launch still requires the user's identity
 and physical hardware.
@@ -57,6 +58,12 @@ physical-device or public-release artifact. Signing must happen only after all
 bundle mutations in a separate device workflow; public distribution also
 requires the GPL corresponding-source and LGPL relink materials described in
 [LEGAL_AND_PROVENANCE.md](LEGAL_AND_PROVENANCE.md).
+
+The exact twice-reproduced final archive is
+`/tmp/Metaforce-unsigned-menu-audio-2026-08-12.ipa`, SHA-256
+`308f9e26861327b42e28359406237902f8b9ab60e30ba3c8751419055111617d`.
+The package audit passed. Rebuilding it is unnecessary for physical testing;
+sign the source device app using a valid development workflow instead.
 
 ## iOS Simulator (arm64)
 
@@ -92,13 +99,16 @@ Audio note: the Simulator build was rebuilt 2026-08-11 (21:20) with the vendored
 audio stack (amuse/athena/logvisor/soxr in `extern/`, added unconditionally by
 `extern/CMakeLists.txt`); it compiles and links for the sim SDK and runs with
 audio (amuse 32 kHz SDL backend, frontend RSF music, 2 voices, stable pump) —
-see STATUS.md and KNOWN_ISSUES KI-003.
+see STATUS.md and KNOWN_ISSUES KI-003. The final 2026-08-12 build replaces the
+render-frame-coupled pump with a measured 120 ms converted-output reserve.
 
 ## Notes / known environment quirks
 
 - The project README says builds are "currently unavailable while the project
   undergoes large changes," but upstream CI builds all platforms; treat README
   statements as stale unless reproduced.
-- Rust toolchain is present (1.97.1) with only `aarch64-apple-darwin`; the iOS
-  preset references `Rust_CARGO_TARGET=aarch64-apple-ios` — verify whether any
-  Rust component is actually linked before adding the target.
+- Rust toolchain 1.97.1 and the required Apple targets produced the final
+  Simulator and iPhoneOS builds. Do not change toolchains absent a reproduced
+  build defect.
+- Do not repeat Simulator UI work by default. The next meaningful step is a
+  development-signed physical install; see [CURRENT_STATE.md](CURRENT_STATE.md).

@@ -2,8 +2,8 @@
 
 Last updated: 2026-08-12
 
-This is the authoritative short-term resumption document for the state left at
-the end of the 2026-08-12 session. The persistent objective is broader than
+This is the historical end-of-session snapshot from 2026-08-12.
+[CURRENT_STATE.md](CURRENT_STATE.md) is now authoritative. The objective is broader than
 today's stopping point, so this document deliberately separates what works now
 from what still requires a physical device or longer acceptance testing.
 
@@ -179,8 +179,8 @@ memory/thermal measurements, and final redistribution/legal materials.
 
 ### P3 — distribution
 
-- [ ] Repackage today's final device build and rerun deterministic/prohibited-
-      content audit.
+- [x] Repackage the final device build twice and rerun deterministic/prohibited-
+      content audit (identical SHA-256 `308f9e26861327b42e28359406237902f8b9ab60e30ba3c8751419055111617d`).
 - [ ] Post-sign audit on the exact artifact installed on hardware.
 - [ ] Prepare/review GPL corresponding source and LGPL static-relink materials.
 - [ ] Remove or rebuild upstream Dawn diagnostic provenance paths for a public
@@ -209,12 +209,12 @@ memory/thermal measurements, and final redistribution/legal materials.
 
 ## Resume order
 
-1. Read this file, then `COMPLETION_AUDIT.md`, `SUNPAD_PARITY.md`, and
+1. Read `CURRENT_STATE.md`, then `COMPLETION_AUDIT.md`, `SUNPAD_PARITY.md`, and
    `KNOWN_ISSUES.md`.
 2. Inspect root and nested worktree status; never assume prior evidence.
 3. Confirm today's two focused patches apply after their documented
    prerequisites and match the live nested sources.
-4. Start with the user's local menu/audio findings. Do not launch broad
-   performance work until correctness is accepted.
+4. Start with physical signing/install and Gate 2. Do not repeat Simulator menu
+   automation unless physical evidence exposes a concrete regression.
 5. Keep the persistent goal active until physical Gates 2/3 and every audit
    row are actually proven.

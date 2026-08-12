@@ -1,6 +1,6 @@
 # Dependencies
 
-Last updated: 2026-08-11
+Last updated: 2026-08-12
 
 ## Reference repositories (cloned into `ref/`)
 
@@ -59,7 +59,8 @@ local patches (see `patches/amuse-audio-vendor/`; license texts in each repo).
 | lzokay | https://github.com/AxioDL/lzokay | `db2df1fcbebc2ed06c10f727f72567d40f06a2be` | MIT | LZO decompression |
 | soxr | https://github.com/chirlu/soxr | `945b592b70470e29f917f4de89b4281fbbd540c0` | LGPL-2.1 | Voice sample-rate conversion (24/16/12/4 kHz → 32 kHz mix) |
 
-All five build for macOS ARM64 and the iOS Simulator SDK (verified 2026-08-11).
+All five build for macOS ARM64, iOS Simulator ARM64, and iPhoneOS ARM64
+(final-source builds verified 2026-08-12).
 
 ## Build environment (this machine, 2026-08-11)
 
@@ -67,7 +68,8 @@ All five build for macOS ARM64 and the iOS Simulator SDK (verified 2026-08-11).
 - Xcode 26.6 (Build 17F113); SDKs: macosx 26.5, iphoneos 26.5, iphonesimulator 26.5
 - CMake 3.27.1, Ninja 1.13.2, AppleClang 21.0.0, git 2.41.0
 - Python 3.8.10 (+ markupsafe 2.1.5)
-- Rust 1.97.1 (aarch64-apple-darwin installed; iOS target not yet added)
+- Rust 1.97.1 with Apple targets required by the proven macOS, Simulator, and
+  iPhoneOS builds
 - Homebrew SDL3 3.4.12 (used via aurora `system` provider)
 
 ## Licenses

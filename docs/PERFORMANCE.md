@@ -29,3 +29,7 @@ gameplay observations are functional evidence, not benchmark results.
   another heavy app running and 59.9 FPS after it was closed. This demonstrates
   the confounder and the live FPS display, but neither number is a baseline or a
   physical-device performance claim.
+- A loaded native audio-reserve run conducted while unrelated renderer load was
+  high held 5,292–5,294 output-ready frames and logged no underrun. That is valid
+  mechanical audio-buffer evidence, but its FPS and timing are excluded from
+  performance baselines for the same reason.

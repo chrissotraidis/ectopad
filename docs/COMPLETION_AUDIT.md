@@ -4,6 +4,8 @@ Last updated: 2026-08-12
 
 This matrix preserves the full goal and distinguishes local implementation
 progress from evidence that actually satisfies each release requirement.
+[CURRENT_STATE.md](CURRENT_STATE.md) supplies the exact artifact identity and
+ordered remaining checklist.
 
 | Requirement | Current evidence | Verdict | Next proof required |
 | --- | --- | --- | --- |

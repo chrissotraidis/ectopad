@@ -31,8 +31,8 @@ SunPad view above SDL's UIKit/Metal view, forwards the mixer's
 `SunPadInputState` into `aurora::touch::IosTouchState`, applies SunPad's render
 scale/aspect settings to Aurora, displays successful surface-present rate when
 SunPad's FPS switch is enabled, and delegates game-data operations to a private
-import service. It presents an explicit "not available" alert for controller
-mapping. It must remain minimal; new menu
+import service. Controller mapping now uses SunPad's byte-identical model and
+UI. It must remain minimal; new menu
 behavior belongs behind this bridge, not in a restyled overlay.
 
 ## Feature parity and wiring
@@ -45,7 +45,7 @@ behavior belongs behind this bridge, not in a restyled overlay.
 | FPS counter | SunPad control present | Wired to successful Dawn surface presents and shown with SunPad's label styling; Simulator rendering verified |
 | Touch Control Settings | SunPad panel present, including opacity, global/per-control size, hide-on-controller, modern C-stick | Current-build harness exercised the real controls/actions and verified persisted render, opacity, global size, hide, and modern-C settings; physical touch remains |
 | Layout editor | SunPad drag, per-control resize, and reset code present | Current-build harness selected A, invoked the registered per-control resize action, verified 1.25×, reset, and restored defaults; drag ergonomics still require real touch |
-| Game Data & Saves | SunPad menu structure unchanged | Files picker/folder import, exact GM8E01 Rev 2 validation, private staging, atomic activation, and save-preserving removal implemented; service path Simulator-verified, picker interaction awaits touch/device |
+| Game Data & Saves | SunPad menu structure unchanged | Files picker/folder import, exact GM8E01 Rev 2 validation, private staging, atomic activation, and save-preserving removal implemented; service path Simulator-verified and current harness presents picker/delegate; physical selection/import remains |
 | Share Diagnostic Log | SunPad menu, privacy confirmation, snapshot, and share sheet are ported directly | iPhone Simulator presented confirmation and real UIKit share sheet; privacy test proved app-container/temp redaction and Metaforce filename; physical interaction remains |
 | Controller Mapping | SunPad menu item and mapping model ported directly | A/B/X/Y/right-shoulder ↔ GameCube A/B/X/Y/Z permutation persists and applies in the iOS SDL→PAD path; Simulator UI and deterministic swap/passthrough test verified; physical controller remains untested |
 

@@ -126,8 +126,9 @@ nod-backed `CDvdFile` — **no HECL extraction step exists in the current flow**
   remained unchanged, and staging was cleaned.
 - Runtime log: `/tmp/metaforce-import-atomic-2026-08-12.log`. The production
   picker/delegate and Files-visible plist keys compile for Simulator and arm64
-  iOS, but picker tapping still awaits working Simulator touch delivery or a
-  physical device. The tested hook calls the same import service.
+  iOS. The final UIKit harness presents the real picker with
+  `TouchOverlayDelegate`; actual Files selection/import remains a physical-device
+  test. The service hook calls the same import implementation.
 
 ## Privacy boundaries
 

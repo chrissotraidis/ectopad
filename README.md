@@ -22,6 +22,7 @@ Silicon macOS, iOS, and iPadOS, built on [Metaforce](https://github.com/AxioDL/m
   repositories (metaforce, sunpad, PrimeDecomp/prime, aurora). Nothing in `ref/`
   is ever committed.
 
-See [docs/STATUS.md](docs/STATUS.md) for current status and
-[docs/IMPLEMENTATION_PLAN.md](docs/IMPLEMENTATION_PLAN.md) for the plan.
-
+Start with [docs/CURRENT_STATE.md](docs/CURRENT_STATE.md) for the exact audited
+handoff, then use [docs/STATUS.md](docs/STATUS.md) for the evidence ledger and
+[docs/IMPLEMENTATION_PLAN.md](docs/IMPLEMENTATION_PLAN.md) for the remaining
+gate plan.

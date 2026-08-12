@@ -2,8 +2,9 @@
 
 Last updated: 2026-08-12
 
-This plan is written **before major implementation**, per the project goal. It
-will be updated as gates produce evidence.
+This originated before major implementation and is now a living gate plan.
+[CURRENT_STATE.md](CURRENT_STATE.md) is authoritative for exact artifacts and
+proof boundaries.
 
 ## 1. Source / repository strategy
 
@@ -116,10 +117,12 @@ will be updated as gates produce evidence.
      music/sequences.~~ **Done**
      (soxr vendored; streamed DSP + MIDI sequencer restored; verified on macOS
      and the iPad Simulator, 2026-08-11)
-  6. Verify: music, ambience, weapons, voice/SFX, transitions, suspend/resume on
-     macOS, then iOS Simulator and device.
-- This is the last major Gate 1 item; the rest of Gate 1 is proven (build,
-  Metal, rendering, title flow, input, saves/config paths).
+  6. ~~Decouple production from rendered-frame cadence.~~ **Done** (the output
+     stream now targets a measured 120 ms converted reserve; loaded native
+     evidence held 5,292–5,294 frames with no underrun log).
+  7. Verify audibly on hardware: music, ambience, weapons, voice/SFX,
+     transitions, route/interruption, background/resume, and sustained play.
+- Gate 1 audio is proven. Physical mobile audible acceptance remains.
 
 ## 12. Saves
 
@@ -162,7 +165,8 @@ will be updated as gates produce evidence.
   pick the user's ISO/GCM via Files (or the Files-visible app folder) → validate
   exact GM8E01 Rev 2 header/size → prepare privately → validate staged SHA-1 →
   activate atomically. Reimport and safe removal preserve saves. The service is
-  Simulator-proven; production picker tapping awaits touch/device verification.
+  Simulator-proven; the final harness presents the production picker and
+  delegate. Actual physical selection/import remains.
 
 ## 19. Mobile data-storage design
 
@@ -188,11 +192,12 @@ will be updated as gates produce evidence.
   is fixed and the controls render over Dawn/Metal on the iPad Simulator.
   Render scale, aspect presentation, and the successful-present FPS counter are
   now wired through a thin bridge and Simulator-verified without modifying the
-  SunPad sources. Remaining: restore host touch delivery or verify on a
-  physical device, re-test the current menu/editor/mixer interactions, validate
-  iPhone/iPad layouts, verify production data-picker interactions, wire
-  controller mapping, verify the ported diagnostic share sheet, and add any
-  compatible experimental frame-rate behavior.
+  SunPad sources. The final current-build harness passes menu/settings/editor/
+  mixer/folder/picker phases and the live bridge reports `•••` visible and
+  attached. Controller mapping and diagnostic confirmation/share are wired and
+  Simulator-proven. Remaining: physical finger/multitouch/editor ergonomics,
+  physical Files selection, physical iPhone/iPad layout acceptance, and touch/
+  controller handoff. Experimental 60 FPS is intentionally not claimed.
 
 ## 22. iPhone layout
 
@@ -270,10 +275,11 @@ will be updated as gates produce evidence.
 
 ## 35. Known upstream blockers
 
-- None proven fundamental. Watch items: metaforce alpha-state churn; Dawn
-  prebuilt package deployment-target compatibility; SDL3 iOS backend maturity;
-  frontend THP movie rendering defect (KI-001) — an upstream WIP bug, not
-  Apple-port-specific; audio output unwired upstream (KI-003).
+- None proven fundamental. KI-001 is fixed locally; audio output and the
+  frame-rate-independent reserve are wired locally. Watch items are Metaforce
+  alpha-state churn, physical Dawn/Metal compatibility, SDL3 iOS device
+  behavior, physical audible audio acceptance, and public-release provenance/
+  license obligations.
 
 ## 36. Go / no-go criteria
 
@@ -297,7 +303,14 @@ will be updated as gates produce evidence.
 
 ## Immediate next steps
 
-1. Configure and build macOS ARM64 (Gate 1).
-2. Fix current-tree build problems as found.
-3. Extract/validate game data; launch; verify Metal/frame/title/input/audio/saves.
-4. Reproduce the iOS arm64 build locally; then device install (Gate 2).
+1. Install/configure a valid Apple Development identity and provisioning
+   profile; connect a physical iPad and preferably iPhone.
+2. Sign the exact final arm64 device app, install it, and perform a post-sign
+   privacy/platform audit without modifying it.
+3. Execute Gate 2: physical Dawn→Metal launch, visible rendering, persistent
+   SunPad controls/`•••`, and diagnostic capture.
+4. Execute focused Gate 3 physical acceptance: production Files import, real
+   touch/multitouch/editor, Frigate controls, save/reload, lifecycle, and
+   audible audio across routes/interruptions and sustained play.
+5. Only then collect controlled performance/memory/thermal data and later-area
+   evidence with competing applications closed.

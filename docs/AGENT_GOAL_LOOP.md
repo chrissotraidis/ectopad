@@ -81,22 +81,30 @@ Rules that bind every turn:
 
 The prior agent's work is **not trustworthy until re-verified**. Every turn
 begins with an evidence-based audit:
-1. `git -C /Users/chrissotraidis/GitHub/ectopad status` — the ectopad repo must
+1. Read `docs/CURRENT_STATE.md`, then run
+   `git -C /Users/chrissotraidis/GitHub/ectopad status` — the ectopad repo must
    stay clean except docs/ + patches/ (never commit `ref/`).
 2. Inspect the aurora working tree
    (`ref/metaforce/extern/aurora`): `git status --short` and the diff vs the
    pinned `5143394` — understand every uncommitted change.
-3. Re-verify KI-015 remains fixed. Its root cause was duplicate static-library
+3. Treat KI-015 as fixed unless physical evidence contradicts it. Its root
+   cause was duplicate static-library
    implementations: `ios_touch_stub.cpp` was compiled for iOS and linked before
    `OverlayBridge.mm`, so the real bridge was never loaded. CMake now includes
    the stub only for non-iOS builds. Current evidence:
    `/tmp/ki015-overlay-fixed-2026-08-12.{png,log}`.
-4. Rebuild both presets (`macos-default-relwithdebinfo`, `ios-sim`) and run
-   the app to verify each claimed result before relying on it. Verify with
-   dated screenshots + logs in `/tmp`.
+4. Do not rebuild or rerun Simulator by default. The final-source macOS,
+   Simulator, and device builds plus current UIKit harness are recorded in
+   `CURRENT_STATE.md`. Rebuild only the target affected by a new change.
 5. Re-check every "Proven" claim in `docs/STATUS.md` before building on it.
 
-## 4. Current state (2026-08-12, from prior agent)
+## 4. Current state (2026-08-12, audited)
+
+The exact current state is maintained in `docs/CURRENT_STATE.md`; it supersedes
+the older snapshot below wherever the two differ. In particular, menu/editor/
+picker wiring now passes the current-build harness, the `•••` visibility guard
+is present, diagnostics and controller mapping are wired, and audio uses a
+measured 120 ms output-ready reserve rather than a render-frame pump.
 
 Proven (with dated evidence in `/tmp`):
 - Gate 1 macOS: build, Metal, title, full New Game → Frigate Orpheon gameplay
@@ -133,11 +141,10 @@ Known open items:
   SDL3 invalid-ID handling and descriptor initialization. Start, analog Y, and
   A reached the real frontend through SDL → Aurora → `PADRead`. Physical Apple
   GameController hardware, hot-plug, rumble, and handoff remain untested.
-- Production Files picker interaction and Share Diagnostic Log UI verification
-  (import service itself is implemented and Simulator-verified), controller
-  mapping, physical-device Gate 2/3 (needs user: signing
-  identity + hardware), memory/performance measurements, later-area
-  playthroughs.
+- Physical Files selection/import, finger and multitouch behavior, physical
+  Share Diagnostic Log export, physical controller behavior, physical-device
+  Gate 2/3 (needs user signing identity + hardware), controlled performance/
+  memory measurements, audible device audio, and later-area playthroughs.
 
 ## 5. Working process (keep)
 
@@ -157,23 +164,18 @@ Known open items:
 
 ## 6. Next priorities (in order)
 
-1. Restore Simulator host touch delivery or verify on a physical device, then
-   re-test the `•••` menu, settings panel, editor, and mixer path on the current
-   KI-015-fixed build.
-2. Continue wiring the ••• menu: render scale/aspect/FPS and private atomic game
-   data are now real and Simulator service-verified; next wire controller
-   mapping and verify the production Files picker plus the already ported
-   diagnostic share sheet. Do not claim the GM8E01 Experimental 60 FPS switch
-   until a compatible implementation exists.
-3. Physical GameController verification (Apple GCController via SDL): the
+1. Obtain a valid Apple Development identity/provisioning profile and connect
+   physical iPad/iPhone hardware; sign, install, and audit the exact arm64 app.
+2. Execute Gate 2 on hardware: Dawn→Metal launch/render and persistent SunPad
+   controls/`•••`, with diagnostics captured.
+3. Execute the focused physical Gate 3 checklist: production Files import,
+   real touch/multitouch/editor, Frigate controls, save/reload, lifecycle, and
+   audible 120 ms-reserve audio behavior.
+4. Physical GameController verification (Apple GCController via SDL): the
    no-hardware SDL/Aurora/PAD path is proven; hardware discovery, reconnect,
    rumble, and touch/controller handoff still require a controller/device.
-4. Re-test production Files picker/folder/removal interactions on working touch
-   or hardware; the underlying validated atomic service and save/data separation
-   are proven in Simulator.
-5. Physical-device Gate 2/3 (needs user prerequisites).
-6. Memory/performance measurements with competing CPU/GPU-heavy apps closed
+5. Memory/performance measurements with competing CPU/GPU-heavy apps closed
    and process/system load recorded; later-area playthroughs.
 
-See `docs/STATUS.md`, `docs/KNOWN_ISSUES.md`, `docs/IMPLEMENTATION_PLAN.md`,
-and `docs/HANDOFF.md` for the full evidence trail.
+See `docs/CURRENT_STATE.md`, `docs/STATUS.md`, `docs/KNOWN_ISSUES.md`,
+`docs/IMPLEMENTATION_PLAN.md`, and `docs/HANDOFF.md` for the full trail.
