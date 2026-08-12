@@ -1,6 +1,6 @@
 # Status
 
-Last updated: 2026-08-11
+Last updated: 2026-08-12
 
 ## Status legend
 
@@ -33,6 +33,7 @@ Last updated: 2026-08-11
 | Touch input (iOS Simulator) | **Proven (foundation, Simulator-only)** | SDL touch events are captured in aurora and mapped to a virtual pad (left half = movement stick, right half = look stick, bottom corners = A/B taps) via the existing `PADSetVirtualStatus` mechanism; verified on the iPad Pro 13-inch (M5) Simulator: a left-half drag moves Samus forward through Frigate Orpheon (lock-on tutorial prompt triggered). Full touch overlay layout (buttons, radial menus, stick zones) not yet designed |
 | Save/reload behavior | **Proven (macOS)** | Full cycle verified 2026-08-11 after the kabufuda queue/commit fix (KI-011): new game → save slot `GM8E01`/`MetroidPrime B` persisted to the raw card on disk → clean quit → relaunch → file select shows the save → A loads the saved game (intro narration + gameplay at 60 FPS). In-game save-station save/reload not yet exercised (requires navigating to a save station) |
 | Frigate Orpheon / later-area gameplay | **Partially proven** | New Game now reaches **actual first-person gameplay** in Frigate Orpheon after the KI-009 fix: intro cinematic (space, gunship, Samus model) renders at 60 FPS; gameplay view renders with visor HUD (energy 99), arm cannon, minimap at 60 FPS, 1000+ draw calls; keyboard movement works. Full playthrough + save station + later areas not yet verified |
+| App lifecycle (background/foreground) on iPad Simulator | **Proven (Simulator-only)** | Full background → foreground cycles verified 2026-08-12 on iPad Pro 13-inch (M5) Simulator with the aurora iOS lifecycle fix: Home → app backgrounds (home screen, process alive) → relaunch foregrounds → Frigate Orpheon gameplay resumes cleanly with HUD/state intact (ENERGY 99), CPU returns to gameplay levels, RSS stable (~581 MB, no leak across 2 cycles). See detail below |
 
 ## Upstream context
 
@@ -151,6 +152,25 @@ Last updated: 2026-08-11
     voices (2 running), 3 submixes` with a stable 534-frame audio pump. Evidence:
     log `/tmp/mf_ios_sim_audio.log`, screenshots `/tmp/ios_audio_check2.png`
     (title screen) and `/tmp/ios_audio_final.png`.
+- **Lifecycle on iPad Simulator (2026-08-12, iPad Pro 13-inch M5, iOS 26.5):**
+    verified background → foreground behavior twice from inside Frigate Orpheon
+    first-person gameplay. **Root-cause finding:** SDL3's iOS backend reports
+    backgrounding via `SDL_EVENT_DID_ENTER_BACKGROUND`/`WILL_ENTER_FOREGROUND`,
+    not `WINDOW_MINIMIZED`/`RESTORED`, so aurora's `g_backgrounded` flag (and
+    therefore `window::is_presentable()`) never fired on iOS — the engine had no
+    explicit pause path on Apple mobile. Fixed in aurora's
+    `lifecycle_event_watch` by mapping those events to `g_backgrounded`
+    (`patches/2026-08-12-aurora-fix-ios-background-events.patch`). With the fix:
+    Home → app backgrounds (home screen shown, process alive) and the frame loop
+    halts simulation + rendering (`begin_frame()` returns false, no present
+    attempts); foreground via `simctl launch` → Frigate Orpheon resumes cleanly
+    with HUD/state intact (ENERGY 99, missiles 15), CPU 33→38% (gameplay), RSS
+    stable 594.6 → 595.2 MB across the two cycles (no leak). Backgrounded CPU
+    ~16% is the event-poll spin of the main loop (no sleep); on physical iOS the
+    OS suspends the process regardless. Evidence: `/tmp/ios_lc_re1.png`
+    (intro text), `/tmp/ios_lc_re3.png` (gameplay pre-background),
+    `/tmp/ios_lc_re_bg.png` (home screen), `/tmp/ios_lc_re_fg.png` and
+    `/tmp/ios_lc_re_fg2.png` (clean resumes).
 
 ### Physical-device verified
 

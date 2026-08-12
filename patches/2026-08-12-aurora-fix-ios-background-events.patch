@@ -1,0 +1,24 @@
+diff --git a/lib/window.cpp b/lib/window.cpp
+index 0d1a5c2..bae0565 100644
+--- a/lib/window.cpp
++++ b/lib/window.cpp
+@@ -122,8 +122,14 @@ bool SDLCALL lifecycle_event_watch(void*, SDL_Event* event) {
+ #if defined(SDL_PLATFORM_ANDROID) || defined(SDL_PLATFORM_APPLE)
+   case SDL_EVENT_WINDOW_MINIMIZED:
+     g_backgrounded.store(true, std::memory_order_relaxed);
+     break;
+   case SDL_EVENT_WINDOW_RESTORED:
+     g_backgrounded.store(false, std::memory_order_relaxed);
+     break;
++  case SDL_EVENT_DID_ENTER_BACKGROUND:
++    g_backgrounded.store(true, std::memory_order_relaxed);
++    break;
++  case SDL_EVENT_WILL_ENTER_FOREGROUND:
++    g_backgrounded.store(false, std::memory_order_relaxed);
++    break;
+ #endif
+   default:
+     break;
+   }
+   return true;
+ }
