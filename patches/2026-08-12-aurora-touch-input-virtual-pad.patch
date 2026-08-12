@@ -1,0 +1,174 @@
+diff --git a/include/dolphin/pad.h b/include/dolphin/pad.h
+index 252fca7..fe815e9 100644
+--- a/include/dolphin/pad.h
++++ b/include/dolphin/pad.h
+@@ -226,6 +226,13 @@ void PADSetVirtualStatus(u32 port, const PADStatus* status);
+ void PADClearVirtualStatus(u32 port);
+ void PADClearAllVirtualStatus();
+ 
++/* Touchscreen input (Aurora): finger events feed a virtual pad on port 0.
++ * x/y are normalized to [0,1]; fingerId distinguishes concurrent fingers. */
++void PADTouchDown(u64 fingerId, float x, float y);
++void PADTouchMotion(u64 fingerId, float x, float y);
++void PADTouchUp(u64 fingerId);
++void PADUpdateTouchVirtualPad();
++
+ /**
+  * Set the default controller mapping used.
+  *
+diff --git a/lib/dolphin/pad/pad.cpp b/lib/dolphin/pad/pad.cpp
+index 2d7f795..c99cad3 100644
+--- a/lib/dolphin/pad/pad.cpp
++++ b/lib/dolphin/pad/pad.cpp
+@@ -677,6 +677,8 @@ u32 PADRead(PADStatus* status) {
+     g_keyboardBindingsLoaded = true;
+     load_keyboard_bindings();
+   }
++  /* Keep the touchscreen virtual pad current for this read. */
++  PADUpdateTouchVirtualPad();
+ 
+   int numKeys = 0;
+   const bool* kbState = SDL_GetKeyboardState(&numKeys);
+@@ -936,6 +938,121 @@ void PADClearAllVirtualStatus() {
+   g_virtualPadActive.fill(false);
+ }
+ 
++/* --- Touchscreen -> virtual pad (foundation for touch controls) ---
++ * Layout: left half of the screen is the movement stick, right half is the
++ * look stick (C-stick); the bottom corners are A (right) and B (left) taps.
++ * Coordinates are normalized [0,1] (SDL3 finger events). */
++namespace {
++struct TouchStickState {
++  u64 fingerId = 0;
++  bool active = false;
++  float originX = 0.f, originY = 0.f;
++  float curX = 0.f, curY = 0.f;
++};
++TouchStickState g_touchLeftStick;
++TouchStickState g_touchRightStick;
++u64 g_touchButtonAId = 0;
++bool g_touchButtonAActive = false;
++u64 g_touchButtonBId = 0;
++bool g_touchButtonBActive = false;
++constexpr float kTouchStickRadius = 0.18f;
++constexpr float kTouchButtonCorner = 0.30f;
++
++void touch_assign(u64 fingerId, float x, float y, bool down) {
++  /* Bottom corners are buttons, everything else is a stick. */
++  if (x < kTouchButtonCorner && y > 1.f - kTouchButtonCorner) {
++    if (down && !g_touchButtonBActive) {
++      g_touchButtonBId = fingerId;
++      g_touchButtonBActive = true;
++    } else if (!down && g_touchButtonBId == fingerId) {
++      g_touchButtonBActive = false;
++    }
++    return;
++  }
++  if (x > 1.f - kTouchButtonCorner && y > 1.f - kTouchButtonCorner) {
++    if (down && !g_touchButtonAActive) {
++      g_touchButtonAId = fingerId;
++      g_touchButtonAActive = true;
++    } else if (!down && g_touchButtonAId == fingerId) {
++      g_touchButtonAActive = false;
++    }
++    return;
++  }
++  if (x < 0.5f) {
++    if (down && !g_touchLeftStick.active) {
++      g_touchLeftStick = {fingerId, true, x, y, x, y};
++    } else if (g_touchLeftStick.active && g_touchLeftStick.fingerId == fingerId) {
++      g_touchLeftStick.curX = x;
++      g_touchLeftStick.curY = y;
++    } else if (!down && g_touchLeftStick.fingerId == fingerId) {
++      g_touchLeftStick = {};
++    }
++  } else {
++    if (down && !g_touchRightStick.active) {
++      g_touchRightStick = {fingerId, true, x, y, x, y};
++    } else if (g_touchRightStick.active && g_touchRightStick.fingerId == fingerId) {
++      g_touchRightStick.curX = x;
++      g_touchRightStick.curY = y;
++    } else if (!down && g_touchRightStick.fingerId == fingerId) {
++      g_touchRightStick = {};
++    }
++  }
++}
++
++std::pair<s8, s8> touch_stick(const TouchStickState& stick) {
++  if (!stick.active) {
++    return {0, 0};
++  }
++  float dx = stick.curX - stick.originX;
++  float dy = stick.curY - stick.originY;
++  float len = std::sqrt(dx * dx + dy * dy);
++  if (len > kTouchStickRadius) {
++    dx *= kTouchStickRadius / len;
++    dy *= kTouchStickRadius / len;
++  }
++  float inv = 127.f / kTouchStickRadius;
++  return {static_cast<s8>(dx * inv), static_cast<s8>(-dy * inv)};
++}
++} // namespace
++
++void PADTouchDown(u64 fingerId, float x, float y) { touch_assign(fingerId, x, y, true); }
++void PADTouchMotion(u64 fingerId, float x, float y) { touch_assign(fingerId, x, y, false); }
++void PADTouchUp(u64 fingerId) {
++  if (g_touchLeftStick.active && g_touchLeftStick.fingerId == fingerId) {
++    g_touchLeftStick = {};
++  } else if (g_touchRightStick.active && g_touchRightStick.fingerId == fingerId) {
++    g_touchRightStick = {};
++  }
++  if (g_touchButtonAId == fingerId) {
++    g_touchButtonAActive = false;
++  }
++  if (g_touchButtonBId == fingerId) {
++    g_touchButtonBActive = false;
++  }
++}
++
++void PADUpdateTouchVirtualPad() {
++  if (!g_touchLeftStick.active && !g_touchRightStick.active && !g_touchButtonAActive && !g_touchButtonBActive) {
++    PADClearVirtualStatus(0);
++    return;
++  }
++  PADStatus status{};
++  status.err = PAD_ERR_NONE;
++  auto [lx, ly] = touch_stick(g_touchLeftStick);
++  auto [rx, ry] = touch_stick(g_touchRightStick);
++  status.stickX = lx;
++  status.stickY = ly;
++  status.substickX = rx;
++  status.substickY = ry;
++  if (g_touchButtonAActive) {
++    status.button |= PAD_BUTTON_A;
++  }
++  if (g_touchButtonBActive) {
++    status.button |= PAD_BUTTON_B;
++  }
++  PADSetVirtualStatus(0, &status);
++}
++
+ void PADControlMotor(const u32 chan, const u32 cmd) {
+   const auto controller = aurora::input::get_controller_for_player(chan);
+   if (should_use_device_rumble(chan, controller)) {
+diff --git a/lib/window.cpp b/lib/window.cpp
+index 0d1a5c2..1acb7ad 100644
+--- a/lib/window.cpp
++++ b/lib/window.cpp
+@@ -195,6 +195,16 @@ void process_event(SDL_Event& event) {
+   case SDL_EVENT_MOUSE_WHEEL:
+     input::set_mouse_scroll(event.wheel.x, event.wheel.y);
+     break;
++  case SDL_EVENT_FINGER_DOWN:
++    PADTouchDown(event.tfinger.fingerID, event.tfinger.x, event.tfinger.y);
++    break;
++  case SDL_EVENT_FINGER_MOTION:
++    PADTouchMotion(event.tfinger.fingerID, event.tfinger.x, event.tfinger.y);
++    break;
++  case SDL_EVENT_FINGER_UP:
++  case SDL_EVENT_FINGER_CANCELED:
++    PADTouchUp(event.tfinger.fingerID);
++    break;
+   case SDL_EVENT_QUIT:
+     g_events.push_back(AuroraEvent{
+         .type = AURORA_EXIT,

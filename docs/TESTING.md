@@ -80,6 +80,20 @@ Last updated: 2026-08-11
   offset 0x2040). Host keyboard forwarding to the Simulator GUI was not
   available, which motivated the hook. Evidence: `/tmp/ios_warp1.png`,
   `/tmp/ios_auto1.png`, `/tmp/ios_auto2.png`, `/tmp/ios_auto3.png`.
+
+### 2026-08-12 — iOS Simulator touch input (foundation)
+
+- Added SDL finger-event capture in aurora mapped to a virtual GameCube pad
+  (left half = movement stick, right half = C-stick, bottom corners = A/B taps),
+  fed through the existing `PADSetVirtualStatus` mechanism
+  (patch: `patches/2026-08-12-aurora-touch-input-virtual-pad.patch`).
+- Verified on the iPad Pro 13-inch (M5) Simulator: with the game in Frigate
+  Orpheon gameplay (via `--autostart`), a Simulator-GUI mouse drag on the left
+  half of the screen (which the Simulator delivers as a touch) **moved Samus
+  forward** — the view advanced past the doorway and the game's lock-on
+  tutorial prompt ("Press and hold [L] to lock onto targets") appeared.
+  Evidence: `/tmp/ios_touch1.png`, `/tmp/ios_touch_after.png`,
+  `/tmp/ios_touch_after2.png`.
 - In-game: `Metaforce -l --warp 2 2 +debugOverlay.* <iso>` — full-screen scene +
   HUD, 1760 draw calls, 60 FPS; then ImGui segfault (KI-002).
 - Artifacts: logs `/tmp/metaforce-run.log`, `/tmp/metaforce-fe.log`,
