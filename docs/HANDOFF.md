@@ -46,6 +46,10 @@ Last updated: 2026-08-12
   interaction where the host permits it. iPhone diagnostic confirmation/share
   presentation and snapshot redaction are now Simulator-proven. Gate 2/3 still
   requires signing identity and physical devices.
+- Strict mobile presentation is cleaner after the audit: iOS no longer renders
+  Metaforce's desktop ImGui bar/windows/toasts/debug overlays under SunPad. Clean
+  iPhone and iPad Simulator screenshots show the unchanged SunPad layer alone;
+  macOS ImGui behavior is unchanged.
 
 ## How to resume
 

@@ -243,6 +243,19 @@ Last updated: 2026-08-12
   or completing an export on physical hardware. The iPhone Simulator was shut
   down afterward; only one Simulator was active.
 
+### 2026-08-12 — mobile desktop-chrome parity regression
+
+- iPhone evidence exposed desktop ImGui chrome beneath SunPad's controls: main
+  menu bar, pre-launch About UI, controller toast, and optional debug overlays.
+  This violated the requirement that SunPad own everything overlaid on mobile.
+- `ImGuiConsole` now retains listener/state maintenance on iOS but returns before
+  all desktop presentation in `PreUpdate` and `PostDraw`. The iPhone 17 Pro and
+  iPad Pro 13-inch Simulators then rendered only the unchanged SunPad controls
+  over the engine/game surface. macOS still compiles the original ImGui path.
+- Evidence: `/tmp/iphone-sunpad-clean-mobile-ui-landscape-2026-08-12.png` and
+  `/tmp/ipad-sunpad-clean-mobile-ui-2026-08-12.png`. Both Simulators were shut
+  down; the iPhone and iPad runs were sequential.
+
 ### 2026-08-11 — macOS rendering and keyboard fixes
 
 - In-game: `Metaforce -l --warp 2 2 +debugOverlay.* <iso>` — full-screen scene +

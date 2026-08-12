@@ -1,0 +1,27 @@
+diff --git a/Runtime/ImGuiConsole.cpp b/Runtime/ImGuiConsole.cpp
+index 0b9bb64..aaa021a 100644
+--- a/Runtime/ImGuiConsole.cpp
++++ b/Runtime/ImGuiConsole.cpp
+@@ -1384,6 +1384,12 @@ void ImGuiConsole::PreUpdate() {
+       g_Main->SetPaused(m_paused);
+     }
+   }
++#if TARGET_OS_IOS
++  // UIKit/SunPad owns every user-facing overlay on iPhone and iPad. Keep the
++  // console's state/listener maintenance above, but never leak desktop chrome,
++  // pre-launch windows, controller toasts, or debug tools into the mobile UI.
++  return;
++#endif
+   bool canInspect = g_StateManager != nullptr && g_StateManager->GetObjectList();
+   if (preLaunch || m_isVisible) {
+     ShowAppMainMenuBar(canInspect, preLaunch);
+@@ -1459,6 +1465,9 @@ void ImGuiConsole::PostUpdate() {
+ }
+ 
+ void ImGuiConsole::PostDraw() {
++#if TARGET_OS_IOS
++  return;
++#endif
+   ShowDebugOverlay();
+   ShowInputViewer();
+   ShowPipelineProgress();

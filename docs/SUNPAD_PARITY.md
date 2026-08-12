@@ -101,3 +101,10 @@ behavior belongs behind this bridge, not in a restyled overlay.
   `/tmp/iphone-diagnostics-confirmation-final-landscape-2026-08-12.png`,
   `/tmp/iphone-diagnostics-share-landscape-2026-08-12.png`, and
   `/tmp/iphone-diagnostics-2026-08-12.log`.
+- A holistic iPhone review caught Metaforce's desktop ImGui Game/Tools/Overlays/
+  Help bar, pre-launch About window, and controller toast rendering underneath
+  the UIKit controls. iOS now keeps ImGui's internal state maintenance but
+  suppresses all desktop console presentation; macOS remains unchanged. Clean
+  SunPad-only evidence:
+  `/tmp/iphone-sunpad-clean-mobile-ui-landscape-2026-08-12.png` and
+  `/tmp/ipad-sunpad-clean-mobile-ui-2026-08-12.png`.
