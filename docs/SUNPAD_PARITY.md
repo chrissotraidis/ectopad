@@ -23,8 +23,8 @@ than independently redesigned.
 | `apple/shared/SunPadInputState.h` | `lib/ios/SunPadInputState.h` | Byte-identical |
 | `apple/shared/SunPadControllerMapping.h` | `lib/ios/SunPadControllerMapping.h` | Byte-identical |
 | `apple/shared/SunPadControllerMapping.mm` | `lib/ios/SunPadControllerMapping.mm` | Byte-identical |
-| `apple/shared/SunPadDiagnostics.h` | `lib/ios/SunPadDiagnostics.h` | Byte-identical |
-| `apple/shared/SunPadDiagnostics.mm` | `lib/ios/SunPadDiagnostics.mm` | One intentional app-name change: the persistent log root is `Metaforce/Logs` instead of `SunPad/Logs` |
+| `apple/shared/SunPadDiagnostics.h` | `lib/ios/SunPadDiagnostics.h` | App-name-only comment changes |
+| `apple/shared/SunPadDiagnostics.mm` | `lib/ios/SunPadDiagnostics.mm` | Two intentional app-name changes: persistent root `Metaforce/Logs` and shared filename `Metaforce-Diagnostic-*` |
 
 `OverlayBridge.mm` is Metaforce-specific glue. It attaches the unchanged
 SunPad view above SDL's UIKit/Metal view, forwards the mixer's
@@ -46,7 +46,7 @@ behavior belongs behind this bridge, not in a restyled overlay.
 | Touch Control Settings | SunPad panel present, including opacity, global/per-control size, hide-on-controller, modern C-stick | Settings and layout state persist through SunPad code; current-build interaction awaits touch delivery/device verification |
 | Layout editor | SunPad drag, per-control resize, and reset code present | Current-build interaction awaits touch delivery/device verification |
 | Game Data & Saves | SunPad menu structure unchanged | Files picker/folder import, exact GM8E01 Rev 2 validation, private staging, atomic activation, and save-preserving removal implemented; service path Simulator-verified, picker interaction awaits touch/device |
-| Share Diagnostic Log | SunPad menu, privacy confirmation, snapshot, and share sheet are ported directly | Implementation is already self-contained in the overlay; current-build interaction still awaits working touch delivery/device verification |
+| Share Diagnostic Log | SunPad menu, privacy confirmation, snapshot, and share sheet are ported directly | iPhone Simulator presented confirmation and real UIKit share sheet; privacy test proved app-container/temp redaction and Metaforce filename; physical interaction remains |
 | Controller Mapping | SunPad menu item and mapping model ported directly | A/B/X/Y/right-shoulder ↔ GameCube A/B/X/Y/Z permutation persists and applies in the iOS SDL→PAD path; Simulator UI and deterministic swap/passthrough test verified; physical controller remains untested |
 
 ## Verification record
@@ -93,3 +93,11 @@ behavior belongs behind this bridge, not in a restyled overlay.
   opt-in A/B swap, PAD logged raw physical B `0x0200` as mapped GameCube A
   `0x0100`, then neutral on release. Production reads an atomic cached mapping;
   `NSUserDefaults` is not consulted per frame.
+- On an iPhone 17 Pro Simulator, the unchanged overlay presented SunPad's
+  diagnostic confirmation and the real UIKit share sheet in landscape without
+  clipping. The shared text document was named `Metaforce-Diagnostic-*`; a
+  service test verified current home/temp paths were replaced with
+  `<app-container>`/`<temporary>/`. Evidence:
+  `/tmp/iphone-diagnostics-confirmation-final-landscape-2026-08-12.png`,
+  `/tmp/iphone-diagnostics-share-landscape-2026-08-12.png`, and
+  `/tmp/iphone-diagnostics-2026-08-12.log`.

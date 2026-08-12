@@ -42,9 +42,10 @@ Last updated: 2026-08-12
   evidence only, not baselines.
 - The requirement-level status is now explicit in
   [COMPLETION_AUDIT.md](COMPLETION_AUDIT.md). Next unblocked work is iPhone
-  Simulator/layout coverage, diagnostic-share privacy verification, and
-  current-build touch/menu/editor/production Files picker interaction where the
-  host permits it. Gate 2/3 still requires signing identity and physical devices.
+  gameplay/touch coverage and current-build menu/editor/production Files picker
+  interaction where the host permits it. iPhone diagnostic confirmation/share
+  presentation and snapshot redaction are now Simulator-proven. Gate 2/3 still
+  requires signing identity and physical devices.
 
 ## How to resume
 

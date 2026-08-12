@@ -1,0 +1,100 @@
+diff --git a/lib/ios/OverlayBridge.mm b/lib/ios/OverlayBridge.mm
+index f29dd1e..2fdcd37 100644
+--- a/lib/ios/OverlayBridge.mm
++++ b/lib/ios/OverlayBridge.mm
+@@ -18,6 +18,12 @@
+ #import "SunPadInputMixer.h"
+ #import "SunPadSettings.h"
+ 
++/* Test-only entry points into the unchanged SunPad diagnostics presentation. */
++@interface SunPadGameOverlay (MetaforceDiagnosticsTest)
++- (void)shareDiagnosticLog;
++- (void)presentDiagnosticLogShareSheet;
++@end
++
+ /* Metaforce-specific services behind the unchanged SunPad menu. */
+ @interface TouchOverlayDelegate : NSObject <SunPadGameOverlayDelegate, UIDocumentPickerDelegate>
+ @property(nonatomic, weak) SunPadGameOverlay* overlay;
+@@ -405,6 +411,19 @@ bool attach_ios_overlay(SDL_Window* sdlWindow) noexcept {
+       SunPadLog(@"controller mapping UI test presented");
+     });
+   }
++  if (ProcessHasArgument(@"--metaforce-diagnostics-confirmation-ui-test")) {
++    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(0.5 * NSEC_PER_SEC)),
++                   dispatch_get_main_queue(), ^{
++      [g_overlay shareDiagnosticLog];
++      SunPadLog(@"diagnostic confirmation UI test presented");
++    });
++  } else if (ProcessHasArgument(@"--metaforce-diagnostics-share-ui-test")) {
++    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(0.5 * NSEC_PER_SEC)),
++                   dispatch_get_main_queue(), ^{
++      [g_overlay presentDiagnosticLogShareSheet];
++      SunPadLog(@"diagnostic share UI test presented");
++    });
++  }
+ 
+   g_fpsLabel = [UILabel new];
+   g_fpsLabel.textColor = [UIColor colorWithWhite:1.0 alpha:0.85];
+@@ -502,4 +521,31 @@ extern "C" int MetaforceRunControllerMappingTest(void) {
+   return result;
+ }
+ 
++extern "C" int MetaforceRunDiagnosticsPrivacyTest(void) {
++  SunPadDiagnosticsStart();
++  NSString* home = NSHomeDirectory();
++  NSString* temporary = NSTemporaryDirectory();
++  SunPadLog(@"diagnostics privacy test home=%@ temporary=%@", home, temporary);
++
++  NSError* error = nil;
++  NSURL* snapshot = SunPadDiagnosticsSnapshotURL(&error);
++  if (snapshot == nil) {
++    NSLog(@"[SunPad] diagnostics privacy test result=1 error=%@", error.localizedDescription);
++    return 1;
++  }
++  NSString* contents = [NSString stringWithContentsOfURL:snapshot
++                                                encoding:NSUTF8StringEncoding
++                                                   error:&error];
++  const BOOL redacted = contents != nil &&
++      [contents containsString:@"<app-container>"] &&
++      [contents containsString:@"<temporary>/"] &&
++      ![contents containsString:home] &&
++      ![contents containsString:temporary] &&
++      [snapshot.lastPathComponent hasPrefix:@"Metaforce-Diagnostic-"];
++  [NSFileManager.defaultManager removeItemAtURL:snapshot error:nil];
++  NSLog(@"[SunPad] diagnostics privacy test result=%d redaction=%@ snapshotName=%@",
++        redacted ? 0 : 2, redacted ? @"verified" : @"failed", snapshot.lastPathComponent);
++  return redacted ? 0 : 2;
++}
++
+ } // namespace aurora::touch
+diff --git a/lib/ios/SunPadDiagnostics.h b/lib/ios/SunPadDiagnostics.h
+index 3ce9069..dfb5360 100644
+--- a/lib/ios/SunPadDiagnostics.h
++++ b/lib/ios/SunPadDiagnostics.h
+@@ -5,11 +5,11 @@
+ NS_ASSUME_NONNULL_BEGIN
+ 
+ /* Starts the persistent runtime log and rotates it when it grows beyond 1 MB.
+- * The log lives in Library/Application Support/SunPad/Logs/runtime.log so it
++ * The log lives in Library/Application Support/Metaforce/Logs/runtime.log so it
+  * survives app relaunches and can be retrieved with devicectl. */
+ FOUNDATION_EXPORT void SunPadDiagnosticsStart(void);
+ 
+-/* Writes one timestamped line to both the unified device log and SunPad's
++/* Writes one timestamped line to both the unified device log and Metaforce's
+  * persistent runtime log. Intended for low-frequency lifecycle breadcrumbs,
+  * not per-frame tracing. */
+ FOUNDATION_EXPORT void SunPadLog(NSString *format, ...) NS_FORMAT_FUNCTION(1, 2);
+diff --git a/lib/ios/SunPadDiagnostics.mm b/lib/ios/SunPadDiagnostics.mm
+index cb99762..9bff0d4 100644
+--- a/lib/ios/SunPadDiagnostics.mm
++++ b/lib/ios/SunPadDiagnostics.mm
+@@ -108,7 +108,7 @@ NSURL *SunPadDiagnosticsSnapshotURL(NSError **error) {
+             return nil;
+         }
+ 
+-        NSString *fileName = [NSString stringWithFormat:@"SunPad-Diagnostic-%@.log",
++        NSString *fileName = [NSString stringWithFormat:@"Metaforce-Diagnostic-%@.log",
+                               SunPadSnapshotTimestamp()];
+         NSString *snapshotPath = [NSTemporaryDirectory() stringByAppendingPathComponent:fileName];
+         [fileManager removeItemAtPath:snapshotPath error:nil];

@@ -18,7 +18,7 @@ Last updated: 2026-08-12
 | Target | Launch | Import UI | Rendering | Touch | Controller | Gameplay | Saves | Audio | Lifecycle |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | macOS ARM64 | ☑ | — | ☑ | — | ◐ software path | ☑ | ☑ | ☑ | — |
-| iPhone Simulator | ☐ | ☐ | ☐ | ☐ | — | ☐ | ☐ | ☐ | ☐ |
+| iPhone Simulator | ☑ | ☐ | ☑ shell/UI | ☐ | — | ☐ | ☐ | ☐ | ☐ |
 | iPad Simulator | ☑ | ◐ service | ☑ | ☐ | — | ☐ | ☑ preserved | ☑ | ☐ |
 | Physical iPhone | ☐ | ☐ | ☐ | ☐ | ☐ | ☐ | ☐ | ☐ | ☐ |
 | Physical iPad | ☐ | ☐ | ☐ | ☐ | ☐ | ☐ | ☐ | ☐ | ☐ |
@@ -224,6 +224,24 @@ Last updated: 2026-08-12
 - macOS ARM64, iOS Simulator, and physical arm64 iOS builds all completed. The
   Simulator was shut down afterward. Physical behavior is not claimed: this Mac
   currently has zero code-signing identities and `devicectl` sees no device.
+
+### 2026-08-12 — iPhone diagnostics presentation and privacy
+
+- Installed the current universal Simulator app on an iPhone 17 Pro Simulator
+  and used test-only entry points into the unchanged SunPad overlay. Landscape
+  controls, the Share Diagnostic Log confirmation, and the real UIKit activity
+  sheet rendered without clipping. Evidence:
+  `/tmp/iphone-diagnostics-confirmation-final-landscape-2026-08-12.png` and
+  `/tmp/iphone-diagnostics-share-landscape-2026-08-12.png`.
+- The shared item is a text document named `Metaforce-Diagnostic-<UTC>.log`.
+  A service-level test wrote the current app home and temporary paths through
+  `SunPadLog`, snapshotted the persistent log, and returned `result=0` only after
+  confirming both raw paths were absent and the `<app-container>` and
+  `<temporary>/` markers were present. Log:
+  `/tmp/iphone-diagnostics-2026-08-12.log`.
+- This is Simulator presentation/privacy evidence, not proof of tapping the menu
+  or completing an export on physical hardware. The iPhone Simulator was shut
+  down afterward; only one Simulator was active.
 
 ### 2026-08-11 — macOS rendering and keyboard fixes
 

@@ -1,0 +1,21 @@
+diff --git a/Runtime/CMain.cpp b/Runtime/CMain.cpp
+index a0fba50..c0b85f5 100644
+--- a/Runtime/CMain.cpp
++++ b/Runtime/CMain.cpp
+@@ -43,6 +43,7 @@
+ extern "C" int MetaforceRunGameDataImportTest(const char* requestedPath);
+ extern "C" int MetaforceRunGameDataRemovalTest(void);
+ extern "C" int MetaforceRunControllerMappingTest(void);
++extern "C" int MetaforceRunDiagnosticsPrivacyTest(void);
+ #endif
+ #if defined(ANDROID)
+ #include <spdlog/sinks/android_sink.h>
+@@ -620,6 +621,8 @@ int main(int argc, char** argv) {
+       return MetaforceRunGameDataRemovalTest();
+     if (!strcmp(argv[i], "--metaforce-controller-mapping-test"))
+       return MetaforceRunControllerMappingTest();
++    if (!strcmp(argv[i], "--metaforce-diagnostics-privacy-test"))
++      return MetaforceRunDiagnosticsPrivacyTest();
+   }
+ #endif
+ 
