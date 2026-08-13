@@ -1,6 +1,6 @@
 # SunPad UI Parity
 
-Last updated: 2026-08-12
+Last updated: 2026-08-13
 
 ## Reference and policy
 
@@ -14,8 +14,8 @@ than independently redesigned.
 
 | SunPad source | Metaforce/Aurora port | Parity at 2026-08-12 |
 | --- | --- | --- |
-| `apple/ios/SunPadGameOverlay.h` | `lib/ios/SunPadGameOverlay.h` | Byte-identical |
-| `apple/ios/SunPadGameOverlay.mm` | `lib/ios/SunPadGameOverlay.mm` | Byte-identical |
+| `apple/ios/SunPadGameOverlay.h` | `lib/ios/SunPadGameOverlay.h` | Prime-control comment only |
+| `apple/ios/SunPadGameOverlay.mm` | `lib/ios/SunPadGameOverlay.mm` | SunPad native menu restored; EctoPad strings, renderer notification, and Prime-specific R/C-stick controls differ intentionally |
 | `apple/shared/SunPadSettings.h` | `lib/ios/SunPadSettings.h` | Byte-identical |
 | `apple/shared/SunPadSettings.mm` | `lib/ios/SunPadSettings.mm` | Byte-identical |
 | `apple/shared/SunPadInputMixer.h` | `lib/ios/SunPadInputMixer.h` | Byte-identical |
@@ -24,10 +24,10 @@ than independently redesigned.
 | `apple/shared/SunPadControllerMapping.h` | `lib/ios/SunPadControllerMapping.h` | Byte-identical |
 | `apple/shared/SunPadControllerMapping.mm` | `lib/ios/SunPadControllerMapping.mm` | Byte-identical |
 | `apple/shared/SunPadDiagnostics.h` | `lib/ios/SunPadDiagnostics.h` | App-name-only comment changes |
-| `apple/shared/SunPadDiagnostics.mm` | `lib/ios/SunPadDiagnostics.mm` | Two intentional app-name changes: persistent root `Metaforce/Logs` and shared filename `Metaforce-Diagnostic-*` |
+| `apple/shared/SunPadDiagnostics.mm` | `lib/ios/SunPadDiagnostics.mm` | Persistent root remains `Metaforce/Logs` for continuity; shared filename is `EctoPad-Diagnostic-*` |
 
-`OverlayBridge.mm` is Metaforce-specific glue. It attaches the unchanged
-SunPad view above SDL's UIKit/Metal view, forwards the mixer's
+`OverlayBridge.mm` is Metaforce-specific glue. It attaches the SunPad-derived
+view above SDL's UIKit/Metal view, forwards the mixer's
 `SunPadInputState` into `aurora::touch::IosTouchState`, applies SunPad's render
 scale/aspect settings to Aurora, displays successful surface-present rate when
 SunPad's FPS switch is enabled, and delegates game-data operations to a private
@@ -39,11 +39,11 @@ behavior belongs behind this bridge, not in a restyled overlay.
 
 | Surface | UI parity | Engine wiring |
 | --- | --- | --- |
-| Visible GameCube controls and `•••` menu | Ported directly; Simulator rendering verified | Current-build harness found 19 menu titles and all 14 controls, drove A through the real mixer, and reported the menu visible/attached; physical finger input remains untested |
-| Render Resolution | SunPad control present | Wired live to Aurora's framebuffer scale; 2× produced 1280×960 in Simulator |
+| Visible GameCube controls and `•••` menu | SunPad's native `UIButton.menu` / `UIMenu` restored after the custom action-sheet fallback failed on hardware | Corrected build PID 1686 is installed. Native nested submenu and outside-tap behavior still need a physical finger check. |
+| Render Resolution | SunPad native submenu plus settings segmented control | Simulator 2× produced 1280×960. Current physical build needs 1×/2× visible-change acceptance. |
 | Aspect Ratio | SunPad control present | Original 4:3, experimental 16:9, and native-surface fill drive framebuffer presentation; 16:9 produced 1707×960 at 2× in Simulator |
 | FPS counter | SunPad control present | Wired to successful Dawn surface presents and shown with SunPad's label styling; Simulator rendering verified |
-| Touch Control Settings | SunPad panel present, including opacity, global/per-control size, hide-on-controller, modern C-stick | Current-build harness exercised the real controls/actions and verified persisted render, opacity, global size, hide, and modern-C settings; physical touch remains |
+| Touch Control Settings | SunPad panel present with opacity, global/per-control size, and hide-on-controller; Sunshine-specific Modern C-stick removed | Current-build harness covered the shared settings. Physical touch and original Prime controls remain. |
 | Layout editor | SunPad drag, per-control resize, and reset code present | Current-build harness selected A, invoked the registered per-control resize action, verified 1.25×, reset, and restored defaults; drag ergonomics still require real touch |
 | Game Data & Saves | SunPad menu structure unchanged | Files picker/folder import, exact GM8E01 Rev 2 validation, private staging, atomic activation, and save-preserving removal implemented; service path Simulator-verified and current harness presents picker/delegate; physical selection/import remains |
 | Share Diagnostic Log | SunPad menu, privacy confirmation, snapshot, and share sheet are ported directly | iPhone Simulator presented confirmation and real UIKit share sheet; privacy test proved app-container/temp redaction and Metaforce filename; physical interaction remains |
@@ -104,7 +104,7 @@ behavior belongs behind this bridge, not in a restyled overlay.
   `NSUserDefaults` is not consulted per frame.
 - On an iPhone 17 Pro Simulator, the unchanged overlay presented SunPad's
   diagnostic confirmation and the real UIKit share sheet in landscape without
-  clipping. The shared text document was named `Metaforce-Diagnostic-*`; a
+  clipping. Current shared documents are named `EctoPad-Diagnostic-*`; a
   service test verified current home/temp paths were replaced with
   `<app-container>`/`<temporary>/`. Evidence:
   `/tmp/iphone-diagnostics-confirmation-final-landscape-2026-08-12.png`,

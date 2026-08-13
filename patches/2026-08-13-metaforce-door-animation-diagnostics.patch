@@ -1,0 +1,12 @@
+EctoPad first-door animation diagnostics, 2026-08-13
+
+This patch adds low-frequency runtime breadcrumbs only; it does not alter door
+state, collision, rendering, or animation selection. The physical trace proves
+the first tutorial door receives Open, has an authored 0.833333-second clip,
+selects animation type 0, and reports IsAnimating=true. The model nevertheless
+remains visibly closed while the player can walk through it. This narrows the
+remaining defect to animated model pose/presentation rather than door scripts,
+collision, missing animation data, or an absent Open request.
+
+The diagnostics remain in the final build so the next physical run can be
+correlated without replaying this investigation.

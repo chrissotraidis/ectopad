@@ -1,0 +1,36 @@
+EctoPad Aurora renderer compatibility experiment (REJECTED), 2026-08-13
+
+The physical iPad screenshot at 12:04 shows large black and incorrectly
+translucent world polygons, while HUD and some room surfaces remain correct.
+This is renderer/material-state corruption, not a brightness adjustment.
+
+EctoPad remains pinned to Aurora 5143394. Four later official Aurora fixes
+apply cleanly without importing the subsequent FIFO/command-processor rewrite:
+
+- b684c0d: unbound GX texture stages sample white instead of black;
+- 2bbb122: correct GXSetChanCtrl diffuse-function encoding;
+- 1dde08f: apply depth correction to the projection matrix;
+- 1a15801: bound RGBA8 conversion writes for partial edge tiles.
+
+These were evaluated as a narrow compatibility set because each directly concerns a
+symptom visible in the supplied frame: black materials, lighting-dependent
+actors, depth/distance behavior, and malformed texture edges. The combined
+physical build failed its first file-slot-2 stability run during Morph Ball.
+All four changes were therefore removed from the hardware build. Retain this
+file only as a record for a future one-change-at-a-time isolated bisect.
+
+Do not describe this as an Aurora rebase. Current Aurora main contains a large
+GX FIFO, command-processor, shader, texture, and recording refactor that has not
+been imported or validated here.
+
+The same correction pass removes two rejected local mitigations:
+
+- the first tutorial door is no longer hidden after its open state; the
+  original model/animation path is restored because abrupt disappearance is
+  not a valid door animation fix;
+- the 10 ms frontend audio transition ramp is removed because physical
+  listening rejected it and the device log instead shows Amuse source bursts
+  above full scale and hundreds of discontinuities with a healthy output queue.
+
+Fog diagnostics are summarized every five seconds instead of logging normal
+per-material fog on/off changes tens of thousands of times.

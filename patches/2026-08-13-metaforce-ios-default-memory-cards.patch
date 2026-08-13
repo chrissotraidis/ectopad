@@ -1,0 +1,40 @@
+diff --git a/Runtime/MP1/MP1.cpp b/Runtime/MP1/MP1.cpp
+--- a/Runtime/MP1/MP1.cpp
++++ b/Runtime/MP1/MP1.cpp
+@@ -43,6 +43,10 @@
+ #include "Runtime/Logging.hpp"
+
+ #include "Runtime/MP1/CCredits.hpp"
++
++#if defined(__APPLE__)
++#include <TargetConditionals.h>
++#endif
+
+ #include <magic_enum.hpp>
+
+@@ -387,6 +391,18 @@ void CMain::MemoryCardInitializePump() {
+   }
+   if (memSys->InitializePump()) {
+     g_MemoryCardSys = memSys.get();
++#if TARGET_OS_IOS
++    for (const auto slot : {kabufuda::ECardSlot::SlotA, kabufuda::ECardSlot::SlotB}) {
++      const kabufuda::ProbeResults probe = CMemoryCardSys::CardProbe(slot);
++      const bool missing = probe.x0_error != CMemoryCardSys::ECardResult::READY;
++      const bool incompleteDefault = probe.x0_error == CMemoryCardSys::ECardResult::READY && probe.x4_cardSize == 0;
++      if (missing || incompleteDefault) {
++        if (!CMemoryCardSys::CreateDolphinCard(slot)) {
++          spdlog::warn("Failed to create default iOS memory card for slot {}",
++                       slot == kabufuda::ECardSlot::SlotA ? 'A' : 'B');
++        }
++      }
++    }
++#endif
+     g_GameState->InitializeMemoryStates();
+   }
+ }
+
+Physical follow-up found that POSIX AIO accepted only the first few 8 KB
+format writes on iOS, leaving 24/64 KB partial images. On iOS only,
+kabufuda's POSIX backend now completes each `pread`/`pwrite` synchronously;
+other platforms retain AIO. Launch replaces only zero-megabit partial images.
+The attached-iPad readback after the fix was 16,777,216 bytes for both A and B.

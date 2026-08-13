@@ -21,7 +21,7 @@ Last updated: 2026-08-12
 | iPhone Simulator | ☑ | ☐ | ☑ shell/UI | ☐ | — | ☐ | ☐ | ☐ | ☐ |
 | iPad Simulator | ☑ | ◐ harness/service | ☑ | ◐ UIKit targets | — | ☐ | ☑ preserved | ☑ | ☐ |
 | Physical iPhone | ☐ | ☐ | ☐ | ☐ | ☐ | ☐ | ☐ | ☐ | ☐ |
-| Physical iPad | ☐ | ☐ | ☐ | ☐ | ☐ | ☐ | ☐ | ☐ | ☐ |
+| Physical iPad | ☑ launched | ◐ imported enough to play | ☑ title/Frigate reachable | ◐ movement fixed; L/R latch pending | ☐ | ◐ reachable, not accepted | ◐ A/B images present; save cycle pending | ◐ source fixes deployed; listening pending | ☐ |
 
 ## Gameplay verification scope (when reachable)
 
@@ -33,28 +33,104 @@ Last updated: 2026-08-12
 
 ## Evidence ledger
 
-### 2026-08-12 — physical Gate 2/3 attempt: blocked at prerequisites
+### 2026-08-13 — physical interaction and source-level audio correction
 
-- The scoped physical pass could not start. Exact verification:
-  `security find-identity -p codesigning -v` → `0 valid identities found`
-  (no `Apple Development` certificate in the login keychain);
-  `~/Library/MobileDevice/Provisioning Profiles/` does not exist;
-  `xcrun devicectl list devices` → `No devices found`; `xctrace list devices`
-  → Mac + Simulators only.
-- The unsigned source app was verified read-only and left untouched:
-  `ref/metaforce/build/ios-default/Binaries/Metaforce.app` — non-fat arm64
-  Mach-O, iPhoneOS platform 2, min iOS 14.0, `com.axiodl.Metaforce` 0.0.1 (1),
-  `code object is not signed at all`.
-- No signing, install, launch, Metal, overlay, menu, import, audio, save, or
-  lifecycle observation was attempted. All Gate 2 items are **BLOCKED** and all
-  focused Gate 3 items are **NOT TESTED**. No engine/UI change was made.
-  Evidence: `/tmp/ectopad-gate2-prereq-blocked-2026-08-12.md`.
-- Re-verified on the same date (second consecutive attempt): still `0 valid
-  identities found`, no `Provisioning Profiles` directory, and `devicectl`
-  still reports no devices. The same three prerequisites remain missing.
-- Re-verified a third time (third consecutive attempt): identical result —
-  no identity, no profile directory, no device. The physical pass remains
-  blocked pending the external prerequisites.
+- User accepted left-stick movement and the native `•••` menu's render scale,
+  aspect ratio, and FPS actions. Main-menu labels remained unreadable; dynamic
+  option panes now explicitly use white text with black outlines.
+- L/R short touches retain ordinary button behavior. A continuous half-second
+  touch latches the shoulder blue with one haptic; the next tap releases it.
+- The first source-level iPad trace showed a healthy 5,760-frame queue with
+  zero underruns/clipping while frontend RSF alone reached peak 1.0. Its first
+  jump counter compared adjacent interleaved L/R samples and overstated the
+  result; the final deployed metric tracks each channel independently.
+- Root cause: the RSF decoder emitted only sample pairs while the 32-to-48 kHz
+  path requests alternating 682/683-frame chunks. Odd tails were dropped while
+  the cursor advanced. The decoder now consumes one ADPCM nibble per requested
+  sample. The first SoXR repair was later rejected by physical gameplay logs.
+- Final source app compiled, passed `codesign --verify --deep --strict`, was
+  installed in place, and launched. Early corrected intervals logged zero
+  queue underruns/clipping. Listening in gameplay is still required; this is
+  not audio acceptance.
+- Post-install container inventory retained the 1.36 GB game image and both
+  16,777,216-byte memory cards.
+- Subsequent user testing rejected that build: menu labels remained dark and
+  gameplay became silent. The log was conclusive: streamed DSP was nonzero,
+  while Amuse stayed `0.000` with 193 voices marked running; once streaming
+  ended, total output was zero.
+- The next build restores direct Amuse pulls and applies a render-time white
+  geometry override to only the affected menu panes. It compiled, passed strict
+  signing verification, was installed in place, and launched. Physical
+  visual/listening acceptance remains open.
+- Physical follow-up accepted general playability enough to move through
+  Frigate, run cutscenes, and use the in-game menu. The log confirms nonzero
+  Amuse output with 4–10 active voices after streamed audio ends.
+- The supplied unreadable screen was identified as `SNewFileSelectFrame`, not
+  the previously edited `SFrontEndFrame`. The latest build targets all actual
+  save-slot/root/popup text pairs in that frame at render time.
+- Viewing a screenshot and returning removed all touch controls and `•••`.
+  The latest build logs UIKit lifecycle transitions and reattaches the overlay
+  to the current root-controller view on foreground and periodic host drift.
+- The first beam door failed to open. Door behavior remains unchanged; the
+  latest build logs projectile intersection, Open request, load wait, and open
+  animation so one reproduction can identify the cause.
+- The 10:02 screenshot exposed a regression from the render-time contrast
+  override: both panes of each authored text pair were equally bright and the
+  table geometry no longer conveyed selection. This produced offset double
+  labels and no visible cursor. The correction removes the global geometry
+  override and suppresses pane B's offset pass in `FRME_NewFileSelect`, while
+  pane A retains the original table selection behavior.
+- The same session reported a brief audio blurb at the menu-to-cutscene handoff.
+  The persisted trace recorded `amuse=2.129` and 502 clipped output samples at
+  that transition. The deployed build smooth-limits only Amuse samples above
+  a 0.8 knee, capped at 0.95; lower-level samples are untouched.
+- The corrected source app compiled, passed strict signing verification, was
+  installed in place, and launched at 10:09. Post-install readback retained the
+  exact 1,459,978,240-byte game image and both 16,777,216-byte memory cards.
+  Visual selection and transition listening remain physical acceptance gates.
+- The extended Frigate run showed that the first tutorial door did receive
+  projectile hits and later executed `Open`/`door opening` for both connected
+  areas. The user then observed it open on approach. No global door behavior was
+  changed.
+- The same run logged repeated final-mix peaks of 1.2–1.6 and hundreds of
+  clipped samples even though the Amuse source had already been capped. The
+  limiter now runs after Amuse and DSP stream summation.
+- The 10:22 screenshot proves a world-rendering failure: HUD and nearby
+  geometry survive while distant/room geometry becomes black. The current build
+  persists materially changed fog mode/range/color and projection near/far for
+  correlation with the next screenshot. It does not import Aurora's large,
+  newer FIFO/fog refactor without a controlled renderer validation.
+- The file-menu correction no longer recolors both authored panes. It suppresses
+  pane B's offset duplicate in `FRME_NewFileSelect`, keeps pane A's original text
+  and animation, and restores the original table selection colors. L/R latch
+  time is reduced from 1.0 to 0.5 seconds.
+- The 11:04 app compiled, passed strict signing verification, was installed in
+  place, and launched. Readback retained the exact 1,459,978,240-byte game image
+  and both 16,777,216-byte cards.
+- Native controller plumbing exists through SDL's GameController path and the
+  current GameCube mapping/mixer, including hot-plug, both sticks, analog
+  triggers, D-pad, rumble, and the native mapping panel. No physical controller
+  was connected during this pass, so behavior on this iPad remains unaccepted.
+- The host screen-history recorder could not be verified during this session.
+  The supplied screenshots remain the visual evidence. A future diagnostic
+  export needs an engine/framebuffer snapshot proven to include the Metal game
+  surface; text state alone is insufficient for intermittent visual faults.
+
+### 2026-08-12 — physical Gate 2 launch, Gate 3 failed
+
+- Earlier the same day a scoped pass found zero identities and no device and
+  correctly did not start. That snapshot is historical only
+  (`/tmp/ectopad-gate2-prereq-blocked-2026-08-12.md`).
+- A later session development-signed the source
+  `ref/metaforce/build/ios-default/Binaries/Metaforce.app`, installed it in
+  place, and launched `com.axiodl.Metaforce` on the attached iPad.
+- User hands-on: the game technically runs and Frigate is reachable. Gate 3
+  failed. Default slots A and B are empty so the game cannot save. Audio has
+  no music and only some SFX. The `•••` menu looks unfinished and native
+  1×–4× options are not present. The C-stick appears to do nothing. There are
+  unspecified texture issues. The deploy/README path was not a front door.
+- This is not a Simulator result and not a PID-only claim. It is also not
+  acceptance. See [TECH-DEBT.md](TECH-DEBT.md), KI-003, KI-016, KI-017, KI-018.
 
 ### 2026-08-12 — current SunPad interaction/menu and audio reserve
 
@@ -330,8 +406,10 @@ Last updated: 2026-08-12
   `/tmp/Metaforce-unsigned-validation-final-2026-08-12.ipa` and
   `/tmp/metaforce-negative-audit.log`.
 - This proves local unsigned validation packaging only. Public redistribution
-  remains blocked on GPL/LGPL release materials and scrubbed Dawn provenance;
-  physical install remains blocked on signing identity and hardware.
+  remains blocked on GPL/LGPL release materials and scrubbed Dawn provenance.
+  A later same-day session development-signed the source `.app` and launched it
+  on the attached iPad; that launch is not Gate 3 acceptance. See
+  [TECH-DEBT.md](TECH-DEBT.md).
 
 ### 2026-08-12 — final menu/audio package superseding prior package hash
 
@@ -380,4 +458,110 @@ Last updated: 2026-08-12
   title screen** (gold "METROID PRIME" logo + emblem + [PRESS START], 4:3
   letterboxed). Live cycle confirmed; one simulator used, then shut down.
 
+### 2026-08-13 — physical menu acceptance and final narrow correction pass
+
+- The user physically accepted the `FRME_NewFileSelect` readability fix. The
+  accepted solution keeps pane A with a white font and hides pane B's authored
+  offset pass only for file/root/popup choices. Original strings, typewriter
+  animation, geometry, and table colors remain. Earlier global and dual-pane
+  recoloring attempts are rejected.
+- A live trace plus hands-on walk-through proved the first tutorial door reaches
+  Open and becomes non-solid while its static model remains visible. A later
+  renderer-suppression workaround made the door disappear abruptly and was
+  rejected; the original model/animation path is restored.
+- A bounded 320-frame/10 ms source-boundary audio ramp did not remove the
+  frontend-to-asteroid/planet aberration and was subsequently removed.
+- Distance-dependent enemy pose and black/distant geometry remain open. No
+  global actor-animation, LOD, or broad Aurora FIFO change was made without a
+  reproducible visual capture.
+- The `ios-default` target compiled and linked successfully. Signing, in-place
+  install, post-install card/ISO readback, and launch succeeded at 11:30.
+  `codesign --verify --deep --strict` passed; installed identity is EctoPad
+  `com.axiodl.Metaforce` 0.1.3 (1). The ISO remained 1,459,978,240 bytes with
+  SHA-256 `952972a0ddb122536d2f48c20d9e119278b13f848626afc72f034ce5a1022901`;
+  Slot A and B each remained 16,777,216 bytes. This preservation/deploy proof
+  does not substitute for physical listening or visual acceptance.
+
 To be appended with dated entries for later phases.
+
+### 2026-08-13 — later-game file slot and renderer research pass
+
+- Pulled the post-play iPad diagnostic log. The audio output queue remained at
+  its 5,760-frame target with zero underruns and zero post-mix clipping. Amuse
+  nevertheless peaked at 2.129 during the frontend/game boundary and later
+  emitted >1.0 peaks with hundreds of per-channel jumps. The rejected 10 ms
+  transition ramp was removed; source/mixer behavior remains the audio target.
+- Reverted the manual open-door render suppression after hardware showed an
+  abrupt disappearance rather than the authored animation.
+- Downloaded and validated the public RetroMaggedon mid-game save identified as
+  Metroid Prime USA Rev 2. Archive SHA-256:
+  `5d86dc42e57082c100bc29ffb3caac668142d59174bc607327b6152b7ee27b2d`;
+  GCI SHA-256:
+  `ad3bc29ebe1a4c0c06321ee93554943519529f4582c10675481295ff2dd959df`.
+- Merged only its first 940-byte state into Prime internal file slot 2 on a
+  cleanly terminated, freshly pulled card. The tool validated both Prime CRCs,
+  reopened the complete card, proved internal file slot 1 byte-identical, and
+  refused a second overwrite. Device readback exactly matched merged SHA-256
+  `ee2f1a892801168c4226b79988d489bae5087e5fd058054509789f53e51c9bb7`.
+- Compared pinned Aurora 5143394 with current official main. Four relevant
+  fixes applied cleanly, but the combined physical build failed its first
+  later-game stability gate during Morph Ball. The set was rolled back to the
+  pinned renderer baseline; the later FIFO refactor remains out of scope.
+- The compatibility build was signed, verified, installed in place, and
+  launched on the physical iPad at 12:27. Post-install Slot A readback remained
+  byte-identical at SHA-256
+  `ee2f1a892801168c4226b79988d489bae5087e5fd058054509789f53e51c9bb7`,
+  proving that both the user's original file slot 1 and injected mid-game file
+  slot 2 survived the install. This is deployment evidence, not visual or audio
+  acceptance.
+- Physical file-slot-2 testing failed immediately after entering Morph Ball and
+  moving toward a tunnel. The launched PID was 1812; afterward EctoPad was
+  resident as PID 1826. Two pulls of `systemCrashLogs` contained no EctoPad
+  crash, jetsam, GPU, or hang report. The original session log ended at
+  10:49:43Z without a graceful shutdown or lifecycle notification. A later
+  five-second Time Profiler capture of PID 1826 showed suspended UIKit work and
+  nominal thermal state. The copied card also loads on macOS, ruling out basic
+  card/CRC corruption, although its active-combat checkpoint is not a
+  deterministic Morph Ball fixture. Evidence:
+  `/tmp/ectopad-morph-crash.GNrkCN/runtime.log` and
+  `/tmp/ectopad-morph-crash.GNrkCN/Metaforce-live.trace`.
+- The user-supplied translated crash report was inspected and excluded: it is
+  the local macOS process launched by Codex at 13:18 (Mac15,9, PID 23027,
+  coalition `com.openai.codex`) and aborted in AppKit registration before game
+  initialization. It is not an iPad or Morph Ball crash report.
+- The four Aurora compatibility changes were removed source-by-source and the
+  pinned renderer baseline rebuilt successfully. Low-frequency runtime events
+  now write synchronously, and every Morph Ball state transition records its
+  prior/next state, area, and position. The rollback build was signed, strictly
+  verified, installed in place, and launched at 14:10. Post-install Slot A
+  readback remained byte-identical at SHA-256
+  `ee2f1a892801168c4226b79988d489bae5087e5fd058054509789f53e51c9bb7`.
+  Morph Ball remains a physical acceptance gate; deployment is not a fix claim.
+
+### 2026-08-13 — final isolated renderer build and device handoff
+
+- QuickTime capture reproduced the black-room geometry and the first door's
+  visible-closed model in the same run. The video is
+  `/tmp/ectopad-door-black-2026-08-13.mov`; the correlated runtime log is
+  `/tmp/ectopad-live-bug-log.MaC1Hw/runtime.log`.
+- An iPad build containing only Aurora `b684c0d` was physically rejected: both
+  symptoms remained. That source change was removed.
+- Door-specific instrumentation then proved Open is requested, animation type
+  0 is selected, its authored duration is 0.833333 seconds, and the model
+  reports `animating=true`. This rules out absent door logic or missing clip
+  data; model pose/presentation remains open.
+- The final build contains only upstream Aurora `2bbb122`, correcting
+  `GXSetChanCtrl` diffuse-function encoding for specular attenuation. The
+  targeted `GXFifoTest.ChanCtrl_Color1_SpecularLighting` test passed, followed
+  by the complete Aurora GX test binary: 165/165 passed.
+- The iPhoneOS app compiled, was development-signed, passed
+  `codesign --verify --deep --strict`, installed in place, and launched at
+  15:30 as PID 1940. No recording or additional hands-on game run was requested.
+- EctoPad was cleanly terminated before backup. Pre-install and post-install
+  copies of `game.iso`, `MemoryCardA.USA.raw`, and `MemoryCardB.USA.raw` are
+  byte-identical. SHA-256 values are respectively
+  `952972a0ddb122536d2f48c20d9e119278b13f848626afc72f034ce5a1022901`,
+  `ee2f1a892801168c4226b79988d489bae5087e5fd058054509789f53e51c9bb7`,
+  and `b12bde0a9d4dcbbca19363706c0de1eb8d6bd8a4f11387270c1468da39544418`.
+  Deployment and preservation are proven; the black geometry, door animation,
+  transition audio, and later-game stability remain physical acceptance gates.

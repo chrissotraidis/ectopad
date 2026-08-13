@@ -1,0 +1,56 @@
+EctoPad SunPad-native iOS menu correction, 2026-08-13
+
+Keep SunPad's actual `UIButton.menu` / `UIMenu` implementation instead of an
+EctoPad-specific `UIAlertController` action-sheet fallback.
+
+- `showsMenuAsPrimaryAction = YES`;
+- Render Resolution, Aspect Ratio, and Game Data & Saves remain native nested
+  `UIMenu` children;
+- UIKit owns submenu navigation and outside-tap dismissal;
+- keep SunPad's icons, selection-state checks, haptics, and refresh behavior;
+- only product strings change from SunPad to EctoPad;
+- render/aspect actions additionally notify EctoPad's renderer bridge after
+  persisting the shared setting.
+
+The removed fallback was physically rejected: it rendered as an oversized
+action sheet, nested actions did not present, and tapping outside did not
+dismiss it. Do not reintroduce a parallel custom menu surface.
+
+Physical follow-up then showed that the restored `UIButton.menu` still did not
+open while the overlay was attached directly to the SDL `UIWindow`. SunPad
+owns the overlay from its active game view controller. EctoPad now mirrors
+that hierarchy by adding the unchanged overlay to
+`window.rootViewController.view`, keeping the FPS label in the same host, and
+reasserting z-order within that controller-owned view. A bounded
+`UIControlEventTouchDown` diagnostic records whether the physical tap reaches
+the menu button and names its host/controller.
+
+Physical testing then accepted the native menu actions: Render Resolution,
+Aspect Ratio, and FPS all changed live. The separate game main menu remained
+difficult to read, so its dynamic option panes now explicitly use white text
+with black outlines. Hardware rejected that first attempt because
+`CGuiTextPane::Draw()` replaced the geometry color every frame. The current
+build marks only these menu labels for a render-time white geometry override
+and makes unselected table entries 90% white/fully opaque.
+
+The supplied screen was then identified as `FRME_NewFileSelect`, not the
+separate `SFrontEndFrame`. Recoloring both panes created bright duplicate text;
+recoloring only pane A left pane B as a black duplicate. All render-level text
+overrides were removed. The final compatibility correction suppresses pane B's
+offset pass only in this frame. Pane A keeps the original game strings,
+typewriter animation, widget geometry, and table-selected/unselected colors.
+The exact implementation is `UseSingleReadableFileMenuPane`: set pane A's
+font color to white and call `SetIsVisible(false)` on pane B for the file rows,
+root choices, and popup choices in `FRME_NewFileSelect`. The user physically
+accepted this solution on 2026-08-13. Do not replace it with a global geometry
+color override or recolor both authored panes.
+
+The UIKit `•••` button is non-focusable, disables pointer focus, and provides
+the ellipsis image for selected and selected+highlighted states to prevent the
+brief empty/square focus artifact after native menu dismissal.
+
+Foreground recovery now observes UIKit lifecycle notifications and reattaches
+the existing overlay to the current SDL root-controller view when its host was
+replaced. Periodic recovery performs the same host check. Diagnostics persist
+the lifecycle name, old/new host, window attachment, menu attachment, and touch
+visibility.
