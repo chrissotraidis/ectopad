@@ -1,39 +1,290 @@
-# Ectopad — Metroid Prime for Apple platforms
+# EctoPad
 
-Native reimplementation of Metroid Prime (GameCube, NTSC-U, Rev 2) for Apple
-Silicon macOS, iOS, and iPadOS, built on [Metaforce](https://github.com/AxioDL/metaforce).
+<p align="center">
+  <img src="assets/app-icon/EctoPad-AppIcon-1024.png" width="176" alt="EctoPad — luminous green ectoplasm app icon">
+</p>
 
-## What this is
+<p align="center">
+  <strong>Metroid Prime through Metaforce, rebuilt for iPhone, iPad, and Apple Silicon Mac.</strong><br>
+  Native Metal rendering, touch controls, controller support, private game-data
+  import, and durable GameCube memory cards.
+</p>
 
-- A **native Apple port** of the Metaforce engine (a clean-room reimplementation of
-  the Metroid Prime engine). The engine executes on Apple hardware; it is **not** a
-  Dolphin/RetroArch-style emulator frontend.
-- Rendering flows `Metaforce → Aurora (GX on WebGPU) → Dawn → Metal` on Apple
-  platforms, and `Dawn → D3D12/Vulkan` elsewhere.
-- Requires the user's **own, legally obtained** Metroid Prime (USA, Rev 2) disc
-  image. No Nintendo game data is included in, or committed to, this repository.
-- Not affiliated with or endorsed by Nintendo.
+<p align="center">
+  <img alt="iOS 14 or newer" src="https://img.shields.io/badge/iOS%20%2F%20iPadOS-14%2B-0A84FF?logo=apple">
+  <img alt="Metal renderer" src="https://img.shields.io/badge/renderer-Metal-5E5CE6">
+  <img alt="Physical iPad tested" src="https://img.shields.io/badge/physical%20iPad-tested-30D158">
+  <img alt="Development status" src="https://img.shields.io/badge/status-development%20preview-FF9F0A">
+  <img alt="Game data not included" src="https://img.shields.io/badge/game%20data-not%20included-FF453A">
+</p>
 
-## Repository layout
+EctoPad packages the complete [Metaforce](https://github.com/AxioDL/metaforce)
+engine as a native Apple-platform app. Metaforce reimplements the original
+Metroid Prime engine; EctoPad supplies the iOS/iPadOS integration, Metal-backed
+presentation, touch interface, controller plumbing, settings, import flow,
+saves, diagnostics, and reproducible patch record needed to run it on Apple
+hardware.
 
-- `docs/` — status, architecture, dependencies, build, game-data, testing,
-  performance, known issues, legal/provenance, and handoff documentation.
-- `ref/` — **git-ignored**; contains the user's game dump and public reference
-  repositories (metaforce, sunpad, PrimeDecomp/prime, aurora). Nothing in `ref/`
-  is ever committed.
+This is **not** a Dolphin or RetroArch frontend, an official Nintendo product,
+or a general GameCube emulator. It requires a user-supplied, legally obtained
+**Metroid Prime (USA, Rev 2)** disc image. No game, disc image, extracted asset,
+save, key, or signing material is included in this repository.
 
-Start with [docs/TECH-DEBT.md](docs/TECH-DEBT.md) for the current physical-iPad
-defect queue. [docs/CURRENT_STATE.md](docs/CURRENT_STATE.md) is the audited
-handoff, [docs/STATUS.md](docs/STATUS.md) is the evidence ledger, and
-[docs/IMPLEMENTATION_PLAN.md](docs/IMPLEMENTATION_PLAN.md) is the remaining
-gate plan.
+## Project status
 
-The attached iPad now runs a development build named **EctoPad**. Both default
-memory-card images are complete on device; the SunPad-native `•••` menu and
-single-pass Prime file menu are physically accepted. Audio transition listening,
-save/reload, the first-door visual fix, and named distance/texture defects remain
-open. Physical install signs
-`ref/metaforce/build/ios-default/Binaries/Metaforce.app` and uses
-`devicectl` in place. The unsigned IPA is validation-only. See
-[docs/BUILDING.md](docs/BUILDING.md) and
-[docs/INSTALL_IPA.md](docs/INSTALL_IPA.md).
+| Option | Status | Details |
+|---|---|---|
+| Physical iPad development build | **Playable, still under validation** | The app builds, signs, installs in place, reaches gameplay, accepts touch and a physical controller, and preserves its disc image and both 16 MiB memory cards. |
+| Local iPhone/iPad build | **Developer workflow available** | The current checkout needs pinned upstream repositories plus the maintained patch sequence. A clean one-command public bootstrap is still planned. |
+| iOS Simulator | **Engineering path available** | Useful for build, UI, import, and regression work; it does not replace physical-device audio, controller, thermal, or accessory testing. |
+| Apple Silicon macOS | **Development build proven** | Native arm64 gameplay, Metal rendering, keyboard/mouse input, audio, and save/reload have been exercised. |
+| Public IPA / TestFlight / App Store | **Not available** | The local unsigned IPA is a validation artifact, not a public release. GPL corresponding-source and LGPL relink materials must be completed before binary distribution. |
+
+The physical-iPad build is substantially playable, including the opening
+Frigate sections, the native settings menu, render scaling, aspect-ratio
+selection, the FPS counter, touch movement, and basic controller gameplay.
+Longer playthroughs are encouraged, but this is not yet a release candidate.
+
+### Known limitations
+
+- The HDMI crash has a source-level fix: SDL was entering Metaforce a second
+  time for the accessory's additional UIKit scene. The guard is built, but
+  physical HDMI gameplay replay remains an acceptance gate.
+- Some rooms and distant actors can render with black or incorrect geometry.
+  An isolated Aurora GX lighting correction is deployed, but the shader/material
+  issue still needs physical acceptance.
+- The first tutorial door accepts the shot and becomes passable, while its
+  authored opening animation can remain visually closed.
+- A brief audio aberration can occur during the frontend-to-opening-cinematic
+  transition. Extended audio-route and interruption testing remains open.
+- An earlier session ended near a Morph Ball transition and has not reproduced
+  consistently. Later-area and long-session stability still need broader play.
+- A complete physical-iPad save-station save, terminate, relaunch, and load
+  acceptance cycle remains to be recorded.
+- The private Files importer is implemented and Simulator-tested, but selecting
+  and importing a fresh disc image through Files still needs physical-device
+  acceptance.
+
+The prioritized defect list and dated evidence live in
+[`docs/TECH-DEBT.md`](docs/TECH-DEBT.md),
+[`docs/KNOWN_ISSUES.md`](docs/KNOWN_ISSUES.md), and
+[`docs/TESTING.md`](docs/TESTING.md).
+
+## What is included
+
+| Area | Current implementation |
+|---|---|
+| Rendering | Metaforce → Aurora GX compatibility layer → Dawn/WebGPU → Metal |
+| Mobile interface | SunPad-derived native UIKit overlay and `•••` settings menu |
+| Display settings | Native, 2×, 3×, and 4× render scales; original, widescreen, and surface-fill aspect modes; optional FPS counter |
+| Input | Touch controls, SDL game controllers, and desktop keyboard/mouse support |
+| Saves | Automatically provisioned Slot A and Slot B GameCube memory-card images |
+| Game data | Files-based import with exact revision validation, private staging, and atomic activation |
+| Diagnostics | Persistent rotating runtime log plus an in-app **Share Diagnostic Log** action |
+| Audio | Metaforce/amuse game audio through SDL3 and the Apple audio session |
+
+## Supported game
+
+| Game | Revision | Status |
+|---|---|---|
+| **Metroid Prime** | USA / NTSC-U, Rev 2 (`GM8E01`) | Supported target |
+| Other regions or revisions | Any other disc ID or revision | Not currently supported |
+| Other GameCube games | Any | Not supported; EctoPad is not a general emulator |
+
+The supported raw ISO/GCM is 1,459,978,240 bytes and has SHA-1
+`1a737910b55b59c6ad91be9e3e3c43517fd52efb`. See
+[`docs/GAME_DATA.md`](docs/GAME_DATA.md) for the complete validation record and
+accepted data flow. EctoPad never downloads game data.
+
+## Getting started
+
+You currently need:
+
+- an Apple Silicon Mac with Xcode and its command-line tools;
+- CMake 3.25 or newer, Ninja, Python 3, Rust with the required Apple targets,
+  and SDL3;
+- an Apple ID configured in Xcode for physical-device signing;
+- the pinned upstream source trees and EctoPad patch sequence described in
+  [`docs/DEPENDENCIES.md`](docs/DEPENDENCIES.md); and
+- your own legally acquired supported Metroid Prime disc image.
+
+The high-level device build is:
+
+```sh
+./scripts/sync-app-icon.sh
+cd ref/metaforce
+cmake --preset ios-default
+cmake --build --preset ios-default --target metaforce -j8
+```
+
+The app is written to:
+
+```text
+ref/metaforce/build/ios-default/Binaries/Metaforce.app
+```
+
+Sign that source app with your own Apple Development identity, verify it with
+`codesign --verify --deep --strict`, and install it in place with
+`xcrun devicectl`. Never uninstall an existing copy merely to update it: doing
+so can destroy locally imported game data and saves.
+
+The repository does not yet recreate the ignored `ref/` workspace from a fresh
+clone automatically. Follow [`docs/BUILDING.md`](docs/BUILDING.md) for the exact
+current build, signing, Simulator, and save-preserving device procedure. The
+tracked unsigned-package script is for local validation only; see
+[`docs/INSTALL_IPA.md`](docs/INSTALL_IPA.md) before using it.
+
+## First launch and game data
+
+EctoPad keeps the disc image, saves, settings, and diagnostics inside its
+private app container.
+
+1. Build, sign, install, and launch EctoPad.
+2. Open the persistent `•••` menu.
+3. Choose **Game Data & Saves**.
+4. Select your legally obtained Metroid Prime USA Rev 2 ISO/GCM through Files,
+   or place it in EctoPad's Files-visible folder and choose the folder import.
+5. Leave EctoPad open while it validates and privately activates the image.
+6. Press the on-screen **START** button or Start on a connected controller.
+
+Import uses a same-directory staging file, validates the expected game ID and
+SHA-1, and atomically replaces only the active `game.iso`. Removing or
+reimporting game data does not intentionally remove memory cards, settings, or
+logs.
+
+## Controls
+
+EctoPad provides a landscape touch layout designed around the original
+GameCube controls:
+
+- **Left stick:** move Samus.
+- **D-pad:** select visors.
+- **C-stick:** select beams, matching the original game; it is not a modern
+  free-look stick.
+- **A / B / X / Y / Z:** beam fire, jump, Morph Ball, missiles, and map/game
+  actions according to the original Prime mapping.
+- **L:** lock on. **R:** free-look/aim behavior used by the original game.
+- **L/R touch latch:** hold either shoulder for 0.5 seconds to latch it; tap it
+  again to release. The control changes color and provides haptic feedback.
+- **START:** pause or advance the frontend.
+- **`•••`:** open display, controller, touch, game-data, save, and diagnostic
+  settings without leaving the game.
+
+Touch opacity, overall size, individual control size and position, and
+hide-on-controller behavior are adjustable. Controller button remapping is
+available from the native menu. Basic gameplay with a physical controller has
+been exercised; reconnection, rumble, mapping variants, and a wider controller
+matrix remain acceptance work.
+
+## Reproducible and game-data-free
+
+```mermaid
+flowchart LR
+    A["EctoPad patch records"] --> B["Pinned Metaforce and dependencies"]
+    B --> C["Native Apple app"]
+    D["Your supported disc image"] --> E["Private on-device validation"]
+    C --> F["EctoPad runtime"]
+    E --> F
+    F --> G["Local gameplay and saves"]
+```
+
+`ref/`, build outputs, disc images, extracted material, saves, logs, and signing
+assets are ignored. [`scripts/audit-ios-package.sh`](scripts/audit-ios-package.sh)
+rejects game data and private artifacts from a validation package. Public binary
+distribution remains blocked until the corresponding-source and relink package
+described in [`docs/LEGAL_AND_PROVENANCE.md`](docs/LEGAL_AND_PROVENANCE.md) is
+complete.
+
+## Frequently asked questions
+
+<details>
+<summary><strong>Where can I download the IPA?</strong></summary>
+
+There is no public EctoPad IPA, TestFlight, App Store listing, or AltStore PAL
+release. The packaging script currently produces an unsigned local validation
+artifact that is neither installable as-is nor approved for redistribution.
+</details>
+
+<details>
+<summary><strong>Does this repository contain Metroid Prime?</strong></summary>
+
+No. You must supply your own legally acquired supported disc image. Do not open
+issues requesting game data, keys, extracted assets, or download links.
+</details>
+
+<details>
+<summary><strong>Is this emulation?</strong></summary>
+
+EctoPad runs Metaforce, a native reimplementation of the Metroid Prime engine.
+The game-facing GX API is translated by Aurora through WebGPU/Dawn to Metal,
+but EctoPad does not emulate a complete GameCube console or run arbitrary
+GameCube software.
+</details>
+
+<details>
+<summary><strong>Can I play through HDMI?</strong></summary>
+
+The previous build crashed because SDL entered the process-wide Metaforce main
+function again when HDMI created an additional UIKit scene. Four matching iOS
+crash reports established that cause. The current source keeps one engine
+instance and suppresses later scene entries; physical HDMI replay is still
+required before external-display play is called supported.
+</details>
+
+<details>
+<summary><strong>Does it support controllers?</strong></summary>
+
+Yes, the SDL iOS controller path feeds the original GameCube input model and a
+physical controller has been used for gameplay. External-display connection,
+hot-plug/reconnect, rumble, and additional controller models still need broader
+testing before controller support is called complete.
+</details>
+
+<details>
+<summary><strong>Can I report a rendering, audio, or crash bug?</strong></summary>
+
+Yes. Include the approximate time and room, the action immediately before the
+problem, whether touch or a controller was active, and a screenshot for visual
+defects. After reconnecting the iPad, the persistent `runtime.log` and rotated
+`runtime.previous.log` can be extracted or shared through **Share Diagnostic
+Log**. Never attach the disc image or saves to a public report.
+</details>
+
+## Project map
+
+| Path | Purpose |
+|---|---|
+| [`patches/`](patches/) | Ordered EctoPad changes and rejected-experiment records for the pinned upstream trees |
+| [`scripts/package-ios.sh`](scripts/package-ios.sh) | Deterministic unsigned local validation package |
+| [`scripts/audit-ios-package.sh`](scripts/audit-ios-package.sh) | Game-data, signing-material, and package-hygiene audit |
+| [`assets/app-icon/`](assets/app-icon/) | Original EctoPad icon master, Apple-size derivatives, and provenance |
+| [`scripts/sync-app-icon.sh`](scripts/sync-app-icon.sh) | Sync the tracked EctoPad icon into the ignored Metaforce build tree |
+| [`docs/BUILDING.md`](docs/BUILDING.md) | Complete build, signing, Simulator, and installation procedure |
+| [`docs/GAME_DATA.md`](docs/GAME_DATA.md) | Supported revision, hashes, and private import design |
+| [`docs/TECH-DEBT.md`](docs/TECH-DEBT.md) | Current physical-iPad defect queue |
+| [`docs/TESTING.md`](docs/TESTING.md) | Evidence ledger and remaining acceptance checks |
+| [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) | Metaforce, Aurora, Dawn, Metal, input, audio, and storage architecture |
+| [`docs/LEGAL_AND_PROVENANCE.md`](docs/LEGAL_AND_PROVENANCE.md) | Redistribution and provenance boundary |
+| [`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.md) | Dependency licenses and notices |
+| `ref/` | Ignored local source/game-data workspace; never published by this repository |
+
+## Contributing and support
+
+Use [GitHub Issues](https://github.com/chrissotraidis/ectopad/issues) for a
+reproducible platform or gameplay defect. Include the EctoPad version, Apple
+device and OS version, input method, display route, reproduction steps, and a
+redacted diagnostic log when possible. Never upload copyrighted game material
+or personal signing assets.
+
+## Legal and acknowledgements
+
+EctoPad is an unofficial community project and is not affiliated with or
+endorsed by Nintendo, Retro Studios, or Metroid Prime's rights holders. Game
+names, trademarks, and content belong to their respective owners.
+
+EctoPad builds on Metaforce, Aurora, Dawn, SDL3, nod, kabufuda, amuse, athena,
+logvisor, musyx, zeus, soxr, SunPad's Apple application shell, and their
+contributors. Each component retains its own copyright and license. See
+[`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.md) and
+[`docs/DEPENDENCIES.md`](docs/DEPENDENCIES.md) for the pinned inventory and
+license summary.

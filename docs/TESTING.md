@@ -1,6 +1,25 @@
 # Testing
 
-Last updated: 2026-08-12
+Last updated: 2026-08-13
+
+### 2026-08-13 — controller session and HDMI crash diagnosis
+
+- Pulled EctoPad's rotating logs and the iPad `systemCrashLogs` domain
+  read-only; no app-container data was modified.
+- One continuous controller play session ran from 09:30:34 to 10:04:43
+  (34 minutes 9 seconds) before resigning active. It resumed at 10:20:47 and
+  recovered/re-attached the overlay. The log recorded zero queue underruns,
+  zero final-mix clipping, and no fatal, abort, jetsam, GPU, hang, or
+  memory-warning marker during that session. The current diagnostics do not
+  persist the physical controller's attach/name, so controller use is based on
+  the user's hands-on report rather than a logged enumeration event.
+- A later gameplay session ran 17:39:43–17:42:35. The first HDMI attempt then
+  produced SIGABRT. Three immediate relaunches at 17:42:57, 17:42:59, and
+  17:43:10 produced the same crash before engine initialization.
+- All four crash reports fault in `FileStoreManager` from a second
+  `aurora_main` call made by `SDLUIKitSceneDelegate postFinishLaunch`. The
+  iOS-only secondary-scene guard builds successfully. Exact HDMI/controller
+  physical replay remains open and is not replaced by compile evidence.
 
 ## Discipline
 
@@ -565,3 +584,29 @@ To be appended with dated entries for later phases.
   and `b12bde0a9d4dcbbca19363706c0de1eb8d6bd8a4f11387270c1468da39544418`.
   Deployment and preservation are proven; the black geometry, door animation,
   transition audio, and later-game stability remain physical acceptance gates.
+
+### 2026-08-13 — HDMI guard, original icon, and final in-place update
+
+- The exact iPhoneOS target rebuilt successfully with the iOS-only
+  `EctoPadSceneGuard.mm`. The arm64 executable contains the persistent
+  `external display scene connected; retained existing engine instance`
+  breadcrumb, and the linked SDL archive exposes the guarded
+  `SDLUIKitSceneDelegate postFinishLaunch` selector. Compile/link evidence does
+  not replace reconnecting HDMI on the physical iPad.
+- The original green ectoplasm icon was generated as project artwork, converted
+  to an opaque sRGB 1024×1024 master, and compiled with Xcode 26.6 `actool`.
+  `assetutil` reports opaque `AppIcon` renditions, and the produced app's
+  `Assets.car` SHA-256 exactly matches the synced Metaforce resource:
+  `4037ae7ebacbed882bf9b0af8ab5e60da6d68af409daa4465ac4619801c65f46`.
+- The unsigned validation package passed the repository audit with SHA-256
+  `5d38f6d837c501e3a24c347e864033ec58aaad9f61638f871dc32ae2f6c8d28e`.
+  It remains a local, non-public validation artifact.
+- The device app was development-signed, passed
+  `codesign --verify --deep --strict`, installed in place, and launched at
+  20:21 as PID 2122. Bundle metadata remains EctoPad
+  `com.axiodl.Metaforce` 0.1.3 (1).
+- Pre/post install copies of the ISO and both card images are byte-identical.
+  SHA-256 values remain
+  `952972a0ddb122536d2f48c20d9e119278b13f848626afc72f034ce5a1022901`,
+  `ee2f1a892801168c4226b79988d489bae5087e5fd058054509789f53e51c9bb7`,
+  and `b12bde0a9d4dcbbca19363706c0de1eb8d6bd8a4f11387270c1468da39544418`.

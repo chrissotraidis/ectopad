@@ -9,7 +9,7 @@ bugs are repaired, but gameplay listening remains open. Prime's original
 controls are restored and L/R now offer an optional half-second touch latch.
 Named texture defects remain open.
 
-## Latest deploy evidence (2026-08-13, 15:30)
+## Latest deploy evidence (2026-08-13, 20:21)
 
 The final rebuild for the day was signed and installed in place on the attached
 iPad Pro (iPad14,5). This is deploy proof only.
@@ -49,6 +49,21 @@ iPad Pro (iPad14,5). This is deploy proof only.
   The earlier isolated `b684c0d` unbound-texture experiment was physically
   rejected because black geometry and the visible-closed door persisted, and
   was removed before this build.
+- a later 34-minute-9-second physical session recorded zero audio queue
+  underruns, zero clipped output, and no fatal, jetsam, GPU, hang, or memory
+  warning. After a background interval, the overlay recovery reattached. The
+  current diagnostic format did not persist the controller name, so physical
+  controller use remains the user's hands-on evidence.
+- four subsequent HDMI attempts produced matching `SIGABRT` reports. HDMI was
+  creating another UIKit scene and SDL entered the process-wide Metaforce main
+  again, causing the second `FileStoreManager` singleton construction to
+  terminate. The final build guards SDL's scene entry so only the primary scene
+  starts the engine. Physical HDMI replay remains open.
+- the 20:21 build also replaces the inherited compiled icon and loose PNGs with
+  the tracked original green ectoplasm identity from `assets/app-icon/`.
+- that build was signed, strictly verified, installed in place, and launched as
+  PID 2122. Pre/post ISO and Slot A/B copies remained byte-identical at the
+  hashes above. No uninstall or destructive container copy was used.
 
 Do not treat this document as permission to rewrite the overlay, invent a
 new camera model, or copy SunPad's Super Mario Sunshine audio timebase
@@ -113,6 +128,7 @@ happened. Gate 3 failed on the items below.
 | P0 | Later-game Morph Ball stability | **Unplayable in the current physical build.** Slot 2 loads, but entering Morph Ball and approaching a tunnel ended the session. The process stayed resident without an iOS crash/jetsam/hang artifact while runtime logging stopped. Bisect the renderer compatibility set and reproduce outside the user's live container before another device build. |
 | P1 | Later-game test coverage | **Mid-game USA Rev 2 state installed in Prime file slot 2, but not accepted as stable.** Existing file slot 1 is byte-preserved and the card persists across normal in-place installs. |
 | P1 | Native physical controller | **Implemented; hardware acceptance open.** SDL gamepad hot-plug, platform mappings, sticks, analog triggers, D-pad, rumble, and the native mapping panel feed the existing GameCube input path. Test one real controller on this iPad before calling it supported. |
+| P0 | HDMI / external display | **Root cause fixed in source and deployed; physical replay open.** SDL re-entered Metaforce main for HDMI's additional UIKit scene. The iOS guard retains the existing engine instead. Reconnect HDMI and verify visible, controllable gameplay before calling it supported. |
 | P1 | Visual diagnostic capture | **Open.** Runtime logs can timestamp fog/audio/door state but cannot show flickering, black geometry, or actor duplication. The host screen-history recorder was unavailable for the 10:07–10:22 session. Add a bounded in-app game-frame snapshot/export path; do not rely on UIKit hierarchy capture unless it proves the Metal surface is present. |
 | P2 | Deploy / README / bootstrap | This session used the documented host `codesign` + in-place `devicectl` path. Still no one-command `deploy-ios-device.sh`. |
 | P3 | Later-area, controller, quiet perf, legal package | Not the current blocker; keep them listed so they are not forgotten |
