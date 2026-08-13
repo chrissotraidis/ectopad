@@ -30,6 +30,14 @@ physical-device claim.
   menu have physical acceptance. Gate 3 remains open on transition audio,
   save/reload, lifecycle recovery, first-door animated presentation,
   black/distant geometry, and later-game stability.
+- The later 20:21 in-place update adds the iOS HDMI secondary-scene guard and
+  original green ectoplasm app icon. It is running as PID 2122; pre/post ISO and
+  both memory-card hashes remained byte-identical. HDMI no longer has an
+  unexplained crash signature, but physical accessory replay is still required.
+- A 34-minute-9-second controller session before that update had zero logged
+  audio underruns/clipping and no fatal, jetsam, GPU, hang, or memory-warning
+  marker. The logs did not persist controller enumeration, so the controller
+  itself is hands-on rather than machine-recorded evidence.
 - The unsigned validation IPA remains a package-audit artifact only. Physical
   install must sign the source `.app` at
   `ref/metaforce/build/ios-default/Binaries/Metaforce.app`, not that IPA.

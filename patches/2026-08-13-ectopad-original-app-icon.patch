@@ -1,0 +1,21 @@
+EctoPad original iOS/iPadOS app icon, 2026-08-13
+
+Replace the inherited Metaforce icon with an original abstract green
+ectoplasm/pathogen mark. The artwork contains no Nintendo, Metroid, Metaforce,
+or other third-party characters, logos, screenshots, or game assets.
+
+Tracked source assets:
+
+- `assets/app-icon/EctoPad-AppIcon-1024.png`
+- `assets/app-icon/AppIcon60x60@2x.png`
+- `assets/app-icon/AppIcon76x76@2x~ipad.png`
+- `assets/app-icon/Assets.xcassets/`
+- `assets/app-icon/PROVENANCE.md`
+
+Run `scripts/sync-app-icon.sh` after bootstrapping the ignored
+`ref/metaforce` checkout and before building `ios-default`. The script replaces
+Metaforce's two existing loose iOS/iPadOS icon resources and recompiles its
+`Assets.car` with the tracked 1024×1024 master. No Info.plist or bundle-resource
+wiring changes are required because `AppIcon` and the resource filenames are
+already declared by `Runtime/CMakeLists.txt` and
+`Runtime/platforms/ios/Info.plist.in`.

@@ -38,6 +38,18 @@ Artifacts land in `ref/metaforce/build/` (git-ignored via `ref/`).
 
 ## iOS / iPadOS (device, arm64)
 
+After bootstrapping or refreshing the ignored `ref/metaforce` checkout, sync
+the tracked original EctoPad icon before configuring or rebuilding:
+
+```sh
+./scripts/sync-app-icon.sh
+```
+
+This copies the 120×120 iPhone and 152×152 iPad icon resources and recompiles
+the iOS `Assets.car` from the tracked 1024×1024 master in `assets/app-icon/`.
+The provenance remains tracked in the root repository; no Nintendo or extracted
+game artwork is used.
+
 ```sh
 cd ref/metaforce
 cmake --preset ios-default

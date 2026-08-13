@@ -1,0 +1,84 @@
+EctoPad iOS HDMI secondary-scene entry guard, 2026-08-13
+
+Physical evidence: connecting HDMI on the iPad generated four ordinary crash
+reports at 19:42:35, 19:42:57, 19:43:00, and 19:43:10 local time. Every report
+is SIGABRT on the main thread with the same stack:
+
+  std::terminate
+  metaforce::FileStoreManager::FileStoreManager
+  aurora_main
+  -[SDLUIKitSceneDelegate postFinishLaunch]
+
+SDL 3.4.10 invokes the process-wide main function from every newly connected
+UIKit scene. An HDMI connection can create a second scene while the original
+engine is still running; the second main invocation then deliberately aborts
+when it tries to construct the singleton FileStoreManager again.
+
+The iOS-only guard swizzles SDLUIKitSceneDelegate's postFinishLaunch. The first
+scene calls SDL's original implementation unchanged. Later scenes hide their
+launch presentation, log the event, and retain the existing engine instance
+instead of entering aurora_main again. Other platforms are unchanged.
+
+The complete iPhoneOS metaforce target builds successfully. Physical HDMI
+replay is still required before declaring the issue hardware-accepted.
+
+diff --git a/Runtime/CMakeLists.txt b/Runtime/CMakeLists.txt
+--- a/Runtime/CMakeLists.txt
++++ b/Runtime/CMakeLists.txt
+@@ -254,4 +254,5 @@ if (APPLE)
+     elseif (IOS)
+         set(RESOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/platforms/ios)
+         set(INFO_PLIST ${RESOURCE_DIR}/Info.plist.in)
++        target_sources(metaforce PRIVATE ${RESOURCE_DIR}/EctoPadSceneGuard.mm)
+         file(GLOB_RECURSE RESOURCE_FILES "${RESOURCE_DIR}/Base.lproj/*")
+diff --git a/Runtime/platforms/ios/EctoPadSceneGuard.mm b/Runtime/platforms/ios/EctoPadSceneGuard.mm
+new file mode 100644
+--- /dev/null
++++ b/Runtime/platforms/ios/EctoPadSceneGuard.mm
+@@ -0,0 +1,46 @@
++#import <Foundation/Foundation.h>
++#import <objc/runtime.h>
++
++#import "extern/aurora/lib/ios/SunPadDiagnostics.h"
++
++// SDL 3.4's iOS scene delegate invokes the process-wide SDL main function for
++// every connected UIWindowScene. Connecting an HDMI display can therefore
++// enter Metaforce a second time while the original game loop is still running.
++// Keep SDL's primary-scene behavior intact and suppress only later entries.
++@interface NSObject (EctoPadSDLSceneGuard)
++- (void)ectopad_postFinishLaunch;
++- (void)hideLaunchScreen;
++@end
++
++@implementation NSObject (EctoPadSDLSceneGuard)
++
+++ (void)load {
++  Class sceneDelegate = NSClassFromString(@"SDLUIKitSceneDelegate");
++  Method original = class_getInstanceMethod(sceneDelegate, @selector(postFinishLaunch));
++  Method guarded = class_getInstanceMethod(self, @selector(ectopad_postFinishLaunch));
++  if (sceneDelegate == Nil || original == nullptr || guarded == nullptr) {
++    return;
++  }
++
++  class_addMethod(sceneDelegate, @selector(ectopad_postFinishLaunch), method_getImplementation(guarded),
++                  method_getTypeEncoding(guarded));
++  guarded = class_getInstanceMethod(sceneDelegate, @selector(ectopad_postFinishLaunch));
++  method_exchangeImplementations(original, guarded);
++}
++
++- (void)ectopad_postFinishLaunch {
++  static BOOL engineSceneStarted = NO;
++  @synchronized(NSClassFromString(@"SDLUIKitSceneDelegate")) {
++    if (engineSceneStarted) {
++      SunPadLog(@"external display scene connected; retained existing engine instance");
++      [self hideLaunchScreen];
++      return;
++    }
++    engineSceneStarted = YES;
++  }
++
++  // Swizzling exchanges this selector with SDL's original implementation.
++  [self ectopad_postFinishLaunch];
++}
++
++@end
