@@ -1,0 +1,37 @@
+EctoPad isolated Aurora GX channel-lighting correction, 2026-08-13
+
+This is the only one of the four newly evaluated Aurora renderer corrections
+retained in the final physical-iPad build. It is upstream Aurora commit
+2bbb122 applied to the pinned 5143394 tree.
+
+GXSetChanCtrl must force the diffuse function to GX_DF_NONE only for specular
+attenuation. The pinned expression instead zeroed it for GX_AF_NONE, producing
+incorrect material-lighting state. The matching GX FIFO expectation is updated.
+
+The targeted specular test and the complete 165-test Aurora GX suite pass.
+Physical acceptance of the black-geometry and first-door symptoms remains open.
+
+diff --git a/lib/dolphin/gx/GXLighting.cpp b/lib/dolphin/gx/GXLighting.cpp
+--- a/lib/dolphin/gx/GXLighting.cpp
++++ b/lib/dolphin/gx/GXLighting.cpp
+@@ -279,7 +279,7 @@ void GXSetChanCtrl(GXChannelID id, bool lightingEnabled, GXColorSrc ambSrc, GXCo
+   SET_REG_FIELD(0, reg, 1, 1, lightingEnabled);
+   SET_REG_FIELD(0, reg, 4, 2, lightState & 0xF); // lights 0-3
+   SET_REG_FIELD(0, reg, 1, 6, ambSrc);
+-  SET_REG_FIELD(0, reg, 2, 7, (attnFn == GX_AF_NONE) ? 0 : diffFn);
++  SET_REG_FIELD(0, reg, 2, 7, (attnFn == GX_AF_SPEC) ? GX_DF_NONE : diffFn);
+   SET_REG_FIELD(0, reg, 1, 9, (attnFn != GX_AF_SPEC));   // attn enable
+   SET_REG_FIELD(0, reg, 1, 10, (attnFn != GX_AF_NONE));  // attn select
+   SET_REG_FIELD(0, reg, 4, 11, (lightState >> 4) & 0xF); // lights 4-7
+diff --git a/tests/gx_fifo_test.cpp b/tests/gx_fifo_test.cpp
+--- a/tests/gx_fifo_test.cpp
++++ b/tests/gx_fifo_test.cpp
+@@ -2376,7 +2376,7 @@ TEST_F(GXFifoTest, ChanCtrl_Color1_SpecularLighting) {
+   EXPECT_TRUE(cfg.lightingEnabled);
+   EXPECT_EQ(cfg.matSrc, GX_SRC_REG);
+   EXPECT_EQ(cfg.ambSrc, GX_SRC_REG);
+-  EXPECT_EQ(cfg.diffFn, GX_DF_SIGN);
++  EXPECT_EQ(cfg.diffFn, GX_DF_NONE);
+   EXPECT_EQ(cfg.attnFn, GX_AF_SPEC);
+
+   auto& state = g_gxState.colorChannelState[GX_COLOR1];

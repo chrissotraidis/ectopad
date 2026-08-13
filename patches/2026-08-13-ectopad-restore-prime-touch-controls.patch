@@ -1,0 +1,25 @@
+EctoPad iOS control correction, 2026-08-13
+
+The first physical build incorrectly treated the yellow C-stick as a
+free-look stick. Worse, the iOS LookHold shortcut read Prime's logical look
+commands, which are sourced from the left Control Stick while R is held. That
+made ordinary left-stick input enter look mode and removed normal movement.
+
+Restore original Metroid Prime/GameCube semantics:
+
+- remove the iOS-only `TouchCStickActsAsLookHold` override from
+  `Runtime/World/CPlayer.cpp`;
+- leave the left Control Stick on movement;
+- leave the yellow C-stick on beam selection through the existing GameCube
+  substick path;
+- present R as a normal press-and-hold touch button, setting digital R and
+  full trigger pressure for the duration of the touch;
+- let L or R latch after a half-second continuous touch. A latched shoulder
+  turns blue, emits one haptic, stays asserted after release, and unlatches on
+  the next tap. Short touches retain normal hold behavior;
+- remove the Sunshine-specific "Modern C-stick" toggle from EctoPad's touch
+  settings because it is not a Prime control feature.
+
+This does not change controller plumbing or invent a mobile camera model.
+Original Prime look/aim remains Control Stick while R is held; L remains
+lock-on/strafe.

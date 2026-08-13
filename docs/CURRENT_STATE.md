@@ -1,6 +1,6 @@
 # Authoritative current state
 
-Last audited: 2026-08-12
+Last audited: 2026-08-13 after the final physical-iPad deployment
 
 This is the canonical starting point for future work. When older dated evidence
 describes an earlier limitation, this document and the newer dated entries in
@@ -11,27 +11,33 @@ physical-device claim.
 ## Exact repository and environment state
 
 - Root repository: `chrissotraidis/ectopad`, local branch `main`.
-- Implementation baseline audited by this documentation pass:
-  `a483fab` (`Harden SunPad menu and audio handoff`).
+- Root implementation baseline before this publish pass:
+  `47a928e` (`Merge pull request #1 from chrissotraidis/agent/publish-physical-prereq-audit`).
 - Metaforce reference pin: `621ee0fed3fdd5fccbbdadbce33343f29dce071c`.
 - Aurora submodule pin: `514339438178ef2bed1b14e5149d90ece0c6e0cc`.
 - SunPad reference pin: `7d84cec8bb607c32d76499af0e7bd7435ac82d5e`.
 - Host: Apple Silicon `arm64`, macOS 26.5 (25F71), Xcode 26.6 (17F113),
   CMake 3.27.1, Ninja 1.13.2.
-- Code signing: `security find-identity -p codesigning -v` reports zero valid
-  identities; the login keychain holds no `Apple Development` certificate and
-  `~/Library/MobileDevice/Provisioning Profiles/` does not exist.
-- Devices: `xcrun devicectl list devices` and `xctrace list devices` report no
-  physical iPhone/iPad (Mac plus Simulators only).
-- Re-verified 2026-08-12 for the scoped physical pass: all three prerequisites
-  (identity, profile, hardware) are missing, so physical-device Gates 2 and 3
-  remain unexecuted, not failed. No engine/UI change was made; the source app
-  at `ref/metaforce/build/ios-default/Binaries/Metaforce.app` remains unsigned
-  and untouched. Evidence: `/tmp/ectopad-gate2-prereq-blocked-2026-08-12.md`.
+- Code signing and hardware: the final 2026-08-13 build was development-signed,
+  strictly verified, installed in place, and launched on the attached physical
+  iPad as **EctoPad** (`com.axiodl.Metaforce`, 0.1.3 (1)).
+- Before and after installation, `game.iso` and both 16 MiB memory cards were
+  copied from the device and compared byte-for-byte. Their SHA-256 values are
+  recorded in [TECH-DEBT.md](TECH-DEBT.md). No uninstall or destructive
+  container replacement was used.
+- The installed build reaches title and gameplay. The SunPad-native menu,
+  render/aspect/FPS actions, left-stick movement, and single-pass Prime file
+  menu have physical acceptance. Gate 3 remains open on transition audio,
+  save/reload, lifecycle recovery, first-door animated presentation,
+  black/distant geometry, and later-game stability.
+- The unsigned validation IPA remains a package-audit artifact only. Physical
+  install must sign the source `.app` at
+  `ref/metaforce/build/ios-default/Binaries/Metaforce.app`, not that IPA.
 
 `ref/` is ignored and contains separate working trees plus private user game
-data. No `ref/` change is committed directly. Every source delta is mirrored
-under `patches/` against the pinned source sequence.
+data. No `ref/` change is committed directly. Source changes are recorded under
+`patches/` against the pinned source sequence; rejected experiments are labeled
+explicitly and must not be replayed as accepted fixes.
 
 ## What the product is
 
@@ -48,7 +54,7 @@ Final-source builds completed successfully on 2026-08-12 for:
 | --- | --- | --- |
 | macOS Apple Silicon | `ref/metaforce/build/macos-default-relwithdebinfo/Binaries/Metaforce.app` | arm64 Mach-O; prior Gate 1 title/gameplay/Metal/audio/save evidence remains valid |
 | iOS Simulator | `ref/metaforce/build/ios-sim/Binaries/Metaforce.app` | arm64 Simulator app; current SunPad interaction harness passed |
-| iPhoneOS/iPadOS device | `ref/metaforce/build/ios-default/Binaries/Metaforce.app` | arm64 Mach-O, minimum iOS 14; unsigned and not installed on hardware |
+| iPhoneOS/iPadOS device | `ref/metaforce/build/ios-default/Binaries/Metaforce.app` | arm64 Mach-O, minimum iOS 14; later development-signed, installed, and launched on the attached iPad. Launch is not Gate 3 acceptance. |
 
 The exact final menu/audio device app was packaged twice with identical bytes:
 
@@ -63,7 +69,8 @@ The exact final menu/audio device app was packaged twice with identical bytes:
   strings. Public redistribution is not approved until GPL corresponding
   source, LGPL relink materials, and Dawn provenance remediation are complete.
 - The IPA is unsigned and cannot be installed as-is on a normal physical
-  device. It must not be publicly redistributed.
+  device. It must not be publicly redistributed. The later physical install
+  signed the source `.app` instead of this archive.
 
 ## Proven functionality
 
@@ -197,9 +204,10 @@ correctness/stress evidence, not an audible-quality or performance benchmark.
 Evidence: `/tmp/metaforce-audio-reserve-native-2026-08-12.log` and patch
 `2026-08-12-aurora-frame-rate-independent-audio-reserve.patch`.
 
-Still required: listen on physical hardware across frontend, cinematics,
-gameplay, overlapping effects, route/interruption changes, background/resume,
-and sustained sessions.
+Physical listening on the attached iPad failed: no music, some SFX, mix
+clearly wrong. KI-003 remains implementation-complete and audible-acceptance
+open. See [TECH-DEBT.md](TECH-DEBT.md). Do not copy SunPad's 12× guest-timebase
+patch.
 
 ## Controller and diagnostics state
 
@@ -215,26 +223,35 @@ and sustained sessions.
 
 ## Exact remaining work
 
-### Blocked only by external prerequisites
+### Hardware launch happened; acceptance did not
 
-1. Install a valid Apple Development certificate/provisioning profile.
-2. Connect a physical iPad and preferably a physical iPhone.
-3. Sign the exact final device app, install it, and audit the post-sign artifact.
+The attached iPad launched a development-signed `Metaforce.app`. Title,
+import, and Frigate gameplay are reachable. That closes the old "no identity /
+no device" blocker and satisfies the minimum Gate 2 launch question. It does
+not close Gate 3.
+
+Current product blockers are in [TECH-DEBT.md](TECH-DEBT.md):
+
+1. New Game → save → quit → relaunch → load using the now-complete A/B cards.
+2. Audible audio on the same iPad.
+3. Physical SunPad-native `•••` submenu/dismissal and 1×–4× behavior.
+4. Original Prime movement, hold-R aim, L lock-on, and C-stick beam selection.
+5. Named texture captures.
+6. A documented bootstrap + in-place `devicectl` deploy path so the next
+   hardware launch does not rediscover hidden vendor steps.
 
 ### Gate 2 — physical launch/render
 
-On hardware, prove and capture:
+Launch on the attached iPad happened. Remaining Gate 2 honesty items:
 
-- installed executable is arm64/iPhoneOS;
-- launch does not crash;
-- Dawn selects Metal and creates a visible surface;
-- title/game surface renders;
-- SunPad controls and `•••` stay visible above gameplay;
-- diagnostic log contains no fatal Metal, import, or audio initialization error.
+- keep install/PID distinct from gameplay acceptance;
+- confirm the next installed binary is the current overlay/audio sources;
+- keep `•••` actually usable, not merely present as a button.
 
 ### Gate 3 — physical gameplay acceptance
 
-Using the production Files flow and real touch, exercise Frigate Orpheon:
+Gate 3 failed on the user's hands-on. Using the production Files flow and
+real touch, the remaining Frigate checklist is still:
 
 - movement, camera/aim, lock-on;
 - beam, missile, jump, scan;

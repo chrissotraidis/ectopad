@@ -1,0 +1,59 @@
+diff --git a/Runtime/Audio/CAudioSys.cpp b/Runtime/Audio/CAudioSys.cpp
+--- a/Runtime/Audio/CAudioSys.cpp
++++ b/Runtime/Audio/CAudioSys.cpp
+@@ -6,6 +6,7 @@
+ #include "Runtime/CSimplePool.hpp"
+ #include "Runtime/Audio/CAudioGroupSet.hpp"
+ #include "Runtime/Audio/CStaticAudioPlayer.hpp"
++#include "Runtime/Audio/CStreamAudioManager.hpp"
+ #include "Runtime/Audio/SDLBackend.hpp"
+
+ #include <aurora/audio.h>
+@@ -44,6 +45,7 @@ void MasterSupplyCallback(float* data, int frames) {
+       data[i] += amuseBuf[i];
+     }
+   }
++  CStreamAudioManager::SupplyCallback(data, frames);
+ }
+ } // namespace
+
+diff --git a/Runtime/Audio/CStreamAudioManager.hpp b/Runtime/Audio/CStreamAudioManager.hpp
+--- a/Runtime/Audio/CStreamAudioManager.hpp
++++ b/Runtime/Audio/CStreamAudioManager.hpp
+@@ -33,6 +33,7 @@ public:
+   static void Initialize();
+   static void StopOneShot();
+   static void Shutdown();
++  static void SupplyCallback(float* data, int frames);
+ };
+
+ } // namespace metaforce
+
+diff --git a/Runtime/Audio/CStreamAudioManager.cpp b/Runtime/Audio/CStreamAudioManager.cpp
+--- a/Runtime/Audio/CStreamAudioManager.cpp
++++ b/Runtime/Audio/CStreamAudioManager.cpp
+@@ -11,7 +11,8 @@
+ #include <cstring>
+ #include <memory>
++#include <vector>
+
+-//#include <amuse/DSPCodec.hpp>
++#include <amuse/DSPCodec.hpp>
+
+ namespace metaforce {
+
+ Restore the existing DSP decoder onto the current SDL/amuse callback:
+
+ - uncomment and keep `decompressChunk()` using `DSPDecompressFrameRanged` /
+   `DSPDecompressFrame`
+ - restore a non-boo `SDSPStream::supplyAudio(size_t frames, int16_t* data)`
+ - restore `UpdateStreamVolume()` / `UpdateVolume()` so they store `x4c_vol`
+   without the old boo channel API
+ - restore `FreeAllStreams()` without boo voice reset
+ - add `CStreamAudioManager::SupplyCallback(float* data, int frames)` that
+   mixes every active `SDSPStream` with `m_leftgain * x4c_vol` /
+   `m_rightgain * x4c_vol`
+ - call that mixer from `MasterSupplyCallback` after static + amuse
+
+ Do not change the 32 kHz stereo float mixer sample rate. Do not copy SunPad's
+ 12x guest-timebase audio patch.

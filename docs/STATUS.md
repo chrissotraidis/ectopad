@@ -1,6 +1,6 @@
 # Status
 
-Last updated: 2026-08-12
+Last updated: 2026-08-13
 
 For the concise authoritative handoff, artifact identity, and exact remaining
 checklist, start with [CURRENT_STATE.md](CURRENT_STATE.md). Dated observations
@@ -30,11 +30,11 @@ below are retained as evidence; newer entries supersede older limitations.
 | HECL/game-data extraction from supplied ISO | **Proven** | Disc identified and all assets loaded from ISO at runtime ("Metroid Prime USA (Build v1.111 3/10/2003 17:56:21)"); raw ISO, no conversion required |
 | iOS/iPadOS ARM64 device build | **Proven** | Final-source ARM64 iOS build succeeded at `build/ios-default/Binaries/Metaforce.app` (platform 2/iPhoneOS, min iOS 14.0) after fixing host-zstd leakage; unsigned packaging SHA-256 `308f9e26861327b42e28359406237902f8b9ab60e30ba3c8751419055111617d` |
 | iOS Simulator (iPad) execution | **Proven** | iOS Simulator build succeeded (after fixing Dawn cross-compile host-tool issues: host protoc + GLFW disabled); **rebuilt 2026-08-11 23:20 with the vendored audio stack + CInputStream byte-order fix + kabufuda card-persistence fix**; installed and launched on iPad Pro 13-inch (M5) Simulator; loaded the user's ISO; Dawn/WebGPU reached Metal ("Apple iOS simulator GPU"); amuse audio initialized (32 kHz SDL backend); rendered the **Metroid Prime title screen**, and — via the `--autostart` test hook — ran the **full New Game flow: intro cinematic → first-person Frigate Orpheon gameplay** (visor HUD, ENERGY 99, arm cannon, radar) at 60 FPS, and **persisted a `GM8E01`/`MetroidPrime B` save to the sim's card** |
-| Audio on Apple targets | **Partially proven** | amuse + streamed DSP/MIDI + soxr + SDL3 work on macOS and compile for Simulator/device. The final pump measures converted output-ready frames and tops a bounded 120 ms reserve, independent of render FPS. A loaded macOS run held 5,292–5,294 frames at 44.1 kHz with 6–7 voices/3 submixes and no underrun log. Physical audible quality/routes/interruptions remain untested; see KI-003. |
-| Dawn/WebGPU reaching Metal on iOS device | **Not yet tested** | Principal technical unknown (Gate 2); simulator rendering (host GPU/Metal path) works — physical-device verification pending signing identity + hardware |
+| Audio on Apple targets | **macOS proven; physical iPad transition defect open** | The iPad producer has restored DSP stream mixing, AVAudioSession, a direct Amuse pull path, final limiting, and bounded diagnostics. The attempted SoXR path and 10 ms handoff ramp were physically rejected and removed. Current logs show Speaker at 48 kHz with zero queue underruns, but a frontend-to-cutscene aberration remains audible. |
+| Dawn/WebGPU reaching Metal on iOS device | **Launch proven; visual acceptance open** | The final development-signed build launched on the attached iPad. Native menu and core movement are accepted, but black/distant geometry, first-door pose presentation, and later-game stability remain open; see [TECH-DEBT.md](TECH-DEBT.md). |
 | Touch controls (iPhone/iPad layouts) | **Partially proven (Simulator)** | Direct SunPad UIKit port renders on iPad/iPhone Simulator and its source parity is audited. The final current-build harness found all 14 controls, exercised settings/editor/A mixer behavior, restored preferences, and passed `result=0`. Physical finger/multitouch ergonomics remain unverified. See [SUNPAD_PARITY.md](SUNPAD_PARITY.md). |
 | GameController support | **Partially proven (software path)** | `AURORA_VIRTUAL_GAMEPAD=1` attaches an SDL3 standard gamepad and accepts FIFO commands only for test. After correcting the hook's SDL3 joystick-ID and descriptor initialization, Metaforce logged `Aurora Virtual Gamepad`, Start advanced the title to the main menu, analog Y displaced the controller overlay, and A began the game. This proves SDL events → Aurora controller assignment → `PADRead`; physical Apple GCController hardware, hot-plug/reconnect, rumble, and touch/controller handoff remain untested. Evidence: `/tmp/virtual-gamepad-a-select-2026-08-12.png`. |
-| Touch controls / menu (iPad) | **Partially proven (Simulator; KI-015 fixed)** | SunPad UI/settings/mixer/input/mapping files are byte-identical and diagnostics has app-name/storage-name-only changes. Current harness passes all menu/settings/editor/mixer/folder/picker phases, while the live bridge reports `menu visible=1 attached=1` and reasserts the overlay above SDL. Render scale/aspect/FPS, game data, mapping, and diagnostics are wired. Only inherited Experimental 60 FPS is intentionally unclaimed. Physical finger behavior remains. See [SUNPAD_PARITY.md](SUNPAD_PARITY.md). |
+| Touch controls / menu (iPad) | **Core menu and movement physically accepted** | SunPad's native `UIMenu`, render/aspect/FPS actions, readable single-pass Prime file menu, and left-stick movement are accepted. Original Prime mapping is restored and 0.5 s L/R latch is deployed; full control/lifecycle regression acceptance remains. See KI-017–021 and [TECH-DEBT.md](TECH-DEBT.md). |
 | Save/reload behavior | **Proven (macOS)** | Full cycle verified 2026-08-11 after the kabufuda queue/commit fix (KI-011): new game → save slot `GM8E01`/`MetroidPrime B` persisted to the raw card on disk → clean quit → relaunch → file select shows the save → A loads the saved game (intro narration + gameplay at 60 FPS). In-game save-station save/reload not yet exercised (requires navigating to a save station) |
 | Frigate Orpheon / later-area gameplay | **Partially proven** | New Game now reaches **actual first-person gameplay** in Frigate Orpheon after the KI-009 fix: intro cinematic (space, gunship, Samus model) renders at 60 FPS; gameplay view renders with visor HUD (energy 99), arm cannon, minimap at 60 FPS, 1000+ draw calls; keyboard movement works. Full playthrough + save station + later areas not yet verified |
 | App lifecycle (background/foreground) on iPad Simulator | **Proven (Simulator-only)** | Full background → foreground cycles verified 2026-08-12 on iPad Pro 13-inch (M5) Simulator with the aurora iOS lifecycle fix: Home → app backgrounds (home screen, process alive) → relaunch foregrounds → Frigate Orpheon gameplay resumes cleanly with HUD/state intact (ENERGY 99), CPU returns to gameplay levels, RSS stable (~581 MB, no leak across 2 cycles). See detail below |
@@ -116,9 +116,10 @@ below are retained as evidence; newer entries supersede older limitations.
 
 ### Blocked
 
-- **Physical-device Gate 2/3:** requires a code-signing identity and physical
-    iPhone/iPad (user-side prerequisite; no signing identity installed, no
-    device connected as of 2026-08-11). Not an engine blocker.
+- **Physical-device Gate 3:** the attached iPad launched. Full A/B card images
+    are proven. Remaining acceptance in [TECH-DEBT.md](TECH-DEBT.md) is audible
+    audio, corrected native-menu interaction, original Prime controls,
+    save/reload, and named textures.
 
 ### Fixed this session
 
@@ -241,15 +242,16 @@ below are retained as evidence; newer entries supersede older limitations.
 - Audio: OK — 6 voices (3 submixes) steady pump.
 - iPad Simulator (opportunistic): **skipped (sim not booted)**.
 
-## Physical Gate 2/3 attempt 2026-08-12 (blocked at prerequisites)
+## Physical Gate 2/3 attempt 2026-08-12 (prerequisites later satisfied)
 
-- Re-verified the exact prerequisites: `security find-identity -p codesigning
-  -v` → `0 valid identities found`; `~/Library/MobileDevice/Provisioning
-  Profiles/` does not exist; `xcrun devicectl list devices` → `No devices
-  found`; `xctrace list devices` → Mac + Simulators only.
-- Per the objective, no signing/install was attempted, no speculative
-  engine/UI change was made, and no Simulator work was performed. Gates 2 and
-  3 remain unexecuted, not failed.
+- Earlier the same day, a scoped pass found zero identities and no device and
+  correctly stopped. That snapshot is historical only.
+- A later session development-signed
+  `ref/metaforce/build/ios-default/Binaries/Metaforce.app`, installed it in
+  place, and launched `com.axiodl.Metaforce` on the attached iPad.
+- Gate 2 launch happened. Gate 3 failed on the user's hands-on: no default
+  cards, messed-up audio, unfinished `•••` without 1×–4×, inert C-stick, and
+  texture issues. See [TECH-DEBT.md](TECH-DEBT.md).
 
 ## Final state reconciliation 2026-08-12
 
@@ -267,7 +269,6 @@ below are retained as evidence; newer entries supersede older limitations.
   `308f9e26861327b42e28359406237902f8b9ab60e30ba3c8751419055111617d`.
   Two packages were identical and the package audit passed. It is not signed,
   installable as-is, or approved for public redistribution.
-- Next work is physical only unless hardware reveals a specific regression:
-  development signing/install, Gate 2 Metal/render, then Gate 3 touch/audio/
-  Files/lifecycle/gameplay acceptance. Zero identities and zero devices were
-  present at the audit.
+- Next work is physical acceptance of the current build: audible audio,
+  `•••` submenu/dismissal and 1×/2× changes, original Prime controls, and a
+  save/relaunch/load cycle; then named textures and deploy automation.

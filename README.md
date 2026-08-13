@@ -22,7 +22,18 @@ Silicon macOS, iOS, and iPadOS, built on [Metaforce](https://github.com/AxioDL/m
   repositories (metaforce, sunpad, PrimeDecomp/prime, aurora). Nothing in `ref/`
   is ever committed.
 
-Start with [docs/CURRENT_STATE.md](docs/CURRENT_STATE.md) for the exact audited
-handoff, then use [docs/STATUS.md](docs/STATUS.md) for the evidence ledger and
-[docs/IMPLEMENTATION_PLAN.md](docs/IMPLEMENTATION_PLAN.md) for the remaining
+Start with [docs/TECH-DEBT.md](docs/TECH-DEBT.md) for the current physical-iPad
+defect queue. [docs/CURRENT_STATE.md](docs/CURRENT_STATE.md) is the audited
+handoff, [docs/STATUS.md](docs/STATUS.md) is the evidence ledger, and
+[docs/IMPLEMENTATION_PLAN.md](docs/IMPLEMENTATION_PLAN.md) is the remaining
 gate plan.
+
+The attached iPad now runs a development build named **EctoPad**. Both default
+memory-card images are complete on device; the SunPad-native `•••` menu and
+single-pass Prime file menu are physically accepted. Audio transition listening,
+save/reload, the first-door visual fix, and named distance/texture defects remain
+open. Physical install signs
+`ref/metaforce/build/ios-default/Binaries/Metaforce.app` and uses
+`devicectl` in place. The unsigned IPA is validation-only. See
+[docs/BUILDING.md](docs/BUILDING.md) and
+[docs/INSTALL_IPA.md](docs/INSTALL_IPA.md).

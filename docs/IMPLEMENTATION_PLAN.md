@@ -155,9 +155,9 @@ proof boundaries.
 
 - `Runtime/platforms/ios` shell; leetal `ios.toolchain.cmake`; `PLATFORM=OS64`,
   deployment target 14.0; produce `Metaforce.app` (upstream CI precedent).
-- **Build proven 2026-08-12:** the device preset links a Mach-O arm64 app. The
-  cross-compile avoids host pkg-config libraries and vendors static zstd. Actual
-  signing/install/launch remains a physical-device prerequisite.
+- **Build and launch proven 2026-08-12:** the device preset links a Mach-O
+  arm64 app and a later session development-signed, installed, and launched it
+  on the attached iPad. Gate 3 failed; see [TECH-DEBT.md](TECH-DEBT.md).
 
 ## 18. Files import flow
 
@@ -195,9 +195,11 @@ proof boundaries.
   SunPad sources. The final current-build harness passes menu/settings/editor/
   mixer/folder/picker phases and the live bridge reports `•••` visible and
   attached. Controller mapping and diagnostic confirmation/share are wired and
-  Simulator-proven. Remaining: physical finger/multitouch/editor ergonomics,
-  physical Files selection, physical iPhone/iPad layout acceptance, and touch/
-  controller handoff. Experimental 60 FPS is intentionally not claimed.
+  Simulator-proven. Remaining after the physical launch: default Slot A/B
+  cards, audible audio, a complete physical `•••` including 1×–4×, C-stick
+  look, named texture captures, and a documented bootstrap/deploy path.
+  Experimental 60 FPS is intentionally not claimed. See
+  [TECH-DEBT.md](TECH-DEBT.md).
 
 ## 22. iPhone layout
 
@@ -303,14 +305,14 @@ proof boundaries.
 
 ## Immediate next steps
 
-1. Install/configure a valid Apple Development identity and provisioning
-   profile; connect a physical iPad and preferably iPhone.
-2. Sign the exact final arm64 device app, install it, and perform a post-sign
-   privacy/platform audit without modifying it.
-3. Execute Gate 2: physical Dawn→Metal launch, visible rendering, persistent
-   SunPad controls/`•••`, and diagnostic capture.
-4. Execute focused Gate 3 physical acceptance: production Files import, real
-   touch/multitouch/editor, Frigate controls, save/reload, lifecycle, and
-   audible audio across routes/interruptions and sustained play.
-5. Only then collect controlled performance/memory/thermal data and later-area
-   evidence with competing applications closed.
+1. Follow [TECH-DEBT.md](TECH-DEBT.md). Hardware launch already happened.
+2. P0: create/mount durable Slot A and Slot B in the iOS sandbox on first
+   launch, then accept with New Game → save → quit → relaunch → load.
+3. P0: listen on the same iPad before changing audio buffers. Do not copy
+   SunPad's 12× guest-timebase patch.
+4. P1: verify the restored SunPad-native `•••` nested submenus, outside-tap
+   dismissal, and a visible 1×/2× change.
+5. P1: verify original Prime movement, hold-R aim, L lock-on/strafe, and
+   C-stick beam selection; do not add a mobile camera remap.
+6. Only then capture named textures and add the missing bootstrap/deploy
+   front door. Quiet perf, later areas, and public packaging remain later.

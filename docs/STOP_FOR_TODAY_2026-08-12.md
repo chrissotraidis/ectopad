@@ -2,10 +2,11 @@
 
 Last updated: 2026-08-12
 
-This is the historical end-of-session snapshot from 2026-08-12.
-[CURRENT_STATE.md](CURRENT_STATE.md) is now authoritative. The objective is broader than
-today's stopping point, so this document deliberately separates what works now
-from what still requires a physical device or longer acceptance testing.
+This is a historical end-of-session snapshot from earlier on 2026-08-12.
+[CURRENT_STATE.md](CURRENT_STATE.md) and [TECH-DEBT.md](TECH-DEBT.md) are now
+authoritative. Later the same day a development-signed build launched on the
+attached iPad and Gate 3 failed; do not treat the "no identity / no device"
+sentences below as current.
 
 ## Bottom line
 

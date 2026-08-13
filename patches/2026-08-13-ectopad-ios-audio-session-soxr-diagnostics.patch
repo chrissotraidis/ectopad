@@ -1,0 +1,35 @@
+EctoPad iOS audio follow-up, 2026-08-13
+
+- activate an AVAudioSession in playback mode before opening SDL audio;
+- request Prime's 32 kHz source rate and a 10 ms hardware I/O buffer while
+  continuing to accept the actual device rate reported by iOS;
+- initially restored the vendored SoXR variable-rate voice resampler, then
+  removed it from the live pull path after physical logs proved it converted
+  temporary Amuse starvation into permanent end-of-input;
+- clamp the final float stream at [-1, 1];
+- persist bounded audio diagnostics: actual route/rate/buffer/channels,
+  output-ready queue depth, underruns, peak, and clipped-sample count;
+- log frontend, Amuse, and streamed-DSP sources independently, comparing
+  discontinuities within each stereo channel instead of across L/R samples;
+- restore the previously audible direct Amuse pull path. The rejected SoXR
+  build had 193 voices marked running while `amuse=0.000`; streamed DSP was
+  nonzero until it ended, after which total output became zero;
+- decode frontend RSF one nibble/sample at a time. The iPad conversion asks
+  for alternating 682/683-frame chunks; the former pair-only loop dropped
+  every odd tail while advancing the cursor, causing gaps and state drift.
+
+This complements the restored DSP stream mixer. It deliberately does not copy
+SunPad's Dolphin/recompiler-specific 12x guest-timebase workaround.
+
+An early diagnostic compared interleaved L/R neighbors and therefore
+overstated its discontinuity counts; it was corrected before the final deploy.
+The odd-frame decoder defect is established directly by the pair-only source
+loop and the observed alternating 682/683-frame requests. Accurate voice
+pitch/rate conversion is now explicit debt until starvation and EOF can be
+signaled separately. Audible acceptance remains required.
+
+The final listening pass still found a brief aberration at the frontend-to-
+asteroid/planet transition. A bounded 320-frame transition ramp was tested and
+physically rejected because it did not remove the aberration; it was removed
+before the final build. The smooth limiter remains after the complete frontend
++ Amuse + DSP-stream sum. Source/mixer behavior at the transition remains open.

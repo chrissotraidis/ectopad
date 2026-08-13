@@ -8,6 +8,17 @@ Last updated: 2026-08-12
 - CMake ≥ 3.25 (3.27.1 installed), Ninja (1.13.2)
 - Python 3 + `markupsafe` (2.1.5 installed)
 - SDL3 (Homebrew `sdl3` 3.4.12 installed; aurora uses it via `system` provider)
+- Rust 1.97.1 plus the Apple targets used by the proven macOS, Simulator, and
+  iPhoneOS builds
+- ignored `ref/` checkouts at the pins in [DEPENDENCIES.md](DEPENDENCIES.md),
+  with the local `patches/` sequence applied; there is not yet an EctoPad
+  bootstrap script for this
+- for a physical iPad: an Apple Development identity, the attached device, and
+  in-place `devicectl` install of the signed source `.app`
+
+The first `ios-default` configure also pulls Dawn and the vendored audio stack.
+That is expected and is part of why the first device build felt heavier than
+the README suggested. See [TECH-DEBT.md](TECH-DEBT.md) P2.
 
 ## macOS (Apple Silicon)
 
@@ -37,8 +48,18 @@ The local artifact is `build/ios-default/Binaries/Metaforce.app`. A full arm64
 iOS compile and link completed from final menu/audio sources on 2026-08-12.
 Cross-compiling must not import
 host libraries through pkg-config; Aurora skips that fallback and vendors a
-static zstd for iOS. Signing/install/launch still requires the user's identity
-and physical hardware.
+static zstd for iOS. A later same-day session development-signed this source
+`.app`, installed it in place, and launched it on the attached iPad. That is
+not Gate 3 acceptance; see [TECH-DEBT.md](TECH-DEBT.md).
+
+There is not yet an EctoPad `scripts/deploy-ios-device.sh`. Until one exists,
+the honest device path is: build `ios-default`, sign the source `.app` with
+the local Apple Development identity, `codesign --verify --deep --strict`,
+`xcrun devicectl device install app` in place, then
+`xcrun devicectl device process launch --terminate-existing com.axiodl.Metaforce`.
+Preserve the live container. Back up `Documents` and `Library` separately.
+Do not use `--remove-existing-content`. `ref/sunpad/scripts/` is the local
+reference for bootstrap/provision/deploy shape.
 
 ### Unsigned validation IPA
 
@@ -110,5 +131,6 @@ render-frame-coupled pump with a measured 120 ms converted-output reserve.
 - Rust toolchain 1.97.1 and the required Apple targets produced the final
   Simulator and iPhoneOS builds. Do not change toolchains absent a reproduced
   build defect.
-- Do not repeat Simulator UI work by default. The next meaningful step is a
-  development-signed physical install; see [CURRENT_STATE.md](CURRENT_STATE.md).
+- Do not repeat Simulator UI work by default. Hardware launch already
+  happened. The next meaningful step is the [TECH-DEBT.md](TECH-DEBT.md)
+  queue, not another unsigned IPA.
