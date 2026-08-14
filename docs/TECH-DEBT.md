@@ -123,8 +123,9 @@ happened. Gate 3 failed on the items below.
 | P1 | Game main-menu readability | **Fixed and hardware accepted.** `UseSingleReadableFileMenuPane` is limited to `FRME_NewFileSelect`: pane A is white and pane B's offset duplicate is hidden, while original strings, typewriter animation, geometry, and table colors remain. |
 | P0 | Touch overlay disappears after screenshot/app switch | **Lifecycle recovery deployed; physical return-from-screenshot acceptance open.** Reattach to the current root-controller view, not the stale parent. |
 | P1 | `•••` dismissal focus artifact | **Non-focusable button and complete image states deployed; physical visual acceptance open.** |
-| P1 | First beam door presentation | **Open; diagnostics narrowed it to pose/presentation.** Open logic and collision work; the authored 0.833333-second clip is selected and reports animating, but the closed model remains visible. Do not replace animation with disappearance. |
-| P0 | Black/distant world geometry and actor pose popping | **Open; one isolated lighting correction deployed.** The unbound-texture correction was physically rejected and removed. The final build contains only upstream `2bbb122`, which passes all 165 GX tests; physical visual acceptance is deferred. |
+| P0 | First beam door presentation | **Open; release blocker narrowed to animated-model presentation.** Open logic and collision work; the authored 0.833333-second clip is selected and reports animating, but the closed model remains visible. Do not replace animation with disappearance. See the dedicated debt record below. |
+| P0 | Black/distant world geometry | **Open; one isolated lighting correction deployed.** The unbound-texture correction was physically rejected and removed. The final build contains only upstream `2bbb122`, which passes all 165 GX tests; physical visual acceptance is deferred. |
+| P1 | Injured Space Pirate pose transition | **Open; authored behavior must be separated from presentation failure.** The early Frigate encounter intentionally supports seated/injured pirates that get up when activated. Lying down at distance is not by itself a defect; snapping upright, firing while visibly prone, duplication, or a missing get-up animation is. See the dedicated debt record below. |
 | P0 | Later-game Morph Ball stability | **Unplayable in the current physical build.** Slot 2 loads, but entering Morph Ball and approaching a tunnel ended the session. The process stayed resident without an iOS crash/jetsam/hang artifact while runtime logging stopped. Bisect the renderer compatibility set and reproduce outside the user's live container before another device build. |
 | P1 | Later-game test coverage | **Mid-game USA Rev 2 state installed in Prime file slot 2, but not accepted as stable.** Existing file slot 1 is byte-preserved and the card persists across normal in-place installs. |
 | P1 | Native physical controller | **Implemented; hardware acceptance open.** SDL gamepad hot-plug, platform mappings, sticks, analog triggers, D-pad, rumble, and the native mapping panel feed the existing GameCube input path. Test one real controller on this iPad before calling it supported. |
@@ -354,6 +355,69 @@ dead while still firing and return upright when approached. That may be stale
 skeletal pose, actor visibility, or renderer distance state; it is not safely
 explained by the door fix. No global actor-animation/LOD change is justified
 without a reproducible frame capture.
+
+### P0 debt record: first tutorial door has state but no visible animation
+
+This is a release-blocking presentation defect because it is the first beam
+door the player encounters. It is surprising that such an early interaction
+remains broken, but its location does not make the failure a missing gameplay
+script: the physical trace proves that the shot, Open message, authored clip,
+animation state, and collision transition all execute. The failure is later in
+the native animated-model path. EctoPad currently tracks official MetaForce at
+the relevant door implementation, so there is no known unmerged upstream door
+patch to pick. That also does not prove that every MetaForce platform, renderer,
+asset revision, and opening-game path has received equivalent visual testing.
+
+The leading implementation seams, in investigation order, are:
+
+1. `SSkinningWorkspace::IsEmpty()` treats the workspace as unusable when either
+   animated vertices or animated normals are empty. `CSkinnedModel::Draw()` then
+   silently draws the original static model. A zero or incorrectly parsed door
+   normal count could therefore leave the logically animated door visibly
+   closed.
+2. `CAnimData::SetAnimation()` changes the animation tree without immediately
+   rebuilding the pose. Advancement invalidates the pose and rendering rebuilds
+   it later, leaving a possible cache/pre-render ordering failure.
+3. If CPU-side pose and skinned-vertex hashes change correctly, the remaining
+   seam is the Aurora vertex upload/draw path rather than the door or animation
+   state machine.
+
+The next diagnostic build should record the door's closed, midpoint, and open
+animation time, pose-cache flags, representative bone transform, skin-rule
+vertex/normal counts, workspace counts, vertex hash, and bounds. Two bounded
+experiments should then force a current pose build and force the skinned
+workspace draw path. The production correction belongs at the first shared seam
+that fails. Do not hide the model, teleport its panels, or substitute another
+door's animation.
+
+Acceptance requires the authored opening and closing animation to play on a
+physical iPad, collision to agree with the displayed panels, and the next two
+doors to remain correct through open, close, app-background, and resume cycles.
+
+### P1 debt record: injured Space Pirate proximity pose
+
+The two early large enemies must not be grouped automatically with the black
+world-geometry defect. The Prime encounter intentionally contains injured
+pirates, and `CSpacePirate` reads a seated flag, tracks whether the actor has sat
+up, and owns an explicit GetUp state. A pirate appearing prone at distance and
+getting up as Samus approaches can therefore be authored behavior rather than a
+draw-distance error.
+
+The actionable defect boundary is narrower: investigate if a pirate fires while
+its visible body remains prone, snaps upright without the authored transition,
+duplicates, changes pose only after crossing a visibility boundary, or has a
+logical GetUp animation whose skinned vertices do not change. Record the exact
+room and actor IDs, player distance, seated/sat-up flags, AI state, animation ID,
+pose flags, bounds, and vertex hash, then compare the encounter with the original
+game at the same location.
+
+If the state machine requests GetUp but the visible pose is stale, test the same
+animation/skinning correction as the first door. If activation itself occurs at
+the wrong range or state, correct the Space Pirate state transition instead.
+Do not apply a global actor LOD, culling, or animation override without this
+distinction. Acceptance requires the intended injured pose, visible get-up
+transition, firing state, and collision to remain synchronized at both original
+and higher render scales.
 
 The 12:04 physical screenshot and later QuickTime capture upgrade the renderer issue from vague darkness
 to direct evidence of large black and wrongly translucent world polygons. A

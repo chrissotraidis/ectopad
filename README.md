@@ -1,7 +1,11 @@
 # EctoPad
 
 <p align="center">
-  <img src="assets/app-icon/EctoPad-AppIcon-1024.png" width="176" alt="EctoPad — luminous green ectoplasm app icon">
+  <img src="assets/screenshots/ectopad-parasite-queen.jpg" width="100%" alt="EctoPad running the Parasite Queen encounter on iPad with touch controls">
+</p>
+
+<p align="center">
+  <em>The Parasite Queen encounter running on a physical iPad.</em>
 </p>
 
 <p align="center">
@@ -29,6 +33,51 @@ This is **not** a Dolphin or RetroArch frontend, an official Nintendo product,
 or a general GameCube emulator. It requires a user-supplied, legally obtained
 **Metroid Prime (USA, Rev 2)** disc image. No game, disc image, extracted asset,
 save, key, or signing material is included in this repository.
+
+## Powered by Metaforce
+
+[Metaforce](https://github.com/AxioDL/metaforce) is the native
+reimplementation at the heart of EctoPad. It recreates the Metroid Prime engine
+and its game systems instead of emulating an entire GameCube, preserving the
+original exploration, combat, cinematics, interface, animation, audio, and save
+behavior while making those systems available to modern platforms.
+
+| Metaforce foundation | What it provides in EctoPad |
+|---|---|
+| Complete Prime runtime | Rooms, actors, combat, scanning, inventory, logbook, cinematics, and progression |
+| Native rendering architecture | GameCube GX behavior translated through Aurora and Dawn/WebGPU to Metal |
+| Original game systems | Animation, AI, audio, input, and GameCube memory-card behavior |
+| Focused game support | A purpose-built Metroid Prime runtime rather than a general GameCube emulator |
+
+EctoPad builds on that foundation with a native Apple application shell,
+landscape touch controls, physical-controller input, render and aspect-ratio
+settings, Files-based private import, lifecycle recovery, diagnostics, and
+save-preserving device updates.
+
+## EctoPad in action
+
+<table>
+  <tr>
+    <td width="50%" valign="top">
+      <img src="assets/screenshots/ectopad-samus-intro.jpg" alt="Samus during an opening cinematic in EctoPad">
+      <br><sub><strong>Original presentation.</strong> Metaforce carries Prime's cinematics, animation, and game flow into the native runtime.</sub>
+    </td>
+    <td width="50%" valign="top">
+      <img src="assets/screenshots/ectopad-inventory.jpg" alt="Metroid Prime inventory screen running in EctoPad">
+      <br><sub><strong>Complete game systems.</strong> Inventory, beams, suits, Morph Ball upgrades, options, and the logbook remain part of the original interface.</sub>
+    </td>
+  </tr>
+  <tr>
+    <td width="50%" valign="top">
+      <img src="assets/screenshots/ectopad-chozo-ruins.jpg" alt="Exploring Chozo Ruins in EctoPad with touch controls">
+      <br><sub><strong>Exploration on iPad.</strong> Adjustable touch controls sit over the visor while native render scaling presents larger environments cleanly.</sub>
+    </td>
+    <td width="50%" valign="top">
+      <img src="assets/screenshots/ectopad-samus-closeup.jpg" alt="Samus close-up rendered by EctoPad on iPad">
+      <br><sub><strong>Built for Apple hardware.</strong> EctoPad connects Metaforce's runtime to Metal-backed rendering and an iPhone/iPad application layer.</sub>
+    </td>
+  </tr>
+</table>
 
 ## Project status
 
