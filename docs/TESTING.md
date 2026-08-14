@@ -1,6 +1,33 @@
 # Testing
 
-Last updated: 2026-08-13
+Last updated: 2026-08-14
+
+### 2026-08-14 — audio voice-iteration fix and dual-device update
+
+- Two independent iPad crash reports, built from different app UUIDs, have the
+  same main-thread fault: `SDLBackendVoiceAllocator::pumpAndMix + 656`,
+  `EXC_BAD_ACCESS` at `0x18`, `x0 = 0`, and identical faulting instruction
+  bytes. Disassembly maps the fault to reading the current voice after the
+  `m_voices` iterator was invalidated by synchronous child-voice allocation.
+- The targeted fix snapshots the voice-pointer registry once per 5 ms audio
+  chunk. Recursive allocations join the next chunk; voice ownership and the
+  existing end-of-cycle destruction path are unchanged.
+- `cmake --preset ios-default` plus target `metaforce` completed successfully.
+  The arm64 binary UUID is `CE8136C1-42AD-3A76-9479-E0C20B992225`; strict deep
+  signature verification passed with the local Apple Development identity.
+- The exact same signed EctoPad 0.1.3 (1) app was installed in place—without
+  uninstall or container replacement—on the attached iPad Pro and iPhone 14.
+  Both launched successfully as PIDs 2542 and 11711 respectively.
+- The iPad pre-install backup contains the 1,459,978,240-byte ISO, both
+  16,777,216-byte memory cards, and the preferences plist. SHA-256 values are
+  `952972a0ddb122536d2f48c20d9e119278b13f848626afc72f034ce5a1022901`,
+  `6856f47f86fed65605d35d5751147309991fd95dc1350b5092b1f0e81be72eb7`,
+  `b12bde0a9d4dcbbca19363706c0de1eb8d6bd8a4f11387270c1468da39544418`,
+  and `8d9d79b7abae1d810b171142bd1b5f3a12cfe76206d2ce656fff82170947a64f`.
+- The iPhone's read-only CoreDevice container transfer timed out, so its
+  preservation evidence is the non-destructive in-place install and successful
+  launch, not a pre/post hash claim. Replaying the gameplay voice-spawn trigger
+  on hardware remains the crash-fix acceptance gate.
 
 ### 2026-08-13 — controller session and HDMI crash diagnosis
 

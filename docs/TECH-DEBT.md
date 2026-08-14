@@ -1,15 +1,36 @@
 # EctoPad technical debt
 
-Updated 2026-08-13 after continued physical-iPad correction passes. Build, signing,
+Updated 2026-08-14 after the targeted audio voice-registry crash fix. Build, signing,
 install, PID, and container readback are evidence, not hands-on acceptance.
 Default A/B card formatting is proven at the container level. The native menu,
 render scale, aspect ratio, FPS toggle, left-stick movement, and corrected
 single-pass file menu are now accepted on hardware. Audio is source-instrumented and two concrete lifecycle/decoder
 bugs are repaired, but gameplay listening remains open. Prime's original
 controls are restored and L/R now offer an optional half-second touch latch.
-Named texture defects remain open.
+Named texture defects remain open. The exact audio crash is fixed in source and
+deployed, but the physical gameplay trigger still needs replay.
 
-## Latest deploy evidence (2026-08-13, 20:21)
+## Latest deploy evidence (2026-08-14, 11:13)
+
+- `pumpAndMix()` now snapshots `m_voices` for each 5 ms chunk so recursive
+  child-voice allocation cannot invalidate the active iterator. This is the
+  narrow fix for two matching `+656` / `0x18` crash reports.
+- The iPhoneOS build completed as arm64 UUID
+  `CE8136C1-42AD-3A76-9479-E0C20B992225`; strict deep signature verification
+  passed.
+- The same signed EctoPad 0.1.3 (1) app was installed in place on the attached
+  iPad Pro and iPhone 14. No uninstall, `--remove-existing-content`, or app-data
+  container replacement was used. Both copies launched (PIDs 2542 and 11711).
+- The iPad has a complete pre-install `Documents`/`Library` backup. It includes
+  the 1,459,978,240-byte ISO, both 16,777,216-byte save cards, and the custom
+  preferences plist; hashes are recorded in `TESTING.md`.
+- The iPhone CoreDevice file-transfer service timed out, so do not claim
+  pre/post byte proof for that container. Its evidence is the standard
+  data-preserving in-place install plus successful launch.
+- Physical gameplay replay of the voice-spawn path remains required before
+  KI-026 is hardware-accepted.
+
+## Prior deploy evidence (2026-08-13, 20:21)
 
 The final rebuild for the day was signed and installed in place on the attached
 iPad Pro (iPad14,5). This is deploy proof only.
@@ -126,7 +147,7 @@ happened. Gate 3 failed on the items below.
 | P0 | First beam door presentation | **Open; release blocker narrowed to animated-model presentation.** Open logic and collision work; the authored 0.833333-second clip is selected and reports animating, but the closed model remains visible. Do not replace animation with disappearance. See the dedicated debt record below. |
 | P0 | Black/distant world geometry | **Open; one isolated lighting correction deployed.** The unbound-texture correction was physically rejected and removed. The final build contains only upstream `2bbb122`, which passes all 165 GX tests; physical visual acceptance is deferred. |
 | P1 | Injured Space Pirate pose transition | **Open; authored behavior must be separated from presentation failure.** The early Frigate encounter intentionally supports seated/injured pirates that get up when activated. Lying down at distance is not by itself a defect; snapping upright, firing while visibly prone, duplication, or a missing get-up animation is. See the dedicated debt record below. |
-| P0 | Later-game Morph Ball stability | **Unplayable in the current physical build.** Slot 2 loads, but entering Morph Ball and approaching a tunnel ended the session. The process stayed resident without an iOS crash/jetsam/hang artifact while runtime logging stopped. Bisect the renderer compatibility set and reproduce outside the user's live container before another device build. |
+| P0 | Later-game Morph Ball stability | **Prior session now explained by KI-026.** The retired report shows the same audio-mixer iterator crash; the card and Morph Ball state are not implicated by that stack. The snapshot fix is deployed, and physical checkpoint replay remains open. |
 | P1 | Later-game test coverage | **Mid-game USA Rev 2 state installed in Prime file slot 2, but not accepted as stable.** Existing file slot 1 is byte-preserved and the card persists across normal in-place installs. |
 | P1 | Native physical controller | **Implemented; hardware acceptance open.** SDL gamepad hot-plug, platform mappings, sticks, analog triggers, D-pad, rumble, and the native mapping panel feed the existing GameCube input path. Test one real controller on this iPad before calling it supported. |
 | P0 | HDMI / external display | **Root cause fixed in source and deployed; physical replay open.** SDL re-entered Metaforce main for HDMI's additional UIKit scene. The iOS guard retains the existing engine instead. Reconnect HDMI and verify visible, controllable gameplay before calling it supported. |

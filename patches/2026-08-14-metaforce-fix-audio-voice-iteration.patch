@@ -1,0 +1,13 @@
+diff --git a/Runtime/Audio/SDLBackend.cpp b/Runtime/Audio/SDLBackend.cpp
+--- a/Runtime/Audio/SDLBackend.cpp
++++ b/Runtime/Audio/SDLBackend.cpp
+@@ -107,4 +107,8 @@ void SDLBackendVoiceAllocator::pumpAndMix(size_t frames, float* dataOut) {
+-    for (SDLBackendVoice* vox : m_voices) {
++    // SoundMacro processing may allocate child voices while a voice is being
++    // pumped. Snapshot the registry so those allocations cannot invalidate
++    // this pass; new voices join on the next 5 ms chunk.
++    const std::vector<SDLBackendVoice*> voices = m_voices;
++    for (SDLBackendVoice* vox : voices) {
+       if (vox->m_running) {
+         vox->pumpAndMix(thisFrames);
+       }
