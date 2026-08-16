@@ -650,8 +650,21 @@ To be appended with dated entries for later phases.
 - The complete Aurora CTest set passed 180/180. The full macOS
   `macos-default-relwithdebinfo` build linked the app, and the iPhoneOS
   `ios-default` `metaforce` target linked successfully.
-- No device install was performed, so this run did not touch private game data,
-  saves, controller preferences, or signing state. Physical Bluetooth, wired,
-  and natural-sleep disconnect/reconnect remain acceptance gates, including
-  held-input release, foreground recovery, two-controller behavior, rumble,
-  and touch/controller handoff on real accessories.
+- Merge commit `88adf04` was pushed to `main`. The iPhoneOS app was rebuilt,
+  development-signed under the existing `com.axiodl.Metaforce` identity,
+  strictly verified, and installed in place on the iPad without uninstalling
+  the prior app or requesting container-content removal. It launched as PID
+  4588. A device screenshot at 20:44 shows the Metroid Prime title screen and
+  touch overlay, proving that the installed build can still open the existing
+  ISO and reach the game frontend. Evidence:
+  `/tmp/ectopad-controller-deploy.gVhYpu/post/EctoPad-after.png` (SHA-256
+  `e2eae1cd0430f75441d95e61cfbc289270f9581cefdf1b14537c3d143c2cecd5`).
+- Current pre/post byte readback of preferences and memory-card files was not
+  available: both CoreDevice CLI copies and Xcode's app-container download
+  stalled. A prior complete container backup remains available as recovery
+  material, but it is not proof that today's save bytes are unchanged. No
+  uninstall, container replacement, preference reset, or ISO copy was used.
+  Physical Bluetooth, wired, and natural-sleep disconnect/reconnect remain
+  acceptance gates, including held-input release, foreground recovery,
+  two-controller behavior, rumble, and touch/controller handoff on real
+  accessories.
