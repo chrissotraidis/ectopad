@@ -1,0 +1,340 @@
+diff --git a/lib/controller_slots.hpp b/lib/controller_slots.hpp
+new file mode 100644
+index 0000000..5b7ef84
+--- /dev/null
++++ b/lib/controller_slots.hpp
+@@ -0,0 +1,88 @@
++#pragma once
++
++#include <algorithm>
++#include <cstddef>
++#include <cstdint>
++#include <vector>
++
++namespace aurora::input {
++
++struct ControllerSlotSnapshot {
++  uint32_t instance = 0;
++  int32_t playerSlot = -1;
++  bool connected = false;
++  bool enumerated = false;
++  bool preserveSlot = false;
++};
++
++struct ControllerSlotDecision {
++  uint32_t instance = 0;
++  int32_t playerSlot = -1;
++  bool remove = false;
++};
++
++inline std::vector<ControllerSlotDecision> plan_controller_slots(const std::vector<ControllerSlotSnapshot>& snapshots,
++                                                                 const size_t slotCount) {
++  std::vector<ControllerSlotDecision> decisions;
++  decisions.reserve(snapshots.size());
++  for (const auto& snapshot : snapshots) {
++    decisions.push_back({
++        .instance = snapshot.instance,
++        .playerSlot = -1,
++        .remove = !snapshot.connected || !snapshot.enumerated,
++    });
++  }
++
++  std::vector<size_t> live;
++  live.reserve(snapshots.size());
++  for (size_t i = 0; i < snapshots.size(); ++i) {
++    if (!decisions[i].remove) {
++      live.push_back(i);
++    }
++  }
++  std::ranges::sort(live, [&snapshots](const size_t lhs, const size_t rhs) {
++    return snapshots[lhs].instance < snapshots[rhs].instance;
++  });
++
++  if (live.size() == 1) {
++    const auto& sole = snapshots[live.front()];
++    const bool canPreserve =
++        sole.preserveSlot && sole.playerSlot >= 0 && static_cast<size_t>(sole.playerSlot) < slotCount;
++    decisions[live.front()].playerSlot = canPreserve ? sole.playerSlot : (slotCount == 0 ? -1 : 0);
++    return decisions;
++  }
++
++  std::vector<bool> used(slotCount, false);
++  const auto retain_slots = [&](const bool preservedOnly) {
++    for (const size_t i : live) {
++      const auto& snapshot = snapshots[i];
++      if (decisions[i].playerSlot >= 0 || snapshot.preserveSlot != preservedOnly || snapshot.playerSlot < 0 ||
++          static_cast<size_t>(snapshot.playerSlot) >= slotCount || used[snapshot.playerSlot]) {
++        continue;
++      }
++      decisions[i].playerSlot = snapshot.playerSlot;
++      used[snapshot.playerSlot] = true;
++    }
++  };
++
++  // A controller that was already valid before reconciliation wins any slot
++  // conflict with a newly opened controller.
++  retain_slots(true);
++  retain_slots(false);
++
++  for (const size_t i : live) {
++    if (decisions[i].playerSlot >= 0) {
++      continue;
++    }
++    const auto freeSlot = std::ranges::find(used, false);
++    if (freeSlot == used.end()) {
++      continue;
++    }
++    decisions[i].playerSlot = static_cast<int32_t>(std::distance(used.begin(), freeSlot));
++    *freeSlot = true;
++  }
++
++  return decisions;
++}
++
++} // namespace aurora::input
+diff --git a/lib/input.hpp b/lib/input.hpp
+index 572ddee..1247955 100644
+--- a/lib/input.hpp
++++ b/lib/input.hpp
+@@ -50,0 +51 @@ void remove_controller(Uint32 instance) noexcept;
++void reconcile_controllers(const char* reason) noexcept;
+diff --git a/lib/input.cpp b/lib/input.cpp
+index 20ac5f7..b954d71 100644
+--- a/lib/input.cpp
++++ b/lib/input.cpp
+@@ -1,0 +2 @@
++#include "controller_slots.hpp"
+@@ -335,0 +337,6 @@ GameController* get_controller_for_player(uint32_t player) noexcept {
++  const bool hasStaleHandle = std::ranges::any_of(
++      g_GameControllers, [](const auto& entry) { return !SDL_GamepadConnected(entry.second.m_controller); });
++  if (hasStaleHandle) {
++    reconcile_controllers("stale-handle-read");
++  }
++
+@@ -373 +380,2 @@ Sint32 get_instance_for_player(uint32_t player) noexcept {
+-SDL_JoystickID add_controller(SDL_JoystickID which) noexcept {
++namespace {
++SDL_JoystickID open_controller(SDL_JoystickID which) noexcept {
+@@ -395,3 +403,8 @@ SDL_JoystickID add_controller(SDL_JoystickID which) noexcept {
+-    Log.info("Added controller '{}' (instance {}, vid {:04x}, pid {:04x}, type {})",
+-             SDL_GetGamepadName(ctrl) != nullptr ? SDL_GetGamepadName(ctrl) : "unknown", instance, controller.m_vid,
+-             controller.m_pid, static_cast<int>(SDL_GetGamepadType(ctrl)));
++    if (g_GameControllers.contains(instance)) {
++      SDL_CloseGamepad(ctrl);
++      return instance;
++    }
++    Log.info("Opened controller '{}' (instance {}, player {}, vid {:04x}, pid {:04x}, type {})",
++             SDL_GetGamepadName(ctrl) != nullptr ? SDL_GetGamepadName(ctrl) : "unknown", instance,
++             SDL_GetGamepadPlayerIndex(ctrl), controller.m_vid, controller.m_pid,
++             static_cast<int>(SDL_GetGamepadType(ctrl)));
+@@ -399 +411,0 @@ SDL_JoystickID add_controller(SDL_JoystickID which) noexcept {
+-    apply_port_preferences();
+@@ -412,0 +425,23 @@ SDL_JoystickID add_controller(SDL_JoystickID which) noexcept {
++void close_controller(const Uint32 instance, const char* reason) noexcept {
++  const auto it = g_GameControllers.find(instance);
++  if (it == g_GameControllers.end()) {
++    return;
++  }
++  const int32_t player = SDL_GetGamepadPlayerIndex(it->second.m_controller);
++  Log.info("Closed controller '{}' (instance {}, player {}, reason '{}'; held input released)",
++           SDL_GetGamepadName(it->second.m_controller) != nullptr ? SDL_GetGamepadName(it->second.m_controller)
++                                                                  : "unknown",
++           instance, player, reason);
++  if (it->second.m_hasRumble) {
++    SDL_RumbleGamepad(it->second.m_controller, 0, 0, 0);
++  }
++  SDL_CloseGamepad(it->second.m_controller);
++  g_GameControllers.erase(it);
++}
++} // namespace
++
++SDL_JoystickID add_controller(SDL_JoystickID which) noexcept {
++  reconcile_controllers("gamepad-added");
++  return g_GameControllers.contains(which) ? which : -1;
++}
++
+@@ -414,8 +449,74 @@ void remove_controller(Uint32 instance) noexcept {
+-  if (auto it = g_GameControllers.find(instance); it != g_GameControllers.end()) {
+-    Log.info("Removed controller '{}' (instance {})",
+-             SDL_GetGamepadName(it->second.m_controller) != nullptr ? SDL_GetGamepadName(it->second.m_controller)
+-                                                                    : "unknown",
+-             instance);
+-    SDL_CloseGamepad(it->second.m_controller);
+-    g_GameControllers.erase(it);
+-    apply_port_preferences();
++  close_controller(instance, "gamepad-removed");
++  reconcile_controllers("gamepad-removed");
++}
++
++void reconcile_controllers(const char* reason) noexcept {
++  int currentCount = 0;
++  SDL_JoystickID* currentIds = SDL_GetGamepads(&currentCount);
++  if (currentIds == nullptr) {
++    Log.warn("Controller reconciliation '{}' could not enumerate SDL gamepads: {}", reason, SDL_GetError());
++    return;
++  }
++  std::vector<SDL_JoystickID> enumerated(currentIds, currentIds + currentCount);
++  SDL_free(currentIds);
++
++  absl::flat_hash_map<Uint32, Sint32> preservedSlots;
++  std::vector<Uint32> staleInstances;
++  for (const auto& [instance, controller] : g_GameControllers) {
++    const bool enumeratedNow = std::ranges::find(enumerated, instance) != enumerated.end();
++    if (!enumeratedNow || !SDL_GamepadConnected(controller.m_controller)) {
++      staleInstances.push_back(instance);
++      continue;
++    }
++    preservedSlots[instance] = SDL_GetGamepadPlayerIndex(controller.m_controller);
++  }
++  for (const Uint32 instance : staleInstances) {
++    close_controller(instance, reason);
++  }
++
++  for (const SDL_JoystickID instance : enumerated) {
++    if (!g_GameControllers.contains(instance)) {
++      open_controller(instance);
++    }
++  }
++
++  apply_port_preferences();
++
++  std::vector<ControllerSlotSnapshot> snapshots;
++  snapshots.reserve(g_GameControllers.size());
++  for (const auto& [instance, controller] : g_GameControllers) {
++    const auto preserved = preservedSlots.find(instance);
++    snapshots.push_back({
++        .instance = instance,
++        .playerSlot =
++            preserved != preservedSlots.end() ? preserved->second : SDL_GetGamepadPlayerIndex(controller.m_controller),
++        .connected = SDL_GamepadConnected(controller.m_controller),
++        .enumerated = std::ranges::find(enumerated, instance) != enumerated.end(),
++        .preserveSlot = preserved != preservedSlots.end(),
++    });
++  }
++
++  const auto decisions = plan_controller_slots(snapshots, PAD_MAX_CONTROLLERS);
++  bool changed = !staleInstances.empty();
++  for (const auto& decision : decisions) {
++    if (decision.remove && g_GameControllers.contains(decision.instance)) {
++      close_controller(decision.instance, reason);
++      changed = true;
++    }
++  }
++  for (const auto& decision : decisions) {
++    const auto it = g_GameControllers.find(decision.instance);
++    if (it == g_GameControllers.end() || decision.remove) {
++      continue;
++    }
++    const int32_t oldSlot = SDL_GetGamepadPlayerIndex(it->second.m_controller);
++    if (oldSlot != decision.playerSlot) {
++      SDL_SetGamepadPlayerIndex(it->second.m_controller, decision.playerSlot);
++      Log.info("Controller slot reconciliation '{}' instance {} player {} -> {}", reason, decision.instance, oldSlot,
++               decision.playerSlot);
++      changed = true;
++    }
++  }
++  if (changed || std::string_view(reason) == "foreground-resume") {
++    Log.info("Controller reconciliation '{}' complete: SDL current {}, tracked {}", reason, currentCount,
++             g_GameControllers.size());
+diff --git a/lib/window.cpp b/lib/window.cpp
+--- a/lib/window.cpp
++++ b/lib/window.cpp
+@@ -202 +202,4 @@ void process_event(SDL_Event& event) {
++  case SDL_EVENT_WILL_ENTER_FOREGROUND:
++    input::reconcile_controllers("foreground-resume");
++    break;
+   case SDL_EVENT_MOUSE_WHEEL:
+diff --git a/tests/CMakeLists.txt b/tests/CMakeLists.txt
+index 43b2d61..0a89dfb 100644
+--- a/tests/CMakeLists.txt
++++ b/tests/CMakeLists.txt
+@@ -108,0 +109,5 @@ gtest_discover_tests(os_alloc_tests)
++
++add_executable(controller_slots_tests controller_slots_test.cpp)
++target_include_directories(controller_slots_tests PRIVATE ../lib)
++target_link_libraries(controller_slots_tests PRIVATE gtest gtest_main)
++gtest_discover_tests(controller_slots_tests)
+diff --git a/tests/controller_slots_test.cpp b/tests/controller_slots_test.cpp
+new file mode 100644
+index 0000000..b2f30ab
+--- /dev/null
++++ b/tests/controller_slots_test.cpp
+@@ -0,0 +1,78 @@
++#include "../lib/controller_slots.hpp"
++
++#include <gtest/gtest.h>
++
++#include <algorithm>
++
++namespace aurora::input {
++namespace {
++
++const ControllerSlotDecision& decision_for(const std::vector<ControllerSlotDecision>& decisions,
++                                           const uint32_t instance) {
++  return *std::ranges::find(decisions, instance, &ControllerSlotDecision::instance);
++}
++
++TEST(ControllerSlots, MissedRemovalReleasesStaleSlotAndReturningControllerReclaimsPlayerOne) {
++  const auto decisions = plan_controller_slots(
++      {
++          {.instance = 10, .playerSlot = 0, .connected = false, .enumerated = false, .preserveSlot = true},
++          {.instance = 20, .playerSlot = 1, .connected = true, .enumerated = true, .preserveSlot = false},
++      },
++      4);
++
++  EXPECT_TRUE(decision_for(decisions, 10).remove);
++  EXPECT_EQ(decision_for(decisions, 10).playerSlot, -1);
++  EXPECT_FALSE(decision_for(decisions, 20).remove);
++  EXPECT_EQ(decision_for(decisions, 20).playerSlot, 0);
++}
++
++TEST(ControllerSlots, TwoConnectedControllersKeepTheirExistingSlots) {
++  const auto decisions = plan_controller_slots(
++      {
++          {.instance = 20, .playerSlot = 1, .connected = true, .enumerated = true, .preserveSlot = true},
++          {.instance = 10, .playerSlot = 0, .connected = true, .enumerated = true, .preserveSlot = true},
++      },
++      4);
++
++  EXPECT_EQ(decision_for(decisions, 10).playerSlot, 0);
++  EXPECT_EQ(decision_for(decisions, 20).playerSlot, 1);
++}
++
++TEST(ControllerSlots, RemainingConnectedControllerKeepsItsExistingSlot) {
++  const auto decisions = plan_controller_slots(
++      {
++          {.instance = 20, .playerSlot = 1, .connected = true, .enumerated = true, .preserveSlot = true},
++      },
++      4);
++
++  EXPECT_EQ(decision_for(decisions, 20).playerSlot, 1);
++}
++
++TEST(ControllerSlots, AdditionalControllerUsesNextFreeSlotWithoutDisplacingPlayerOne) {
++  const auto decisions = plan_controller_slots(
++      {
++          {.instance = 10, .playerSlot = 0, .connected = true, .enumerated = true, .preserveSlot = true},
++          {.instance = 20, .playerSlot = 0, .connected = true, .enumerated = true, .preserveSlot = false},
++      },
++      4);
++
++  EXPECT_EQ(decision_for(decisions, 10).playerSlot, 0);
++  EXPECT_EQ(decision_for(decisions, 20).playerSlot, 1);
++}
++
++TEST(ControllerSlots, ForegroundResumeDropsUnenumeratedHandleAndPreservesLivePlayers) {
++  const auto decisions = plan_controller_slots(
++      {
++          {.instance = 30, .playerSlot = 2, .connected = true, .enumerated = false, .preserveSlot = true},
++          {.instance = 10, .playerSlot = 0, .connected = true, .enumerated = true, .preserveSlot = true},
++          {.instance = 20, .playerSlot = 1, .connected = true, .enumerated = true, .preserveSlot = true},
++      },
++      4);
++
++  EXPECT_TRUE(decision_for(decisions, 30).remove);
++  EXPECT_EQ(decision_for(decisions, 10).playerSlot, 0);
++  EXPECT_EQ(decision_for(decisions, 20).playerSlot, 1);
++}
++
++} // namespace
++} // namespace aurora::input

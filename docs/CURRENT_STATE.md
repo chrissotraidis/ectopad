@@ -221,10 +221,16 @@ patch.
 
 - The normal SDL → Aurora → `PADRead` software path is proven with an opt-in
   virtual controller: attach, Start, analog Y, and A reached the game.
+- Aurora now reconciles its SDL3 handle map with `SDL_GamepadConnected()` and
+  `SDL_GetGamepads()` on add/remove, stale reads, and foreground resume. Five
+  deterministic slot tests cover a missed removal, sole-controller reclaim,
+  uninterrupted two-controller preservation, next-free-slot assignment, and
+  resume reconciliation; all 180 Aurora tests pass. `PADRead` still begins by
+  clearing every port status, so removing a stale handle releases held input.
 - SunPad's mapping store/UI is byte-identical. Deterministic tests prove default
   mapping, A/B swap, passthrough, persistence, and the mapped iOS pad boundary.
-- Physical Apple controller discovery, reconnect, mapping, rumble, and
-  touch/controller handoff are not tested.
+- Physical Bluetooth, wired, and natural-sleep reconnect behavior, mapping,
+  rumble, and touch/controller handoff are not accepted by automated evidence.
 - SunPad diagnostics persist/rotate, redact current app/temp paths in new log
   lines, confirm disclosure, snapshot, and present the share sheet. iPhone
   Simulator UI/privacy tests pass. Physical export inspection remains.
