@@ -637,3 +637,21 @@ To be appended with dated entries for later phases.
   `952972a0ddb122536d2f48c20d9e119278b13f848626afc72f034ce5a1022901`,
   `ee2f1a892801168c4226b79988d489bae5087e5fd058054509789f53e51c9bb7`,
   and `b12bde0a9d4dcbbca19363706c0de1eb8d6bd8a4f11387270c1468da39544418`.
+
+### 2026-08-16 — SDL3 controller reconciliation
+
+- Backend ownership was verified before changing code: Aurora/Metaforce uses
+  SDL3 gamepads for runtime input. The native Apple GameController framework is
+  consulted by the iOS mapping UI, but it does not own gameplay slots.
+- The focused `controller_slots_tests` binary passed 5/5 cases: missed removal
+  plus sole-controller reclaim, two-controller preservation, preservation of a
+  remaining valid player, next-free assignment for an additional controller,
+  and foreground reconciliation.
+- The complete Aurora CTest set passed 180/180. The full macOS
+  `macos-default-relwithdebinfo` build linked the app, and the iPhoneOS
+  `ios-default` `metaforce` target linked successfully.
+- No device install was performed, so this run did not touch private game data,
+  saves, controller preferences, or signing state. Physical Bluetooth, wired,
+  and natural-sleep disconnect/reconnect remain acceptance gates, including
+  held-input release, foreground recovery, two-controller behavior, rumble,
+  and touch/controller handoff on real accessories.
