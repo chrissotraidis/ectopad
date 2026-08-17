@@ -17,7 +17,7 @@
 <p align="center">
   <img alt="iOS 14 or newer" src="https://img.shields.io/badge/iOS%20%2F%20iPadOS-14%2B-0A84FF?logo=apple">
   <img alt="Metal renderer" src="https://img.shields.io/badge/renderer-Metal-5E5CE6">
-  <img alt="Physical iPad tested" src="https://img.shields.io/badge/physical%20iPad-tested-30D158">
+  <img alt="Physical iPhone and iPad tested" src="https://img.shields.io/badge/physical%20iPhone%20%2F%20iPad-tested-30D158">
   <img alt="Development status" src="https://img.shields.io/badge/status-development%20preview-FF9F0A">
   <img alt="Game data not included" src="https://img.shields.io/badge/game%20data-not%20included-FF453A">
 </p>
@@ -83,27 +83,35 @@ save-preserving device updates.
 
 | Option | Status | Details |
 |---|---|---|
-| Physical iPad development build | **Playable, still under validation** | The app builds, signs, installs in place, reaches gameplay, accepts touch and a physical controller, and preserves its disc image and both 16 MiB memory cards. |
+| Physical iPhone/iPad development build | **Playable release baseline with known visual defects** | EctoPad 0.1.3 builds, signs, installs in place, reaches gameplay, and preserves existing game data, saves, and settings. The first-door and black-geometry defects below are confirmed on both device classes. |
 | Local iPhone/iPad build | **Developer workflow available** | The current checkout needs pinned upstream repositories plus the maintained patch sequence. A clean one-command public bootstrap is still planned. |
 | iOS Simulator | **Engineering path available** | Useful for build, UI, import, and regression work; it does not replace physical-device audio, controller, thermal, or accessory testing. |
 | Apple Silicon macOS | **Development build proven** | Native arm64 gameplay, Metal rendering, keyboard/mouse input, audio, and save/reload have been exercised. |
-| Public IPA / TestFlight / App Store | **Not available** | The local unsigned IPA is a validation artifact, not a public release. GPL corresponding-source and LGPL relink materials must be completed before binary distribution. |
+| Unsigned IPA | **Local audited artifact** | The deterministic package is game-data-free and intended for user signing. It is not installable as-is or approved for public redistribution until the corresponding-source and LGPL relink package is complete. |
+| TestFlight / App Store | **Not available** | No Apple-hosted distribution or App Store review has been completed. |
 
-The physical-iPad build is substantially playable, including the opening
-Frigate sections, the native settings menu, render scaling, aspect-ratio
-selection, the FPS counter, touch movement, and basic controller gameplay.
-Longer playthroughs are encouraged, but this is not yet a release candidate.
+The current 0.1.3 source/device build is the selected packaging baseline. It is
+substantially playable, including the opening Frigate sections, native settings
+menu, render scaling, aspect-ratio selection, FPS counter, touch movement, and
+basic controller gameplay. That release decision does not mean the confirmed
+visual defects below are fixed or physically accepted.
 
 ### Known limitations
 
 - The HDMI crash has a source-level fix: SDL was entering Metaforce a second
   time for the accessory's additional UIKit scene. The guard is built, but
   physical HDMI gameplay replay remains an acceptance gate.
-- Some rooms and distant actors can render with black or incorrect geometry.
-  An isolated Aurora GX lighting correction is deployed, but the shader/material
-  issue still needs physical acceptance.
-- The first tutorial door accepts the shot and becomes passable, while its
-  authored opening animation can remain visually closed.
+- **P0 — selective black world geometry:** on both physical iPhone and iPad,
+  individual walls, beams, debris, and large silhouettes can render completely
+  or nearly black while the HUD, arm cannon, lights, screens, and door shields
+  remain visible. The iPhone report also describes distance-dependent
+  focus/sharpness changes. Logs show no Dawn/Metal failure and do not yet record
+  the failing draw, material, texture/sampler, mip/LOD, or pipeline identity.
+- **P0 — first tutorial door:** shooting it plays the sound and removes
+  collision, so Samus can walk through, but the panels remain visibly closed.
+  iPhone and iPad traces show the authored animation and CPU pose completing;
+  ordinary doors using the same assets open normally. This is a special
+  presentation-path defect, not a generic door-state failure.
 - A brief audio aberration can occur during the frontend-to-opening-cinematic
   transition. Extended audio-route and interruption testing remains open.
 - An earlier session ended near a Morph Ball transition and has not reproduced
@@ -118,6 +126,16 @@ The prioritized defect list and dated evidence live in
 [`docs/TECH-DEBT.md`](docs/TECH-DEBT.md),
 [`docs/KNOWN_ISSUES.md`](docs/KNOWN_ISSUES.md), and
 [`docs/TESTING.md`](docs/TESTING.md).
+
+### Reporting a useful visual defect
+
+Open `••• → Share Diagnostic Log` immediately after the problem and share the
+resulting EctoPad diagnostic file. Include the Apple device and OS version,
+approximate time, room, render scale/aspect mode, whether the app recently
+resumed from the background, and a screenshot or short video showing the exact
+surface. For focus/sharpness changes, hold the camera direction fixed and record
+a slow approach to the surface. Never attach the disc image, memory-card files,
+saves, or signing material.
 
 ## What is included
 
@@ -249,9 +267,11 @@ complete.
 <details>
 <summary><strong>Where can I download the IPA?</strong></summary>
 
-There is no public EctoPad IPA, TestFlight, App Store listing, or AltStore PAL
-release. The packaging script currently produces an unsigned local validation
-artifact that is neither installable as-is nor approved for redistribution.
+The repository can produce a deterministic, audited, game-data-free unsigned
+IPA for user signing. It is not installable as-is. There is currently no
+TestFlight, App Store, or AltStore PAL release, and public binary redistribution
+remains gated on the corresponding-source and LGPL relink package documented in
+[`docs/LEGAL_AND_PROVENANCE.md`](docs/LEGAL_AND_PROVENANCE.md).
 </details>
 
 <details>
@@ -292,11 +312,11 @@ testing before controller support is called complete.
 <details>
 <summary><strong>Can I report a rendering, audio, or crash bug?</strong></summary>
 
-Yes. Include the approximate time and room, the action immediately before the
-problem, whether touch or a controller was active, and a screenshot for visual
-defects. After reconnecting the iPad, the persistent `runtime.log` and rotated
-`runtime.previous.log` can be extracted or shared through **Share Diagnostic
-Log**. Never attach the disc image or saves to a public report.
+Yes. Include the approximate time and room, Apple device/OS, render settings,
+the action immediately before the problem, whether touch or a controller was
+active, and a screenshot or short video for visual defects. Use
+`••• → Share Diagnostic Log` on the iPhone or iPad immediately afterward.
+Never attach the disc image, memory cards, saves, or signing material.
 </details>
 
 ## Project map
@@ -310,7 +330,7 @@ Log**. Never attach the disc image or saves to a public report.
 | [`scripts/sync-app-icon.sh`](scripts/sync-app-icon.sh) | Sync the tracked EctoPad icon into the ignored Metaforce build tree |
 | [`docs/BUILDING.md`](docs/BUILDING.md) | Complete build, signing, Simulator, and installation procedure |
 | [`docs/GAME_DATA.md`](docs/GAME_DATA.md) | Supported revision, hashes, and private import design |
-| [`docs/TECH-DEBT.md`](docs/TECH-DEBT.md) | Current physical-iPad defect queue |
+| [`docs/TECH-DEBT.md`](docs/TECH-DEBT.md) | Current physical iPhone/iPad defect queue |
 | [`docs/TESTING.md`](docs/TESTING.md) | Evidence ledger and remaining acceptance checks |
 | [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) | Metaforce, Aurora, Dawn, Metal, input, audio, and storage architecture |
 | [`docs/LEGAL_AND_PROVENANCE.md`](docs/LEGAL_AND_PROVENANCE.md) | Redistribution and provenance boundary |

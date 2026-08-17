@@ -269,6 +269,14 @@ below are retained as evidence; newer entries supersede older limitations.
   `308f9e26861327b42e28359406237902f8b9ab60e30ba3c8751419055111617d`.
   Two packages were identical and the package audit passed. It is not signed,
   installable as-is, or approved for public redistribution.
+- The current 0.1.3 packaging pass supersedes that validation artifact. The
+  ignored local file is `artifacts/EctoPad-0.1.3-unsigned.ipa`, 12,427,372
+  bytes, SHA-256
+  `f90b353617d81ce3e4f6a0ebedf52f7c10a39d4b969d48a78335b35263010086`.
+  Two 2026-08-17 packages were byte-identical and passed the same game-data,
+  save, log, signing-material, architecture, platform, linkage, path, and
+  credential audit. It remains unsigned/local-only under the current release
+  boundary.
 - Next work is physical acceptance of the current build: audible audio,
   `•••` submenu/dismissal and 1×/2× changes, original Prime controls, and a
   save/relaunch/load cycle; then named textures and deploy automation.

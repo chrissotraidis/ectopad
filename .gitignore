@@ -14,3 +14,5 @@ private/
 # Build directories
 build/
 
+# Generated unsigned release artifacts stay local until redistribution gates pass.
+artifacts/*.ipa

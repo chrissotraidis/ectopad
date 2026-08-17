@@ -59,6 +59,11 @@ physical-device claim.
   transfer. This is the selected source/build baseline for the next IPA pass;
   it does not convert the open KI-022/KI-023 physical visual failures into
   accepted fixes.
+- The subsequent iPhone playthrough physically reproduces the first-door and
+  black-world-geometry symptoms at 2x after foreground resume. Its diagnostic
+  trace repeats the iPad door comparator and contains no Dawn/Metal failure or
+  render-setting change. Reported distance-dependent focus/sharpness changes
+  remain uninstrumented and must not yet be labeled as a mip/LOD defect.
 
 `ref/` is ignored and contains separate working trees plus private user game
 data. No `ref/` change is committed directly. Source changes are recorded under
@@ -81,6 +86,22 @@ Final-source builds completed successfully on 2026-08-12 for:
 | macOS Apple Silicon | `ref/metaforce/build/macos-default-relwithdebinfo/Binaries/Metaforce.app` | arm64 Mach-O; prior Gate 1 title/gameplay/Metal/audio/save evidence remains valid |
 | iOS Simulator | `ref/metaforce/build/ios-sim/Binaries/Metaforce.app` | arm64 Simulator app; current SunPad interaction harness passed |
 | iPhoneOS/iPadOS device | `ref/metaforce/build/ios-default/Binaries/Metaforce.app` | arm64 Mach-O, minimum iOS 14; later development-signed, installed, and launched on the attached iPad. Launch is not Gate 3 acceptance. |
+
+The selected EctoPad 0.1.3 (1) device app was packaged twice on 2026-08-17:
+
+- IPA: ignored local artifact `artifacts/EctoPad-0.1.3-unsigned.ipa`;
+- size: 12,427,372 bytes;
+- SHA-256:
+  `f90b353617d81ce3e4f6a0ebedf52f7c10a39d4b969d48a78335b35263010086`;
+- both independently generated packages were byte-identical;
+- ZIP integrity, arm64/iPhoneOS platform, bundle/version/minimum OS, host
+  linkage, Files/indirect-input metadata, disc headers, credentials, personal
+  paths, game data, saves, logs, and signing-material exclusion passed;
+- 241 upstream Dawn CI source paths remain embedded as non-local provenance.
+
+This IPA is unsigned, not installable as-is, and remains a local validation
+artifact. Its successful audit does not override the corresponding-source,
+LGPL relink, or Dawn provenance release boundary below.
 
 The exact final menu/audio device app was packaged twice with identical bytes:
 

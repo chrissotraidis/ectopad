@@ -432,6 +432,18 @@ All logged root translation deltas are zero and root rotation remains identity
 for both the broken special pair and working ordinary pairs. Root motion is not
 the panel animation mechanism and must not be invented as the fix.
 
+The iPhone trace `EctoPad-Diagnostic-20260817-120058.log` independently repeats
+this comparator after a real foreground resume. The latest cumulative session
+runs EctoPad 0.1.3 (1) on iOS 26.6 at `renderScale=2`, `aspectMode=1`; it resumes
+at `11:54:31Z`, then opens the visibly broken UIDs 410/409 at `11:58:09Z`.
+Those actors again complete the same four pose hashes with 30 renderer
+submissions and a constant sampled workspace hash. UIDs 204/827 open nine
+seconds later with the same assets and pose hashes while their sampled
+workspace hashes change. The user's physical observation supplies the visible
+broken/working distinction; the log itself supplies the repeated state trace.
+This makes the first-door symptom cross-device and shows it survives foreground
+resume, but it does not remove the shared-workspace limitation described below.
+
 #### What is established and what is not
 
 Established:
@@ -486,12 +498,13 @@ and associate the observation with the actor currently rendering.
 
 #### Acceptance
 
-On a physical iPad, shooting the first door must visibly play the authored open
-animation, leave collision synchronized with the displayed panels, and visibly
-play its close animation where authored. The immediately following ordinary
-doors must retain their current open/close behavior. Repeat after a foreground
-resume and at 1x, 2x, and 3x render scale. Automated animation/hash tests are
-supporting proof only; the physical visual pass is mandatory.
+On physical iPhone and iPad hardware, shooting the first door must visibly play
+the authored open animation, leave collision synchronized with the displayed
+panels, and visibly play its close animation where authored. The immediately
+following ordinary doors must retain their current open/close behavior. Repeat
+after a foreground resume and at 1x, 2x, and 3x render scale. Automated
+animation/hash tests are supporting proof only; the physical visual pass is
+mandatory.
 
 ### P1 debt record: injured Space Pirate proximity pose
 
@@ -518,7 +531,7 @@ distinction. Acceptance requires the intended injured pose, visible get-up
 transition, firing state, and collision to remain synchronized at both original
 and higher render scales.
 
-### P0 debt record: selective black world geometry on physical iPad
+### P0 debt record: selective black world geometry on physical iPhone and iPad
 
 #### User-visible failure
 
@@ -544,6 +557,35 @@ same exact game area reached through macOS warp (`--warp 1 6`) renders normally
 through Dawn/Metal, so the source textures and intended room lighting are not
 intrinsically black. This remains a physical-iOS/backend-state defect until a
 more precise boundary is proven.
+
+#### Cross-device iPhone evidence from 2026-08-17
+
+The user physically observed the same black geometry on the iPhone 14 and also
+reported surfaces or texture detail appearing to move in and out of focus with
+distance. The corresponding file,
+`EctoPad-Diagnostic-20260817-120058.log`, is a 1,842-line cumulative rotating
+log. Its latest session runs from `11:07:55Z` through the share request at
+`12:00:58Z`, identifies EctoPad 0.1.3 (1) and iOS 26.6 (23G71), and retains
+`renderScale=2`, `aspectMode=1` throughout gameplay. Device model comes from the
+physical-test report; the log format does not currently record it. The same
+version/build fields are also insufficient to prove binary identity because the
+log omits Git/patch revision, executable UUID, and a build fingerprint.
+
+The app backgrounds at `11:46:44Z`, returns at `11:54:31Z`, and continues
+rendering through areas 0, 1, 2, 4, 6, 8, 10, 12, and 14. The overlay remains
+attached. After resume the trace contains 55 normal fog summaries, six authored
+mode-2 summaries, one mixed transition summary, and five authored mode-4
+summaries. There is no Dawn validation error, Metal device loss, GPU reset,
+renderer assertion, fatal event, crash marker, or memory warning. Render scale
+and aspect mode do not change when the symptom is reported.
+
+This establishes a cross-device physical-iOS failure and weighs against an
+iPad-only viewport, 3x-resolution, screenshot-lifecycle, or global-fog cause.
+It does **not** identify the draw that became black, nor does it prove that the
+distance-dependent focus symptom is mipmapping, anisotropic filtering, texture
+streaming, level-of-detail selection, or dynamic resolution. None of those
+states are recorded. The next capture must keep the focus/sharpness symptom
+separate from black geometry until both are tied to the same draw and state.
 
 #### Timeline and eliminated lifecycle/fog explanations
 
@@ -614,33 +656,41 @@ material, arrays, pipeline, or shader state responsible for a black pixel.
 
 #### Next bounded investigation
 
-1. Use one named Frigate view that is correct on macOS and black on iPad. Keep
-   game revision, room, camera position, visor, and render scale fixed.
-2. Add a bounded world-surface capture for that area: area/model/surface and
+1. Use one named Frigate view that is correct on macOS and reproducibly black
+   on both iPhone and iPad. Keep game revision, room, camera position, visor,
+   and render scale fixed.
+2. Add one diagnostic header containing hardware model, OS build, GPU/adapter,
+   Git/patch revision, executable UUID or source fingerprint, render size,
+   render scale, aspect mode, and active experimental-patch flags.
+3. Add a bounded world-surface capture for that area: area/model/surface and
    material IDs; draw bounds; primitive/index range; vertex descriptor; array
    pointers, byte sizes, strides, endian flags, and small CPU hashes; normal
    format/range; active GX channels/lights; TEV stage count and inputs; texture
-   bindings; blend/depth/cull state; and Aurora pipeline/bind-group identity.
-3. Capture the same draw on macOS and iPad and compare the first divergent
-   value. Do not log every draw indefinitely or dump proprietary texture/vertex
-   contents; identifiers, bounded hashes, formats, and state are sufficient.
-4. If CPU draw state matches, inspect the generated shader/uniform/storage
+   bindings plus sampler/mip/LOD state; blend/depth/cull state; and Aurora
+   pipeline/bind-group identity.
+4. Capture the same draw on macOS, iPhone, and iPad and compare the first
+   divergent value. Do not log every draw indefinitely or dump proprietary
+   texture/vertex contents; identifiers, bounded hashes, formats, and state are
+   sufficient.
+5. If CPU draw state matches, inspect the generated shader/uniform/storage
    ranges and Dawn buffer offsets for that pipeline. If CPU state differs, fix
    the earliest Metaforce/GX state transition that diverges.
-5. Test one variable per build. Revert the rejected static-array candidate
+6. Test one variable per build. Revert the rejected static-array candidate
    before forming the next production patch unless new evidence independently
    justifies keeping it.
 
 #### Acceptance
 
 The four named Frigate views and the earlier black-room capture must render
-without black/missing world surfaces on a physical iPad. Verify before and
-after foreground resume, after several area transitions, and at 1x, 2x, and 3x.
-Weapon flashes must illuminate surfaces naturally rather than merely expose
-otherwise black materials. HUD, emissive surfaces, doors, translucency, fog,
-and macOS rendering must not regress. Run the focused GX tests, the complete
-Aurora/Metaforce suite, and a sustained physical Frigate traversal; automated
-tests do not replace the iPad visual acceptance pass.
+without black/missing world surfaces on physical iPhone and iPad hardware.
+Verify before and after foreground resume, after several area transitions, and
+at 1x, 2x, and 3x. Record a fixed-camera approach to one surface exhibiting the
+iPhone focus/sharpness symptom and compare its texture, sampler, mip/LOD, and
+draw identity frame by frame. Weapon flashes must illuminate surfaces naturally
+rather than merely expose otherwise black materials. HUD, emissive surfaces,
+doors, translucency, fog, and macOS rendering must not regress. Run the focused
+GX tests, the complete Aurora/Metaforce suite, and sustained physical Frigate
+traversals; automated tests do not replace visual acceptance on both devices.
 
 ## P1: persistent later-game test state
 

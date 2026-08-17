@@ -2,6 +2,23 @@
 
 Last updated: 2026-08-17
 
+### 2026-08-17 — EctoPad 0.1.3 unsigned IPA packaging
+
+- `scripts/package-ios.sh` packaged the selected iPhoneOS app twice, then wrote
+  the verified ignored artifact to `artifacts/EctoPad-0.1.3-unsigned.ipa`.
+  The comparison files are byte-identical, 12,427,372 bytes each, with SHA-256
+  `f90b353617d81ce3e4f6a0ebedf52f7c10a39d4b969d48a78335b35263010086`.
+- Both runs passed `scripts/audit-ios-package.sh`: ZIP integrity, one arm64
+  iPhoneOS app, `com.axiodl.Metaforce` 0.1.3 (1), minimum iOS 14.0,
+  Files/indirect-input metadata, Apple-only runtime linkage, and exclusion of
+  disc images, saves, logs, provisioning profiles, signatures, credentials,
+  personal paths, and GameCube disc headers.
+- The archive contains Metaforce and GPL license text, third-party notices, and
+  the current installation/known-issue guidance. It remains unsigned and is not
+  installable as-is. The audit still reports 241 upstream Dawn CI source paths;
+  public redistribution remains gated on the repository's corresponding-source,
+  LGPL relink, and provenance requirements.
+
 ### 2026-08-17 — first-door comparator trace and black-geometry physical rejection
 
 - The iPad session `EctoPad-Diagnostic-20260817-103041.log` ran with
@@ -50,6 +67,25 @@ Last updated: 2026-08-17
   data container, or copy an ISO. This proves build/sign/install/launch only;
   full root-cause and physical visual acceptance requirements remain recorded
   under KI-022/KI-023 in `TECH-DEBT.md`.
+- The subsequent iPhone playthrough is captured in the cumulative 1,842-line
+  `EctoPad-Diagnostic-20260817-120058.log`. Its latest session runs EctoPad
+  0.1.3 (1) on iOS 26.6 at 2x/aspect mode 1 for approximately 53 minutes,
+  including a foreground resume. The user physically reports black geometry
+  and distance-dependent focus/sharpness changes. The trace contains no Dawn,
+  Metal, GPU-reset, renderer-assertion, fatal, crash, or memory-warning marker,
+  and the render/aspect settings remain unchanged.
+- The diagnostic header does not record hardware model, GPU/adapter, Git/patch
+  revision, executable UUID, or another build fingerprint. The shared
+  `version=0.1.3 build=1` label therefore cannot by itself prove byte-identical
+  iPhone/iPad binaries; future comparisons must record those fields.
+- After that iPhone resume, the first-door UIDs 410/409 again complete the same
+  animation/pose sequence and 30 renderer submissions while remaining visibly
+  wrong; the ordinary UIDs 204/827 repeat the same assets/pose sequence and
+  visibly work. This corroborates the special-pair boundary across iPhone and
+  iPad, but the sampled skin workspace remains shared and is not actor-local
+  proof. The log does not record texture/sampler/mip/LOD or per-draw identities,
+  so it cannot yet explain the reported focus changes or tie them definitively
+  to the black-geometry mechanism.
 
 ### 2026-08-14 — audio voice-iteration fix and dual-device update
 
