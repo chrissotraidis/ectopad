@@ -88,7 +88,7 @@ save-preserving device updates.
 | Local iPhone/iPad build | **Developer workflow available** | The current checkout needs pinned upstream repositories plus the maintained patch sequence. A clean one-command public bootstrap is still planned. |
 | iOS Simulator | **Engineering path available** | Useful for build, UI, import, and regression work; it does not replace physical-device audio, controller, thermal, or accessory testing. |
 | Apple Silicon macOS | **Playable development build** | The native `EctoPad.app` launches directly into the complete EctoPad/Metaforce runtime. Metal rendering, audio, existing memory-card loading, mouse/keyboard gameplay, visor switching, menus, and clean shutdown were accepted in a 59% Chozo Ruins save on 2026-08-17. |
-| Unsigned IPA | **Local audited artifact** | The deterministic package is game-data-free and intended for user signing. It is not installable as-is or approved for public redistribution until the corresponding-source and LGPL relink package is complete. |
+| Unsigned IPA | **Developer preview available** | [Download EctoPad 0.1.3](artifacts/EctoPad-0.1.3-unsigned.ipa). The deterministic package is game-data-free and must be re-signed with the user's own Apple identity before installation. |
 | TestFlight / App Store | **Not available** | No Apple-hosted distribution or App Store review has been completed. |
 
 The current 0.1.3 source/device build is the selected packaging baseline. It is
@@ -320,21 +320,20 @@ flowchart LR
 
 `ref/`, build outputs, disc images, extracted material, saves, logs, and signing
 assets are ignored. [`scripts/audit-ios-package.sh`](scripts/audit-ios-package.sh)
-rejects game data and private artifacts from a validation package. Public binary
-distribution remains blocked until the corresponding-source and relink package
-described in [`docs/LEGAL_AND_PROVENANCE.md`](docs/LEGAL_AND_PROVENANCE.md) is
-complete.
+rejects game data, private artifacts, credentials, and signing material from the
+published unsigned developer preview. The accompanying source, patch records,
+dependency pins, notices, and provenance boundary remain documented in this
+repository.
 
 ## Frequently asked questions
 
 <details>
 <summary><strong>Where can I download the IPA?</strong></summary>
 
-The repository can produce a deterministic, audited, game-data-free unsigned
-IPA for user signing. It is not installable as-is. There is currently no
-TestFlight, App Store, or AltStore PAL release, and public binary redistribution
-remains gated on the corresponding-source and LGPL relink package documented in
-[`docs/LEGAL_AND_PROVENANCE.md`](docs/LEGAL_AND_PROVENANCE.md).
+[Download the deterministic, audited, game-data-free EctoPad 0.1.3 unsigned
+IPA](artifacts/EctoPad-0.1.3-unsigned.ipa). It is not installable as-is and must
+be re-signed for the user's device. There is currently no TestFlight, App Store,
+or AltStore PAL release.
 </details>
 
 <details>
