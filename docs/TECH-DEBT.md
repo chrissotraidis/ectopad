@@ -1,7 +1,8 @@
 # EctoPad technical debt
 
-Updated 2026-08-14 after the targeted audio voice-registry crash fix. Build, signing,
-install, PID, and container readback are evidence, not hands-on acceptance.
+Updated 2026-08-17 after the physical first-door and black-world-geometry
+reproduction. Build, signing, install, PID, and container readback are evidence,
+not hands-on acceptance.
 Default A/B card formatting is proven at the container level. The native menu,
 render scale, aspect ratio, FPS toggle, left-stick movement, and corrected
 single-pass file menu are now accepted on hardware. Audio is source-instrumented and two concrete lifecycle/decoder
@@ -144,8 +145,8 @@ happened. Gate 3 failed on the items below.
 | P1 | Game main-menu readability | **Fixed and hardware accepted.** `UseSingleReadableFileMenuPane` is limited to `FRME_NewFileSelect`: pane A is white and pane B's offset duplicate is hidden, while original strings, typewriter animation, geometry, and table colors remain. |
 | P0 | Touch overlay disappears after screenshot/app switch | **Lifecycle recovery deployed; physical return-from-screenshot acceptance open.** Reattach to the current root-controller view, not the stale parent. |
 | P1 | `•••` dismissal focus artifact | **Non-focusable button and complete image states deployed; physical visual acceptance open.** |
-| P0 | First beam door presentation | **Open; release blocker narrowed to animated-model presentation.** Open logic and collision work; the authored 0.833333-second clip is selected and reports animating, but the closed model remains visible. Do not replace animation with disappearance. See the dedicated debt record below. |
-| P0 | Black/distant world geometry | **Open; one isolated lighting correction deployed.** The unbound-texture correction was physically rejected and removed. The final build contains only upstream `2bbb122`, which passes all 165 GX tests; physical visual acceptance is deferred. |
+| P0 | First beam door presentation | **Open; isolated to the special same-area `Door_Area Inside/Outside` pair.** Logic, collision, authored animation, pose advancement, frustum visibility, and renderer submission all occur. Ordinary doors using the same assets animate correctly. Do not replace the animation with disappearance or apply a generic all-door override. See the dedicated debt record below. |
+| P0 | Black/distant world geometry | **Open; 2026-08-17 physical run rejected the static-array lifetime candidate.** Multiple Frigate rooms still contain large selectively black world surfaces while HUD/emissive elements remain correct. Missing textures, global fog/exposure, screenshot lifecycle, unbound-texture fallback, and same-pointer area-array reuse are not sufficient explanations. See the dedicated debt record below. |
 | P1 | Injured Space Pirate pose transition | **Open; authored behavior must be separated from presentation failure.** The early Frigate encounter intentionally supports seated/injured pirates that get up when activated. Lying down at distance is not by itself a defect; snapping upright, firing while visibly prone, duplication, or a missing get-up animation is. See the dedicated debt record below. |
 | P0 | Later-game Morph Ball stability | **Prior session now explained by KI-026.** The retired report shows the same audio-mixer iterator crash; the card and Morph Ball state are not implicated by that stack. The snapshot fix is deployed, and physical checkpoint replay remains open. |
 | P1 | Later-game test coverage | **Mid-game USA Rev 2 state installed in Prime file slot 2, but not accepted as stable.** Existing file slot 1 is byte-preserved and the card persists across normal in-place installs. |
@@ -379,41 +380,118 @@ without a reproducible frame capture.
 
 ### P0 debt record: first tutorial door has state but no visible animation
 
-This is a release-blocking presentation defect because it is the first beam
-door the player encounters. It is surprising that such an early interaction
-remains broken, but its location does not make the failure a missing gameplay
-script: the physical trace proves that the shot, Open message, authored clip,
-animation state, and collision transition all execute. The failure is later in
-the native animated-model path. EctoPad currently tracks official MetaForce at
-the relevant door implementation, so there is no known unmerged upstream door
-patch to pick. That also does not prove that every MetaForce platform, renderer,
-asset revision, and opening-game path has received equivalent visual testing.
+#### User-visible failure
 
-The leading implementation seams, in investigation order, are:
+This is a day-one release blocker because it is the first door the player is
+taught to shoot. The shot/open sound plays and the collision becomes passable,
+but the door panels remain visibly closed and do not play the authored opening
+motion. Every ordinary door tested immediately afterward opens normally. The
+defect is therefore not permission to change generic beam-door behavior.
 
-1. `SSkinningWorkspace::IsEmpty()` treats the workspace as unusable when either
-   animated vertices or animated normals are empty. `CSkinnedModel::Draw()` then
-   silently draws the original static model. A zero or incorrectly parsed door
-   normal count could therefore leave the logically animated door visibly
-   closed.
-2. `CAnimData::SetAnimation()` changes the animation tree without immediately
-   rebuilding the pose. Advancement invalidates the pose and rendering rebuilds
-   it later, leaving a possible cache/pre-render ordering failure.
-3. If CPU-side pose and skinned-vertex hashes change correctly, the remaining
-   seam is the Aurora vertex upload/draw path rather than the door or animation
-   state machine.
+An earlier workaround hid the model after the logical Open state. Hardware
+showed an abrupt disappearance rather than the authored motion, so that
+workaround was rejected and removed. Never restore it as a release fix.
 
-The next diagnostic build should record the door's closed, midpoint, and open
-animation time, pose-cache flags, representative bone transform, skin-rule
-vertex/normal counts, workspace counts, vertex hash, and bounds. Two bounded
-experiments should then force a current pose build and force the skinned
-workspace draw path. The production correction belongs at the first shared seam
-that fails. Do not hide the model, teleport its panels, or substitute another
-door's animation.
+#### Physical evidence from 2026-08-17
 
-Acceptance requires the authored opening and closing animation to play on a
-physical iPad, collision to agree with the displayed panels, and the next two
-doors to remain correct through open, close, app-background, and resume cycles.
+The relevant session is `EctoPad-Diagnostic-20260817-103041.log`, captured from
+the iPad build running at 2x/original 4:3. At `10:27:34Z` the problematic object
+is identified as a special pair rather than an ordinary area-transition door:
+
+- UID 410: `Door_Area Inside`, area 0, dock 1023;
+- UID 409: `Door_Area Outside`, area 0, dock 1023;
+- both are activated through source UID 412 and then open each other;
+- both use character `Node1`, model `d3d3ab81`, skin `b8fc0457`, layout
+  `81e65611`, open primitive `newmetroiddoor_open`, animation resource
+  `6bc42b3e`, and animation DB index 0;
+- the authored duration is 0.833333 seconds and the configured door length is
+  0.5 seconds.
+
+For both objects, type 0 is selected, `IsAnimating()` becomes true, the pose is
+cached and built, `outOfFrustum=false`, and renderer submissions advance from
+0 to 7, 19, and 30. The remaining animation time reaches zero. The pose hashes
+also change at the expected samples:
+
+| Sample | Frame | Remaining | Pose hash |
+| --- | ---: | ---: | --- |
+| start | 1 | 0.805555 | `411a4e88614f06fa` |
+| early | 8 | 0.611111 | `f9d432a50be20aee` |
+| late | 20 | 0.277778 | `be89cc8ae41e116a` |
+| complete | 30 | 0.000000 | `0e4290952e6a617d` |
+
+The next ordinary door provides a controlled comparison in the same session.
+UIDs 204/827 open at `10:28:00Z` after a direct projectile hit, span areas 0/1
+with real docks 401/819, use the exact same model/skin/layout/open-animation
+assets, produce the same pose-hash sequence, and visibly work. Subsequent pairs
+across areas 1/2, 2/4, 4/6, 6/8, and 8/10 repeat the working pattern. This rules
+out a missing animation asset, wrong animation index, zero-duration clip,
+general door playback defect, general door skin-rule count defect, and general
+Aurora inability to draw that door model.
+
+All logged root translation deltas are zero and root rotation remains identity
+for both the broken special pair and working ordinary pairs. Root motion is not
+the panel animation mechanism and must not be invented as the fix.
+
+#### What is established and what is not
+
+Established:
+
+- gameplay state is correct: Open is requested and collision/material state is
+  removed, which is why Samus can walk through;
+- the authored animation tree and CPU pose advance to completion;
+- the special pair is visible to the frustum and reaches `AddToRenderer`;
+- the defect is specific to the same-area `Inside/Outside` presentation path or
+  something unique to its script wiring;
+- ordinary doors prove that changing `CScriptDoor` globally would be dangerous.
+
+The 2026-08-17 workspace hash is useful but not instance-local proof.
+`CCharacterFactory::CreateCharacter()` obtains the `CSkinnedModel` through its
+factory cache, so identical door characters share the model's mutable skinning
+workspace. Another door render can overwrite that workspace before a later
+`Think()` diagnostic samples it. The special pair retained hash
+`9a931887ff44fc62` while working doors showed changing hashes, but this does not
+by itself prove that UID 409/410 skipped skinning. Future diagnostics must hash
+the vertices immediately after `CAnimData::SetupRender()`/`CSkinnedModel::Calculate()`
+and associate the observation with the actor currently rendering.
+
+#### Rejected and unsafe approaches
+
+- Do not hide the door model after Open; hardware rejected the visual pop.
+- Do not copy another project's door patch or substitute an ordinary door's
+  script blindly. This pair has different area/dock/source topology.
+- Do not force all doors to rebuild, disable culling, or use a global animation
+  override. Later doors already work and are the regression controls.
+- Do not treat `IsAnimating()`, a changing pose hash, or renderer-submission
+  count alone as proof that skinned vertices reached the draw.
+- Do not change the authored 0.833333/0.5 timing; working doors use it too.
+
+#### Next bounded investigation
+
+1. Dump the area-0 script objects and connections for UIDs 409, 410, and 412,
+   including transforms, active state, actor parameters, model flags, draw
+   flags, and every incoming/outgoing message. Compare them with UIDs 204/827.
+2. Add an actor-keyed trace at the actual draw boundary, not in `Think()`. For
+   UIDs 409/410 only, record entry into `CActor::RenderInternal`,
+   `xe7_27_enableRender`, `xe7_29_drawEnabled`, selected model, model/workspace
+   addresses, model matrix, material set, workspace counts/hash immediately
+   after skinning, and the vertex arrays passed to `CModel::Draw`.
+3. Determine whether both special actors draw overlapping copies, whether a
+   separate static/script actor supplies the visible closed panels, and whether
+   source UID 412 is expected to animate that separate presentation object.
+4. Reproduce area 0 on macOS with the same game revision and compare the keyed
+   trace. A platform difference belongs below the door state machine; a matching
+   failure indicates missing special-case script/presentation support.
+5. Fix only the first demonstrated failing seam, then run ordinary-door and
+   full-suite regressions before another device build.
+
+#### Acceptance
+
+On a physical iPad, shooting the first door must visibly play the authored open
+animation, leave collision synchronized with the displayed panels, and visibly
+play its close animation where authored. The immediately following ordinary
+doors must retain their current open/close behavior. Repeat after a foreground
+resume and at 1x, 2x, and 3x render scale. Automated animation/hash tests are
+supporting proof only; the physical visual pass is mandatory.
 
 ### P1 debt record: injured Space Pirate proximity pose
 
@@ -440,26 +518,129 @@ distinction. Acceptance requires the intended injured pose, visible get-up
 transition, firing state, and collision to remain synchronized at both original
 and higher render scales.
 
-The 12:04 physical screenshot and later QuickTime capture upgrade the renderer issue from vague darkness
-to direct evidence of large black and wrongly translucent world polygons. A
-comparison against current official Aurora found four later fixes that apply
-cleanly to the pinned renderer without importing its subsequent FIFO rewrite:
-unbound texture stages sample white (b684c0d), channel diffuse encoding is
-corrected (2bbb122), depth correction lives in the projection matrix (1dde08f),
-and partial RGBA8 edge tiles are bounded (1a15801). The combined compatibility
-set failed its first later-game stability gate and has been rolled back from
-the hardware build. A later one-change physical run of `b684c0d` still showed
-the same black geometry and visible-closed first door, so that correction was
-also rejected alone and removed. The final build instead isolates `2bbb122`,
-the GX channel diffuse-function correction. Its targeted test and all 165 GX
-tests pass, but it has not received physical visual acceptance. The rejected
-four-change bundle remains documented in
-`patches/2026-08-13-aurora-renderer-compatibility.patch`; the deployed change is
-recorded in `patches/2026-08-13-aurora-gx-channel-lighting.patch`.
+### P0 debt record: selective black world geometry on physical iPad
 
-The former fog trace was itself defective instrumentation: normal draw code
-switches room fog on and off per material, producing nearly 79,000 lines. It now
-records a five-second count/mode summary plus the last parameters.
+#### User-visible failure
+
+Large portions of Frigate world geometry intermittently render completely or
+nearly black. The affected shapes follow individual walls, beams, debris, and
+other world surfaces; adjacent surfaces, the HUD, Samus's arm cannon, emissive
+lamps, screens, and door shields can remain correct. Some dark surfaces reveal
+their expected texture under a weapon flash or nearby light. The defect can be
+subtle darkness in one view and release-blocking black silhouettes occupying
+most of the screen in another. It is not practical or correct to patch textures
+one by one.
+
+The strongest current physical evidence is the 2026-08-17 set:
+
+- `Screenshot 2026-08-17 at 12.28.24 PM.png`;
+- `Screenshot 2026-08-17 at 12.29.13 PM.png`;
+- `Screenshot 2026-08-17 at 12.29.46 PM.png`;
+- `Screenshot 2026-08-17 at 12.30.19 PM.png`;
+- correlated log `EctoPad-Diagnostic-20260817-103041.log`.
+
+The images span several consecutive Frigate rooms and area transitions. The
+same exact game area reached through macOS warp (`--warp 1 6`) renders normally
+through Dawn/Metal, so the source textures and intended room lighting are not
+intrinsically black. This remains a physical-iOS/backend-state defect until a
+more precise boundary is proven.
+
+#### Timeline and eliminated lifecycle/fog explanations
+
+Each screenshot is followed by `UIApplicationWillResignActiveNotification`
+because the user left EctoPad to inspect/capture it. The black geometry is
+already visible before those notifications:
+
+- image 12:28:24, resign event `10:28:25Z`;
+- image 12:29:13, resign event `10:29:14Z`;
+- image 12:29:46, resign event `10:29:47Z`;
+- image 12:30:19, resign event `10:30:20Z`.
+
+Foreground recovery succeeds and the overlay reattaches, but resume neither
+creates nor clears the world defect. Screenshot/background lifecycle is
+therefore not the cause.
+
+The five-second fog summaries remain internally consistent while the defect is
+visible. Black surfaces occur with the normal mode mask `0x1` and also in rooms
+that legitimately use mode 2/fog mask `0x5`. The HUD and emissive surfaces are
+not globally darkened. A single bad global fog color, exposure value, render
+scale, or presentation copy is not a sufficient explanation. The log contains
+no Dawn validation error, Metal device loss, assertion, fatal renderer event,
+or GPU reset.
+
+#### Renderer experiments and their outcomes
+
+The following candidates are explicitly rejected or incomplete:
+
+1. The four-change Aurora compatibility bundle—unbound texture white fallback
+   (`b684c0d`), channel diffuse encoding (`2bbb122`), projection depth
+   correction (`1dde08f`), and bounded partial RGBA8 edge tiles (`1a15801`)—was
+   not accepted as a bundle and was rolled back.
+2. `b684c0d` alone was physically rejected: the same black geometry and first
+   door failure remained. Missing/unbound texture fallback is not the root
+   explanation.
+3. `2bbb122` corrects real GameCube channel-control encoding and passed its
+   focused/full GX tests, but later physical screenshots still contain black
+   world surfaces. It is not a complete visual fix.
+4. A 2026-08-17 candidate cleared Metaforce's cached GX vertex-array bindings
+   when static area geometry was removed, targeting allocator-address reuse.
+   A deterministic FIFO regression proved clear/rebind invalidation, and the
+   iPad build installed successfully, but the four screenshots above physically
+   reject it as the solution. Aurora also clears each GX array's uploaded
+   `cachedRange` at every `end_frame`; same-pointer area reuse within one frame
+   is therefore too narrow to explain a defect that persists across frames and
+   rooms.
+5. Raw RGBA/texture-format changes temporarily altered individual appearances
+   but did not generalize. Do not resume format-by-format or texture-by-texture
+   whack-a-mole without a failing draw identity.
+
+These outcomes do not prove that all vertex state is correct. They prove only
+that the specific static-area binding lifetime theory is insufficient.
+
+#### Current hypothesis boundary
+
+The source images are present, geometry selection continues, and only selected
+world surfaces become black. The best remaining boundary is per-draw static
+world state: vertex-normal/index interpretation, material/channel state, TEV
+inputs, texture-stage binding, or a pipeline/bind-group state leak. Incorrect
+normals or channel state would also explain why a local weapon light can reveal
+an otherwise black textured surface. Large silhouettes mean vertex/index
+attributes must remain in scope until a captured draw proves their positions
+and indices are correct.
+
+This is an inference, not a root-cause claim. The current diagnostic records
+room fog and high-level events but does not identify the model, surface,
+material, arrays, pipeline, or shader state responsible for a black pixel.
+
+#### Next bounded investigation
+
+1. Use one named Frigate view that is correct on macOS and black on iPad. Keep
+   game revision, room, camera position, visor, and render scale fixed.
+2. Add a bounded world-surface capture for that area: area/model/surface and
+   material IDs; draw bounds; primitive/index range; vertex descriptor; array
+   pointers, byte sizes, strides, endian flags, and small CPU hashes; normal
+   format/range; active GX channels/lights; TEV stage count and inputs; texture
+   bindings; blend/depth/cull state; and Aurora pipeline/bind-group identity.
+3. Capture the same draw on macOS and iPad and compare the first divergent
+   value. Do not log every draw indefinitely or dump proprietary texture/vertex
+   contents; identifiers, bounded hashes, formats, and state are sufficient.
+4. If CPU draw state matches, inspect the generated shader/uniform/storage
+   ranges and Dawn buffer offsets for that pipeline. If CPU state differs, fix
+   the earliest Metaforce/GX state transition that diverges.
+5. Test one variable per build. Revert the rejected static-array candidate
+   before forming the next production patch unless new evidence independently
+   justifies keeping it.
+
+#### Acceptance
+
+The four named Frigate views and the earlier black-room capture must render
+without black/missing world surfaces on a physical iPad. Verify before and
+after foreground resume, after several area transitions, and at 1x, 2x, and 3x.
+Weapon flashes must illuminate surfaces naturally rather than merely expose
+otherwise black materials. HUD, emissive surfaces, doors, translucency, fog,
+and macOS rendering must not regress. Run the focused GX tests, the complete
+Aurora/Metaforce suite, and a sustained physical Frigate traversal; automated
+tests do not replace the iPad visual acceptance pass.
 
 ## P1: persistent later-game test state
 
@@ -545,30 +726,13 @@ releasing R restores movement. Holding L locks onto a target and allows
 target-relative movement. C-stick directions change beams when those beams are
 available. Morph Ball and D-pad visor selection remain intact.
 
-## P2: capture the texture issues before touching GX
+## Superseded renderer intake note
 
-### Report
-
-There are texture issues throughout the game. The report does not yet name
-rooms, assets, or a screenshot set.
-
-### Current evidence
-
-KI-001 fixed frontend movie scissor/viewport clipping on macOS. That is not
-proven to be the iPad texture report. Do not reopen GX/texture work from a
-generic "textures look wrong" note.
-
-### Next investigation
-
-Capture screenshots and room names on the same iPad. Separate frontend
-movies, HUD, world textures, and water/visor effects. Only then decide
-whether this is a recurrence of KI-001, a scale/filter issue, or a new GX
-path.
-
-### Acceptance
-
-Each named defect has a screenshot, a room/asset, and either a verified fix
-or a documented source-asset limitation.
+The former P2 request to capture a vague "texture issue" is complete and
+superseded by the P0 black-world-geometry debt record above. The defect now has
+named physical screenshots, correlated lifecycle/fog logs, macOS comparison,
+rejected candidates, and a bounded state-capture plan. Treat it as selective
+world rendering state, not as an unspecified texture-file problem.
 
 ## P2: make physical iPad build/sign/install a front-door path
 

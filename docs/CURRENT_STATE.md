@@ -1,6 +1,6 @@
 # Authoritative current state
 
-Last audited: 2026-08-13 after the final physical-iPad deployment
+Last audited: 2026-08-17 after the first-door/black-geometry physical trace
 
 This is the canonical starting point for future work. When older dated evidence
 describes an earlier limitation, this document and the newer dated entries in
@@ -41,6 +41,24 @@ physical-device claim.
 - The unsigned validation IPA remains a package-audit artifact only. Physical
   install must sign the source `.app` at
   `ref/metaforce/build/ios-default/Binaries/Metaforce.app`, not that IPA.
+- The 2026-08-17 physical comparator conclusively separates the first door from
+  ordinary doors: UIDs 410/409 are a same-area scripted `Inside/Outside` pair,
+  while ordinary inter-area doors use the same animation assets and work. The
+  logical Open/collision and CPU pose complete, but visible presentation does
+  not. The instance-shared workspace diagnostic is not sufficient to locate the
+  draw failure; see the KI-022 P0 record in `TECH-DEBT.md`.
+- Four new physical screenshots reject the static-area vertex-array lifetime
+  candidate as the black-geometry solution. The defect predates screenshot
+  lifecycle events, is selective rather than global fog/exposure, and has no
+  logged Dawn/Metal failure. The next renderer work is a bounded per-surface
+  Mac/iPad state comparison, not another texture-by-texture correction; see
+  KI-023 in `TECH-DEBT.md`.
+- The current signed EctoPad 0.1.3 (1) device build was installed in place and
+  launched on the paired physical iPhone 14 on 2026-08-17. The same bundle ID
+  was retained and there was no uninstall, data-container replacement, or ISO
+  transfer. This is the selected source/build baseline for the next IPA pass;
+  it does not convert the open KI-022/KI-023 physical visual failures into
+  accepted fixes.
 
 `ref/` is ignored and contains separate working trees plus private user game
 data. No `ref/` change is committed directly. Source changes are recorded under

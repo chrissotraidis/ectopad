@@ -1,6 +1,55 @@
 # Testing
 
-Last updated: 2026-08-14
+Last updated: 2026-08-17
+
+### 2026-08-17 — first-door comparator trace and black-geometry physical rejection
+
+- The iPad session `EctoPad-Diagnostic-20260817-103041.log` ran with
+  `renderScale=2`, original 4:3 presentation, and retained the normal overlay.
+  No Dawn validation error, Metal device loss, renderer assertion, GPU reset, or
+  fatal event was recorded.
+- The first visibly broken door is not an ordinary area-transition pair. UIDs
+  410/409 are named `Door_Area Inside/Outside`, both remain in area 0 with dock
+  1023, and are driven through source UID 412. Open logic and collision succeed.
+  Both objects select the authored type-0 clip and reach zero remaining time;
+  pose hashes advance through `411a4e88614f06fa`, `f9d432a50be20aee`,
+  `be89cc8ae41e116a`, and `0e4290952e6a617d`; they are in-frustum and reach 30
+  renderer submissions. The physical model nevertheless remains visibly
+  closed.
+- The next ordinary door (UIDs 204/827, areas 0/1, docks 401/819) records a
+  direct projectile hit, uses the exact same character/model/skin/layout/open
+  primitive and pose-hash sequence, and visibly works. Later pairs across areas
+  1/2, 2/4, 4/6, 6/8, and 8/10 also work. This is controlled evidence against a
+  generic `CScriptDoor`, missing-asset, animation-index, timing, or root-motion
+  fix.
+- The diagnostic workspace hash is not instance-local: identical doors obtain
+  their `CSkinnedModel` from `CCharacterFactory`'s cache and therefore share its
+  mutable workspace. A hash sampled later from `Think()` can reflect a different
+  door. The next instrumentation must sample immediately after skinning and at
+  the actual actor-keyed draw boundary.
+- Four physical screenshots at 12:28:24, 12:29:13, 12:29:46, and 12:30:19 show
+  selective black world geometry across consecutive Frigate rooms. HUD,
+  arm-cannon, emissive lamps/screens, and door shields remain visible while
+  individual world surfaces become black. The corresponding lifecycle resign
+  notifications occur one second after each image, proving the defect predates
+  screenshot/background transitions.
+- Fog summaries remain valid through normal mask `0x1` and authored mode-2 mask
+  `0x5`; no single global fog/exposure value explains the images. The exact area
+  reached with macOS `--warp 1 6` renders normally through Dawn/Metal.
+- The 2026-08-17 candidate that clears cached GX arrays when static area geometry
+  is removed passed four focused `GXSetArray` tests, including deterministic
+  same-address clear/rebind coverage. The iPhoneOS target linked, signed,
+  installed in place, and launched, but the physical screenshots reject the
+  candidate as a black-geometry fix. Aurora already clears array upload ranges
+  at `end_frame`, so allocator-address reuse within one frame is not a sufficient
+  explanation for the persistent multi-room failure.
+- No source correction followed the final log/screenshot review. The same
+  signed EctoPad 0.1.3 (1) device build was subsequently installed in place on
+  the paired physical iPhone 14 and launched successfully as
+  `com.axiodl.Metaforce`. The install did not uninstall the app, replace its
+  data container, or copy an ISO. This proves build/sign/install/launch only;
+  full root-cause and physical visual acceptance requirements remain recorded
+  under KI-022/KI-023 in `TECH-DEBT.md`.
 
 ### 2026-08-14 — audio voice-iteration fix and dual-device update
 

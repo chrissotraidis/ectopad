@@ -1,6 +1,6 @@
 # Handoff
 
-Last updated: 2026-08-13
+Last updated: 2026-08-17
 
 ## Where things stand
 
@@ -10,6 +10,12 @@ Last updated: 2026-08-13
   cites newer evidence.
 - [TECH-DEBT.md](TECH-DEBT.md) is the current physical-iPad defect queue and
   deploy ledger.
+- The two current day-one visual blockers now have complete P0 debt records.
+  KI-022 is the special same-area first-door pair, not generic door logic.
+  KI-023 is selective black world rendering, not missing texture files or a
+  global fog/lifecycle failure. Read those records before changing renderer or
+  door code; they list rejected fixes, exact UIDs/assets/evidence, bounded next
+  traces, and physical acceptance gates.
 - [STOP_FOR_TODAY_2026-08-13.md](STOP_FOR_TODAY_2026-08-13.md) is the concise
   end-of-day restart point. It supersedes the 2026-08-12 historical snapshot.
 - The final 2026-08-13 build is signed, installed in place, and running on the
