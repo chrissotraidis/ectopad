@@ -1,49 +1,73 @@
 diff --git a/Runtime/CMain.cpp b/Runtime/CMain.cpp
-index 7f10e8a..ce0fc8f 100644
+index 7f10e8a54..4969cf181 100644
 --- a/Runtime/CMain.cpp
 +++ b/Runtime/CMain.cpp
-@@ -13,6 +13,7 @@
+@@ -12,6 +12,8 @@
+ #include "Runtime/ConsoleVariables/FileStoreManager.hpp"
  #include "Runtime/ConsoleVariables/CVarManager.hpp"
  #include "Runtime/CInfiniteLoopDetector.hpp"
- #include "Runtime/Logging.hpp"
++#include "Runtime/GameGlobalObjects.hpp"
 +#include "Runtime/Input/CKeyboardMouseController.hpp"
+ #include "Runtime/Logging.hpp"
  // #include "amuse/BooBackend.hpp"
- 
- #ifdef _WIN32
-@@ -189,6 +190,8 @@ private:
+
+@@ -34,9 +36,15 @@
+
+ #include <aurora/event.h>
+ #include <aurora/main.h>
++#include <aurora/audio.h>
+ #include <dolphin/vi.h>
+ #include <SDL3/SDL_log.h>
+ #include <SDL3/SDL_messagebox.h>
++#include <SDL3/SDL_mouse.h>
++#if TARGET_OS_IOS
++extern "C" int MetaforceRunGameDataImportTest(const char* requestedPath);
++extern "C" int MetaforceRunGameDataRemovalTest(void);
++#endif
+ #if defined(ANDROID)
+ #include <spdlog/sinks/android_sink.h>
+ #endif
+@@ -188,6 +196,72 @@ private:
+
    std::vector<u32> m_deferredControllers; // used to capture controllers added before CInputGenerator
                                            // is built, i.e during initialization
- 
 +  CKeyboardMouseControllerData m_kbmData{};
++  SDL_Window* m_sdlWindow = nullptr;
 +
- public:
-   Application(int argc, char** argv, FileStoreManager& fileMgr, CVarManager& cvarMgr, CVarCommons& cvarCmns,
-               CResourceNameDatabase& nameDatabase)
-@@ -198,7 +201,33 @@ public:
-   , m_cvarManager(cvarMgr)
-   , m_cvarCommons(cvarCmns)
-   , m_nameDatabase(nameDatabase)
--  , m_imGuiConsole(cvarMgr, cvarCmns) {}
-+  , m_imGuiConsole(cvarMgr, cvarCmns) {
-+    g_kbmData = &m_kbmData;
-+  }
-+
-+  static ESpecialKey SdlKeyToSpecialKey(SDL_Keycode key) {
++  static ESpecialKey SdlKeyToSpecialKey(SDL_Keycode key) noexcept {
 +    switch (key) {
-+    case SDLK_UP: return ESpecialKey::Up;
-+    case SDLK_DOWN: return ESpecialKey::Down;
-+    case SDLK_LEFT: return ESpecialKey::Left;
-+    case SDLK_RIGHT: return ESpecialKey::Right;
-+    case SDLK_RETURN: case SDLK_KP_ENTER: return ESpecialKey::Enter;
-+    case SDLK_ESCAPE: return ESpecialKey::Esc;
-+    case SDLK_BACKSPACE: return ESpecialKey::Backspace;
-+    case SDLK_TAB: return ESpecialKey::Tab;
-+    case SDLK_INSERT: return ESpecialKey::Insert;
-+    case SDLK_DELETE: return ESpecialKey::Delete;
-+    case SDLK_HOME: return ESpecialKey::Home;
-+    case SDLK_END: return ESpecialKey::End;
-+    case SDLK_PAGEUP: return ESpecialKey::PgUp;
-+    case SDLK_PAGEDOWN: return ESpecialKey::PgDown;
++    case SDLK_UP:
++      return ESpecialKey::Up;
++    case SDLK_DOWN:
++      return ESpecialKey::Down;
++    case SDLK_LEFT:
++      return ESpecialKey::Left;
++    case SDLK_RIGHT:
++      return ESpecialKey::Right;
++    case SDLK_RETURN:
++    case SDLK_KP_ENTER:
++      return ESpecialKey::Enter;
++    case SDLK_ESCAPE:
++      return ESpecialKey::Esc;
++    case SDLK_LSHIFT:
++    case SDLK_RSHIFT:
++      return ESpecialKey::Shift;
++    case SDLK_BACKSPACE:
++      return ESpecialKey::Backspace;
++    case SDLK_TAB:
++      return ESpecialKey::Tab;
++    case SDLK_INSERT:
++      return ESpecialKey::Insert;
++    case SDLK_DELETE:
++      return ESpecialKey::Delete;
++    case SDLK_HOME:
++      return ESpecialKey::Home;
++    case SDLK_END:
++      return ESpecialKey::End;
++    case SDLK_PAGEUP:
++      return ESpecialKey::PgUp;
++    case SDLK_PAGEDOWN:
++      return ESpecialKey::PgDown;
 +    default:
 +      if (key >= SDLK_F1 && key <= SDLK_F24) {
 +        return static_cast<ESpecialKey>(static_cast<int>(ESpecialKey::F1) + (key - SDLK_F1));
@@ -51,94 +75,196 @@ index 7f10e8a..ce0fc8f 100644
 +      return ESpecialKey::None;
 +    }
 +  }
- 
++
++  void setMouseCaptured(bool captured) noexcept {
++#if !TARGET_OS_IOS && !TARGET_OS_TV
++    if (m_sdlWindow != nullptr && SDL_SetWindowRelativeMouseMode(m_sdlWindow, captured)) {
++      m_kbmData.m_mouseCaptured = captured;
++      m_kbmData.m_mouseDelta = {};
++      spdlog::info("Desktop mouse capture {}", captured ? "enabled" : "released");
++    }
++#else
++    (void)captured;
++#endif
++  }
++
++  void releaseDesktopInput() noexcept {
++    m_kbmData.m_charKeys.fill(false);
++    m_kbmData.m_specialKeys.fill(false);
++    m_kbmData.m_mouseButtons.fill(false);
++    m_kbmData.m_pendingCharPresses.fill(false);
++    m_kbmData.m_pendingSpecialPresses.fill(false);
++    m_kbmData.m_pendingMousePresses.fill(false);
++    setMouseCaptured(false);
++  }
+
+ public:
+   Application(int argc, char** argv, FileStoreManager& fileMgr, CVarManager& cvarMgr, CVarCommons& cvarCmns,
+@@ -198,12 +272,27 @@ public:
+   , m_cvarManager(cvarMgr)
+   , m_cvarCommons(cvarCmns)
+   , m_nameDatabase(nameDatabase)
+-  , m_imGuiConsole(cvarMgr, cvarCmns) {}
++  , m_imGuiConsole(cvarMgr, cvarCmns) {
++#if !TARGET_OS_IOS && !TARGET_OS_TV
++    g_kbmData = &m_kbmData;
++#endif
++  }
++
++  ~Application() {
++    if (g_kbmData == &m_kbmData) {
++      g_kbmData = nullptr;
++    }
++  }
+
    void onAppLaunched(const AuroraInfo& info) noexcept {
      initialize();
-@@ -239,6 +268,14 @@ public:
++    m_sdlWindow = info.window;
+
++#if defined(__APPLE__) && !TARGET_OS_TV
++    VISetWindowTitle(fmt::format("EctoPad {} [{}]", METAFORCE_WC_DESCRIBE, backend_name(info.backend)).c_str());
++#else
+     VISetWindowTitle(fmt::format("Metaforce {} [{}]", METAFORCE_WC_DESCRIBE, backend_name(info.backend)).c_str());
++#endif
+
+     //    m_voiceEngine = boo::NewAudioVoiceEngine("metaforce", "Metaforce");
+     //    m_voiceEngine->setVolume(0.7f);
+@@ -239,6 +328,21 @@ public:
      switch (event.type) {
      case SDL_EVENT_KEY_DOWN:
        m_lAltHeld = event.key.key == SDLK_LALT;
-+      if (event.key.repeat == 0u) {
-+        const auto special = SdlKeyToSpecialKey(event.key.key);
-+        if (special != ESpecialKey::None) {
-+          m_kbmData.m_specialKeys[size_t(special)] = true;
-+        } else if (event.key.key >= 0x20 && event.key.key < 0x7f) {
-+          m_kbmData.m_charKeys[size_t(event.key.key)] = true;
++      if (event.key.key == SDLK_ESCAPE && m_kbmData.m_mouseCaptured) {
++        setMouseCaptured(false);
++      }
++      if (const auto special = SdlKeyToSpecialKey(event.key.key); special != ESpecialKey::None) {
++        m_kbmData.m_specialKeys[size_t(special)] = true;
++        if (event.key.repeat == 0u) {
++          m_kbmData.m_pendingSpecialPresses[size_t(special)] = true;
++        }
++      } else if (event.key.key >= 0x20 && event.key.key < 0x7f) {
++        const auto key = static_cast<unsigned char>(event.key.key);
++        m_kbmData.m_charKeys[size_t(key)] = true;
++        if (event.key.repeat == 0u) {
++          m_kbmData.m_pendingCharPresses[size_t(key)] = true;
 +        }
 +      }
        // Toggle fullscreen on ALT+ENTER
        if (event.key.key == SDLK_RETURN && (event.key.mod & SDL_KMOD_ALT) != 0u && event.key.repeat == 0u) {
          m_cvarCommons.m_fullscreen->fromBoolean(!m_cvarCommons.m_fullscreen->toBoolean());
-@@ -249,6 +286,37 @@ public:
+@@ -249,6 +353,37 @@ public:
          m_imGuiConsole.ToggleVisible();
          m_lAltHeld = false;
        }
-+      {
-+        const auto special = SdlKeyToSpecialKey(event.key.key);
-+        if (special != ESpecialKey::None) {
-+          m_kbmData.m_specialKeys[size_t(special)] = false;
-+        } else if (event.key.key >= 0x20 && event.key.key < 0x7f) {
-+          m_kbmData.m_charKeys[size_t(event.key.key)] = false;
-+        }
++      if (const auto special = SdlKeyToSpecialKey(event.key.key); special != ESpecialKey::None) {
++        m_kbmData.m_specialKeys[size_t(special)] = false;
++      } else if (event.key.key >= 0x20 && event.key.key < 0x7f) {
++        const auto key = static_cast<unsigned char>(event.key.key);
++        m_kbmData.m_charKeys[size_t(key)] = false;
 +      }
 +      break;
-+    case SDL_EVENT_TEXT_INPUT: {
-+      const char* text = event.text.text;
-+      if (text != nullptr && text[0] != '\0' && static_cast<unsigned char>(text[0]) < 0x7f) {
-+        const unsigned char ch = text[0];
-+        const unsigned char idx = static_cast<unsigned char>(ch >= 'a' && ch <= 'z' ? ch - 'a' + 'A' : ch);
-+        m_kbmData.m_charKeys[size_t(idx)] = true;
-+      }
-+      break;
-+    }
 +    case SDL_EVENT_MOUSE_BUTTON_DOWN:
-+      if (event.button.button >= 1 && event.button.button <= 6) {
-+        m_kbmData.m_mouseButtons[event.button.button - 1] = true;
++      if (event.button.button >= SDL_BUTTON_LEFT && event.button.button <= SDL_BUTTON_X2) {
++        m_kbmData.m_mouseButtons[event.button.button] = true;
++        m_kbmData.m_pendingMousePresses[event.button.button] = true;
++      }
++      if (event.button.button == SDL_BUTTON_LEFT && m_projectInitialized && !m_kbmData.m_mouseCaptured) {
++        setMouseCaptured(true);
 +      }
 +      break;
 +    case SDL_EVENT_MOUSE_BUTTON_UP:
-+      if (event.button.button >= 1 && event.button.button <= 6) {
-+        m_kbmData.m_mouseButtons[event.button.button - 1] = false;
++      if (event.button.button >= SDL_BUTTON_LEFT && event.button.button <= SDL_BUTTON_X2) {
++        m_kbmData.m_mouseButtons[event.button.button] = false;
 +      }
 +      break;
 +    case SDL_EVENT_MOUSE_MOTION:
 +      m_kbmData.m_mouseCoord.pixel[0] = event.motion.x;
 +      m_kbmData.m_mouseCoord.pixel[1] = event.motion.y;
++      if (m_kbmData.m_mouseCaptured) {
++        m_kbmData.m_mouseDelta[0] += event.motion.xrel;
++        m_kbmData.m_mouseDelta[1] += event.motion.yrel;
++      }
++      break;
++    case SDL_EVENT_WINDOW_FOCUS_LOST:
++      releaseDesktopInput();
        break;
      case SDL_EVENT_DROP_FILE: {
        m_imGuiConsole.m_gameDiscSelected = event.drop.data;
+@@ -385,6 +520,7 @@ public:
+ //    if (m_voiceEngine) {
+ //      m_voiceEngine->pumpAndMixVoices();
+ //    }
++    aurora_audio_pump();
+ #ifdef EMSCRIPTEN
+     CDvdFile::DoWork();
+ #endif
+@@ -418,6 +554,7 @@ public:
+     //      m_voiceEngine->unlockPump();
+     //      m_voiceEngine->stopPump();
+     //    }
++    aurora_audio_close();
+     if (g_mainMP1) {
+       g_mainMP1->Shutdown();
+     }
+@@ -536,6 +673,15 @@ int main(int argc, char** argv) {
+   metaforce::FileStoreManager fileMgr{"AxioDL", "metaforce"};
+   SetupBasics();
+
++#if TARGET_OS_IOS
++  for (int i = 1; i < argc; ++i) {
++    if (!strcmp(argv[i], "--metaforce-import-test") && i + 1 < argc)
++      return MetaforceRunGameDataImportTest(argv[i + 1]);
++    if (!strcmp(argv[i], "--metaforce-remove-data-test"))
++      return MetaforceRunGameDataRemovalTest();
++  }
++#endif
++
+   std::vector<std::string> args;
+   for (int i = 1; i < argc; ++i) {
+     args.emplace_back(argv[i]);
+@@ -580,7 +726,11 @@ int main(int argc, char** argv) {
+     std::string configPath{fileMgr.getStoreRoot()};
+
+     const AuroraConfig config{
++#if defined(__APPLE__) && !TARGET_OS_TV
++        .appName = "EctoPad",
++#else
+         .appName = "Metaforce",
++#endif
+         .userPath = configPath.c_str(),
+         .cachePath = configPath.c_str(),
+         .desiredBackend = metaforce::backend_from_string(cvarCmns.getGraphicsApi()),
 diff --git a/Runtime/GameGlobalObjects.cpp b/Runtime/GameGlobalObjects.cpp
-index 597b23a..5877041 100644
+index 597b23a91..6e94f5dca 100644
 --- a/Runtime/GameGlobalObjects.cpp
 +++ b/Runtime/GameGlobalObjects.cpp
 @@ -17,6 +17,7 @@ class CCubeRenderer* g_Renderer = nullptr;
  class CStringTable* g_MainStringTable = nullptr;
  class CTextureCache* g_TextureCache = nullptr;
  class CInputGenerator* g_InputGenerator = nullptr;
-+CKeyboardMouseControllerData* g_kbmData = nullptr;
++struct CKeyboardMouseControllerData* g_kbmData = nullptr;
  class IController* g_Controller = nullptr;
  class CStateManager* g_StateManager = nullptr;
- 
+
 diff --git a/Runtime/GameGlobalObjects.hpp b/Runtime/GameGlobalObjects.hpp
-index a861c8a..32d8146 100644
+index a861c8abc..4d24c0802 100644
 --- a/Runtime/GameGlobalObjects.hpp
 +++ b/Runtime/GameGlobalObjects.hpp
 @@ -54,6 +54,7 @@ extern class CCubeRenderer* g_Renderer;
  extern class CStringTable* g_MainStringTable;
  extern class CTextureCache* g_TextureCache;
  extern class CInputGenerator* g_InputGenerator;
-+extern class CKeyboardMouseControllerData* g_kbmData;
++extern struct CKeyboardMouseControllerData* g_kbmData;
  extern class IController* g_Controller;
  extern class CStateManager* g_StateManager;
- 
+
 diff --git a/Runtime/Input/CFinalInput.cpp b/Runtime/Input/CFinalInput.cpp
-index 77a659c..fd1e267 100644
+index 77a659c4b..095d03376 100644
 --- a/Runtime/Input/CFinalInput.cpp
 +++ b/Runtime/Input/CFinalInput.cpp
-@@ -44,35 +44,70 @@ CFinalInput::CFinalInput(int cIdx, float dt, const CControllerGamepadData& data,
+@@ -44,35 +44,69 @@ CFinalInput::CFinalInput(int cIdx, float dt, const CControllerGamepadData& data,
    InitializeAnalog(leftDiv, rightDiv);
  }
- 
+
 -#if 0
 +namespace {
 +bool KBDown(const CKeyboardMouseControllerData& data, char c) noexcept {
@@ -146,6 +272,7 @@ index 77a659c..fd1e267 100644
 +  const auto upper = static_cast<unsigned char>(c >= 'a' && c <= 'z' ? c - 'a' + 'A' : c);
 +  return data.m_charKeys[lower] || data.m_charKeys[upper];
 +}
++
 +float KBAxis(const CKeyboardMouseControllerData& data, char pos, char neg) noexcept {
 +  return (KBDown(data, pos) ? 1.f : 0.f) - (KBDown(data, neg) ? 1.f : 0.f);
 +}
@@ -172,8 +299,8 @@ index 77a659c..fd1e267 100644
 +, x23_enableAnaRightYP(true)
 +, x24_anaLeftTriggerP(0.f)
 +, x28_anaRightTriggerP(0.f)
-+, x2c_b24_A(KBDown(data, 'j'))
-+, x2c_b25_B(KBDown(data, 'k'))
++, x2c_b24_A(KBDown(data, 'j') || KBDown(data, ' '))
++, x2c_b25_B(KBDown(data, 'k') || data.m_specialKeys[size_t(ESpecialKey::Backspace)])
 +, x2c_b26_X(KBDown(data, 'i'))
 +, x2c_b27_Y(KBDown(data, 'u'))
 +, x2c_b28_Z(KBDown(data, 'h'))
@@ -195,37 +322,35 @@ index 77a659c..fd1e267 100644
 -, x2e_b29_PDPDown(DDPDown() && !prevInput.DDPDown())
 -, x2e_b30_PDPLeft(DDPLeft() && !prevInput.DDPLeft())
 -, x2e_b31_PStart(DStart() && !prevInput.DStart())
-+, x2d_b27_Start(data.m_specialKeys[size_t(ESpecialKey::Enter)])
++, x2d_b27_Start(data.m_specialKeys[size_t(ESpecialKey::Enter)] ||
++                data.m_specialKeys[size_t(ESpecialKey::Esc)])
  , m_kbm(data) {
-+  const bool prevA = prevInput.m_kbm ? KBDown(*prevInput.m_kbm, 'j') : false;
-+  const bool prevB = prevInput.m_kbm ? KBDown(*prevInput.m_kbm, 'k') : false;
-+  const bool prevX = prevInput.m_kbm ? KBDown(*prevInput.m_kbm, 'i') : false;
-+  const bool prevY = prevInput.m_kbm ? KBDown(*prevInput.m_kbm, 'u') : false;
-+  const bool prevZ = prevInput.m_kbm ? KBDown(*prevInput.m_kbm, 'h') : false;
-+  const bool prevL = prevInput.m_kbm ? KBDown(*prevInput.m_kbm, 'q') : false;
-+  const bool prevR = prevInput.m_kbm ? KBDown(*prevInput.m_kbm, 'e') : false;
-+  const bool prevStart = prevInput.m_kbm ? prevInput.m_kbm->m_specialKeys[size_t(ESpecialKey::Enter)] : false;
-+  const bool prevDPUp = prevInput.m_kbm ? prevInput.m_kbm->m_specialKeys[size_t(ESpecialKey::Up)] : false;
-+  const bool prevDPRight = prevInput.m_kbm ? prevInput.m_kbm->m_specialKeys[size_t(ESpecialKey::Right)] : false;
-+  const bool prevDPDown = prevInput.m_kbm ? prevInput.m_kbm->m_specialKeys[size_t(ESpecialKey::Down)] : false;
-+  const bool prevDPLeft = prevInput.m_kbm ? prevInput.m_kbm->m_specialKeys[size_t(ESpecialKey::Left)] : false;
-+  x2d_b28_PA = x2c_b24_A && !prevA;
-+  x2d_b29_PB = x2c_b25_B && !prevB;
-+  x2d_b30_PX = x2c_b26_X && !prevX;
-+  x2d_b31_PY = x2c_b27_Y && !prevY;
-+  x2e_b24_PZ = x2c_b28_Z && !prevZ;
-+  x2e_b25_PL = x2c_b29_L && !prevL;
-+  x2e_b26_PR = x2c_b30_R && !prevR;
-+  x2e_b27_PDPUp = x2c_b31_DPUp && !prevDPUp;
-+  x2e_b28_PDPRight = x2d_b24_DPRight && !prevDPRight;
-+  x2e_b29_PDPDown = x2d_b25_DPDown && !prevDPDown;
-+  x2e_b30_PDPLeft = x2d_b26_DPLeft && !prevDPLeft;
-+  x2e_b31_PStart = x2d_b27_Start && !prevStart;
++  const auto wasDown = [&prevInput](char key) {
++    return prevInput.m_kbm && KBDown(*prevInput.m_kbm, key);
++  };
++  const auto wasSpecialDown = [&prevInput](ESpecialKey key) {
++    return prevInput.m_kbm && prevInput.m_kbm->m_specialKeys[size_t(key)];
++  };
++  x2d_b28_PA = (KBDown(data, 'j') && !wasDown('j')) || (KBDown(data, ' ') && !wasDown(' '));
++  x2d_b29_PB = (KBDown(data, 'k') && !wasDown('k')) ||
++                (data.m_specialKeys[size_t(ESpecialKey::Backspace)] && !wasSpecialDown(ESpecialKey::Backspace));
++  x2d_b30_PX = x2c_b26_X && !wasDown('i');
++  x2d_b31_PY = x2c_b27_Y && !wasDown('u');
++  x2e_b24_PZ = x2c_b28_Z && !wasDown('h');
++  x2e_b25_PL = x2c_b29_L && !wasDown('q');
++  x2e_b26_PR = x2c_b30_R && !wasDown('e');
++  x2e_b27_PDPUp = x2c_b31_DPUp && !(prevInput.m_kbm && prevInput.m_kbm->m_specialKeys[size_t(ESpecialKey::Up)]);
++  x2e_b28_PDPRight = x2d_b24_DPRight && !(prevInput.m_kbm && prevInput.m_kbm->m_specialKeys[size_t(ESpecialKey::Right)]);
++  x2e_b29_PDPDown = x2d_b25_DPDown && !(prevInput.m_kbm && prevInput.m_kbm->m_specialKeys[size_t(ESpecialKey::Down)]);
++  x2e_b30_PDPLeft = x2d_b26_DPLeft && !(prevInput.m_kbm && prevInput.m_kbm->m_specialKeys[size_t(ESpecialKey::Left)]);
++  x2e_b31_PStart =
++      (data.m_specialKeys[size_t(ESpecialKey::Enter)] && !wasSpecialDown(ESpecialKey::Enter)) ||
++      (data.m_specialKeys[size_t(ESpecialKey::Esc)] && !wasSpecialDown(ESpecialKey::Esc));
 +
    if (prevInput.m_kbm) {
      for (size_t i = 0; i < m_PCharKeys.size(); ++i) {
        m_PCharKeys[i] = data.m_charKeys[i] && !prevInput.m_kbm->m_charKeys[i];
-@@ -83,63 +118,13 @@ CFinalInput::CFinalInput(int cIdx, float dt, const CKeyboardMouseControllerData&
+@@ -83,9 +117,14 @@ CFinalInput::CFinalInput(int cIdx, float dt, const CKeyboardMouseControllerData&
      for (size_t i = 0; i < m_PMouseButtons.size(); ++i) {
        m_PMouseButtons[i] = data.m_mouseButtons[i] && !prevInput.m_kbm->m_mouseButtons[i];
      }
@@ -235,94 +360,53 @@ index 77a659c..fd1e267 100644
 +    m_PMouseButtons = data.m_mouseButtons;
    }
  }
- 
--CFinalInput& CFinalInput::operator|=(const CFinalInput& other) {
--  if (std::fabs(other.x8_anaLeftX) > std::fabs(x8_anaLeftX))
--    x8_anaLeftX = other.x8_anaLeftX;
--  if (std::fabs(other.xc_anaLeftY) > std::fabs(xc_anaLeftY))
--    xc_anaLeftY = other.xc_anaLeftY;
--  if (std::fabs(other.x10_anaRightX) > std::fabs(x10_anaRightX))
--    x10_anaRightX = other.x10_anaRightX;
--  if (std::fabs(other.x14_anaRightY) > std::fabs(x14_anaRightY))
--    x14_anaRightY = other.x14_anaRightY;
--  if (std::fabs(other.x18_anaLeftTrigger) > std::fabs(x18_anaLeftTrigger))
--    x18_anaLeftTrigger = other.x18_anaLeftTrigger;
--  if (std::fabs(other.x1c_anaRightTrigger) > std::fabs(x1c_anaRightTrigger))
--    x1c_anaRightTrigger = other.x1c_anaRightTrigger;
--  x20_enableAnaLeftXP |= other.x20_enableAnaLeftXP;
--  x21_enableAnaLeftYP |= other.x21_enableAnaLeftYP;
--  x22_enableAnaRightXP |= other.x22_enableAnaRightXP;
--  x23_enableAnaRightYP |= other.x23_enableAnaRightYP;
--  x24_anaLeftTriggerP = other.x24_anaLeftTriggerP;
--  x28_anaRightTriggerP = other.x28_anaRightTriggerP;
--  x2c_b24_A |= other.x2c_b24_A;
--  x2c_b25_B |= other.x2c_b25_B;
--  x2c_b26_X |= other.x2c_b26_X;
--  x2c_b27_Y |= other.x2c_b27_Y;
--  x2c_b28_Z |= other.x2c_b28_Z;
--  x2c_b29_L |= other.x2c_b29_L;
--  x2c_b30_R |= other.x2c_b30_R;
--  x2c_b31_DPUp |= other.x2c_b31_DPUp;
--  x2d_b24_DPRight |= other.x2d_b24_DPRight;
--  x2d_b25_DPDown |= other.x2d_b25_DPDown;
--  x2d_b26_DPLeft |= other.x2d_b26_DPLeft;
--  x2d_b27_Start |= other.x2d_b27_Start;
--  x2d_b28_PA |= other.x2d_b28_PA;
--  x2d_b29_PB |= other.x2d_b29_PB;
--  x2d_b30_PX |= other.x2d_b30_PX;
--  x2d_b31_PY |= other.x2d_b31_PY;
--  x2e_b24_PZ |= other.x2e_b24_PZ;
--  x2e_b25_PL |= other.x2e_b25_PL;
--  x2e_b26_PR |= other.x2e_b26_PR;
--  x2e_b27_PDPUp |= other.x2e_b27_PDPUp;
--  x2e_b28_PDPRight |= other.x2e_b28_PDPRight;
--  x2e_b29_PDPDown |= other.x2e_b29_PDPDown;
--  x2e_b30_PDPLeft |= other.x2e_b30_PDPLeft;
--  x2e_b31_PStart |= other.x2e_b31_PStart;
--  if (other.m_kbm) {
--    m_kbm = other.m_kbm;
--    m_PCharKeys = other.m_PCharKeys;
--    m_PSpecialKeys = other.m_PSpecialKeys;
--    m_PMouseButtons = other.m_PMouseButtons;
--  }
--  m_which = other.m_which;
--  return *this;
--}
--#endif
+
++#if 0
+ CFinalInput& CFinalInput::operator|=(const CFinalInput& other) {
+   if (std::fabs(other.x8_anaLeftX) > std::fabs(x8_anaLeftX))
+     x8_anaLeftX = other.x8_anaLeftX;
+@@ -139,7 +178,6 @@ CFinalInput& CFinalInput::operator|=(const CFinalInput& other) {
+   return *this;
+ }
+ #endif
 -
  CFinalInput CFinalInput::ScaleAnalogueSticks(float leftDiv, float rightDiv) const {
    CFinalInput ret = *this;
    ret.x8_anaLeftX = zeus::clamp(-1.f, x8_anaLeftX / leftDiv, 1.f);
 diff --git a/Runtime/Input/CInputGenerator.cpp b/Runtime/Input/CInputGenerator.cpp
-index 7656104..170cb3c 100644
+index 7656104f4..a8ef4e728 100644
 --- a/Runtime/Input/CInputGenerator.cpp
 +++ b/Runtime/Input/CInputGenerator.cpp
 @@ -2,8 +2,10 @@
- 
+
  #include "Runtime/Input/IController.hpp"
  #include "Runtime/Input/CFinalInput.hpp"
 +#include "Runtime/Input/CKeyboardMouseController.hpp"
- 
+
  #include "Runtime/CArchitectureQueue.hpp"
 +#include "Runtime/GameGlobalObjects.hpp"
- 
+
  namespace metaforce {
  CInputGenerator::CInputGenerator(/*COsContext& context, */ float leftDiv, float rightDiv)
-@@ -22,11 +24,13 @@ void CInputGenerator::Update(float dt, CArchitectureQueue& queue) {
- 
+@@ -21,15 +23,13 @@ void CInputGenerator::Update(float dt, CArchitectureQueue& queue) {
+ #endif
+
    u32 availSlot = 0;
-   bool firstController = false;
+-  bool firstController = false;
 +  bool anyController = false;
    if (x4_controller) {
      x4_controller->Poll();
      for (u32 i = 0; i < x4_controller->GetDeviceCount(); ++i) {
        auto cont = x4_controller->GetGamepadData(i);
        if (cont.DeviceIsPresent()) {
+-        if (i == 0) {
+-          firstController = true;
+-        }
 +        anyController = true;
+         auto tmp = CFinalInput(i, dt, cont, xc_leftDiv, x10_rightDiv);
          if (i == 0) {
-           firstController = true;
-         }
-@@ -44,12 +48,12 @@ void CInputGenerator::Update(float dt, CArchitectureQueue& queue) {
+           m_lastInput = tmp;
+@@ -44,11 +44,25 @@ void CInputGenerator::Update(float dt, CArchitectureQueue& queue) {
        }
      }
    }
@@ -331,13 +415,390 @@ index 7656104..170cb3c 100644
 -    queue.Push(MakeMsg::CreateUserInput(EArchMsgTarget::Game, CFinalInput(availSlot, dt, x0_osContext)));
 -  } else {
 -    queue.Push(MakeMsg::CreateUserInput(EArchMsgTarget::Game, CFinalInput(0, dt, x0_osContext)));
-+
-+  // Keyboard/mouse fallback input when no gamepad is connected.
++#if !TARGET_OS_IOS && !TARGET_OS_TV
 +  if (!anyController && g_kbmData != nullptr) {
-+    CFinalInput kbmInput(0, dt, *g_kbmData, m_lastInput);
++    CKeyboardMouseControllerData frameData = *g_kbmData;
++    for (size_t i = 0; i < frameData.m_charKeys.size(); ++i) {
++      frameData.m_charKeys[i] = frameData.m_charKeys[i] || frameData.m_pendingCharPresses[i];
++    }
++    for (size_t i = 0; i < frameData.m_specialKeys.size(); ++i) {
++      frameData.m_specialKeys[i] = frameData.m_specialKeys[i] || frameData.m_pendingSpecialPresses[i];
++    }
++    for (size_t i = 0; i < frameData.m_mouseButtons.size(); ++i) {
++      frameData.m_mouseButtons[i] = frameData.m_mouseButtons[i] || frameData.m_pendingMousePresses[i];
++    }
++    CFinalInput kbmInput(0, dt, frameData, m_lastInput);
 +    queue.Push(MakeMsg::CreateUserInput(EArchMsgTarget::Game, kbmInput));
 +    m_lastInput = kbmInput;
++    g_kbmData->m_mouseDelta = {};
++    g_kbmData->m_pendingCharPresses.fill(false);
++    g_kbmData->m_pendingSpecialPresses.fill(false);
++    g_kbmData->m_pendingMousePresses.fill(false);
+   }
+ #endif
+ }
+diff --git a/Runtime/Input/CKeyboardMouseController.hpp b/Runtime/Input/CKeyboardMouseController.hpp
+index e07021b8e..afe88203e 100644
+--- a/Runtime/Input/CKeyboardMouseController.hpp
++++ b/Runtime/Input/CKeyboardMouseController.hpp
+@@ -35,7 +35,7 @@ enum class EControllerAxis : uint8_t {
+   TriggerRight,
+   MAX,
+ };
+-enum class EMouseButton { None = 0, Primary = 1, Secondary = 2, Middle = 3, Aux1 = 4, Aux2 = 5 };
++enum class EMouseButton { None = 0, Primary = 1, Middle = 2, Secondary = 3, Aux1 = 4, Aux2 = 5 };
+ enum class ESpecialKey : uint8_t {
+   None = 0,
+   F1 = 1,
+@@ -113,6 +113,7 @@ enum class ESpecialKey : uint8_t {
+   Find = 73,
+   VolumeUp = 74,
+   VolumeDown = 75,
++  Shift = 76,
+   MAX,
+ };
+ enum class EModifierKey {
+@@ -165,8 +166,13 @@ struct CKeyboardMouseControllerData {
+   std::array<bool, 256> m_charKeys{};
+   std::array<bool, static_cast<size_t>(ESpecialKey::MAX)> m_specialKeys{};
+   std::array<bool, 6> m_mouseButtons{};
++  std::array<bool, 256> m_pendingCharPresses{};
++  std::array<bool, static_cast<size_t>(ESpecialKey::MAX)> m_pendingSpecialPresses{};
++  std::array<bool, 6> m_pendingMousePresses{};
+   EModifierKey m_modMask = EModifierKey::None;
+   SWindowCoord m_mouseCoord;
++  std::array<float, 2> m_mouseDelta{};
++  bool m_mouseCaptured = false;
+   SScrollDelta m_accumScroll;
+ };
+
+diff --git a/Runtime/Input/ControlMapper.cpp b/Runtime/Input/ControlMapper.cpp
+index b5e438f03..f91bc8626 100644
+--- a/Runtime/Input/ControlMapper.cpp
++++ b/Runtime/Input/ControlMapper.cpp
+@@ -147,17 +147,17 @@ constexpr std::array<FloatReturnFn, 24> skAnalogFuncs{
+ constexpr std::array<ControlMapper::EKBMFunctionList, 70> skKBMMapping{
+     ControlMapper::EKBMFunctionList::KeyPress + 'w',                       // Forward,
+     ControlMapper::EKBMFunctionList::KeyPress + 's',                       // Backward,
+-    ControlMapper::EKBMFunctionList::KeyPress + 'a',                       // TurnLeft,
+-    ControlMapper::EKBMFunctionList::KeyPress + 'd',                       // TurnRight,
++    ControlMapper::EKBMFunctionList::None,                                 // TurnLeft,
++    ControlMapper::EKBMFunctionList::None,                                 // TurnRight,
+     ControlMapper::EKBMFunctionList::KeyPress + 'a',                       // StrafeLeft,
+     ControlMapper::EKBMFunctionList::KeyPress + 'd',                       // StrafeRight,
+-    ControlMapper::EKBMFunctionList::KeyPress + 'a',                       // LookLeft,
+-    ControlMapper::EKBMFunctionList::KeyPress + 'd',                       // LookRight,
+-    ControlMapper::EKBMFunctionList::KeyPress + 's',                       // LookUp,
+-    ControlMapper::EKBMFunctionList::KeyPress + 'w',                       // LookDown,
++    ControlMapper::EKBMFunctionList::None,                                 // LookLeft,
++    ControlMapper::EKBMFunctionList::None,                                 // LookRight,
++    ControlMapper::EKBMFunctionList::None,                                 // LookUp,
++    ControlMapper::EKBMFunctionList::None,                                 // LookDown,
+     ControlMapper::EKBMFunctionList::KeyPress + ' ',                       // JumpOrBoost = 10,
+     ControlMapper::EKBMFunctionList::MousePress + EMouseButton::Primary,   // FireOrBomb = 11,
+-    ControlMapper::EKBMFunctionList::MousePress + EMouseButton::Secondary, // MissileOrPowerBomb = 12,
++    ControlMapper::EKBMFunctionList::KeyPress + 'f',                      // MissileOrPowerBomb = 12,
+     ControlMapper::EKBMFunctionList::KeyPress + 'c',                       // Morph,
+     ControlMapper::EKBMFunctionList::None,                                 // AimUp,
+     ControlMapper::EKBMFunctionList::None,                                 // AimDown,
+@@ -170,15 +170,15 @@ constexpr std::array<ControlMapper::EKBMFunctionList, 70> skKBMMapping{
+     ControlMapper::EKBMFunctionList::KeyPress + '4',                       // PlasmaBeam,
+     ControlMapper::EKBMFunctionList::None,                                 // ToggleHolster = 23,
+     ControlMapper::EKBMFunctionList::None,                                 // OrbitClose,
+-    ControlMapper::EKBMFunctionList::KeyPress + 'q',                       // OrbitFar,
+-    ControlMapper::EKBMFunctionList::KeyPress + 'q',                       // OrbitObject,
++    ControlMapper::EKBMFunctionList::SpecialKeyPress + ESpecialKey::Shift, // OrbitFar,
++    ControlMapper::EKBMFunctionList::SpecialKeyPress + ESpecialKey::Shift, // OrbitObject,
+     ControlMapper::EKBMFunctionList::None,                                 // OrbitSelect,
+     ControlMapper::EKBMFunctionList::None,                                 // OrbitConfirm,
+-    ControlMapper::EKBMFunctionList::KeyPress + 'a',                       // OrbitLeft,
+-    ControlMapper::EKBMFunctionList::KeyPress + 'd',                       // OrbitRight,
+-    ControlMapper::EKBMFunctionList::KeyPress + 'w',                       // OrbitUp,
+-    ControlMapper::EKBMFunctionList::KeyPress + 's',                       // OrbitDown,
+-    ControlMapper::EKBMFunctionList::KeyPress + 'e',                       // LookHold1,
++    ControlMapper::EKBMFunctionList::None,                                 // OrbitLeft,
++    ControlMapper::EKBMFunctionList::None,                                 // OrbitRight,
++    ControlMapper::EKBMFunctionList::None,                                 // OrbitUp,
++    ControlMapper::EKBMFunctionList::None,                                 // OrbitDown,
++    ControlMapper::EKBMFunctionList::MousePress + EMouseButton::Secondary, // LookHold1,
+     ControlMapper::EKBMFunctionList::None,                                 // LookHold2,
+     ControlMapper::EKBMFunctionList::None,                                 // LookZoomIn,
+     ControlMapper::EKBMFunctionList::None,                                 // LookZoomOut,
+@@ -193,19 +193,19 @@ constexpr std::array<ControlMapper::EKBMFunctionList, 70> skKBMMapping{
+     ControlMapper::EKBMFunctionList::SpecialKeyPress + ESpecialKey::Right, // MapMoveRight,
+     ControlMapper::EKBMFunctionList::KeyPress + 'e',                       // MapZoomIn,
+     ControlMapper::EKBMFunctionList::KeyPress + 'q',                       // MapZoomOut,
+-    ControlMapper::EKBMFunctionList::KeyPress + 'e',                       // SpiderBall,
+-    ControlMapper::EKBMFunctionList::KeyPress + 'q',                       // ChaseCamera,
+-    ControlMapper::EKBMFunctionList::SpecialKeyPress + ESpecialKey::Right, // XrayVisor = 50,
+-    ControlMapper::EKBMFunctionList::SpecialKeyPress + ESpecialKey::Down,  // ThermoVisor = 51,
+-    ControlMapper::EKBMFunctionList::SpecialKeyPress + ESpecialKey::Left,  // InviroVisor = 52,
+-    ControlMapper::EKBMFunctionList::SpecialKeyPress + ESpecialKey::Up,    // NoVisor = 53,
++    ControlMapper::EKBMFunctionList::MousePress + EMouseButton::Secondary, // SpiderBall,
++    ControlMapper::EKBMFunctionList::SpecialKeyPress + ESpecialKey::Shift, // ChaseCamera,
++    ControlMapper::EKBMFunctionList::KeyPress + 'x',                       // XrayVisor = 50,
++    ControlMapper::EKBMFunctionList::KeyPress + 'z',                       // ThermoVisor = 51,
++    ControlMapper::EKBMFunctionList::KeyPress + 'e',                       // InviroVisor = 52,
++    ControlMapper::EKBMFunctionList::KeyPress + 'q',                       // NoVisor = 53,
+     ControlMapper::EKBMFunctionList::None,                                 // VisorMenu,
+     ControlMapper::EKBMFunctionList::None,                                 // VisorUp,
+     ControlMapper::EKBMFunctionList::None,                                 // VisorDown,
+-    ControlMapper::EKBMFunctionList::KeyPress + 'e',                       // ShowCrosshairs,
++    ControlMapper::EKBMFunctionList::MousePress + EMouseButton::Secondary, // ShowCrosshairs,
+     ControlMapper::EKBMFunctionList::None,                                 // UNKNOWN
+     ControlMapper::EKBMFunctionList::None,                                 // UseSheild = 0x3B,
+-    ControlMapper::EKBMFunctionList::KeyPress + 'q',                       // ScanItem = 0x3C,
++    ControlMapper::EKBMFunctionList::SpecialKeyPress + ESpecialKey::Shift, // ScanItem = 0x3C,
+     ControlMapper::EKBMFunctionList::None,                                 // UNKNOWN
+     ControlMapper::EKBMFunctionList::None,                                 // UNKNOWN
+     ControlMapper::EKBMFunctionList::None,                                 // UNKNOWN
+@@ -230,10 +230,12 @@ bool ControlMapper::GetPressInput(ECommands cmd, const CFinalInput& input) {
+   }
+
+   bool ret = false;
+-  const auto func = EFunctionList(g_currentPlayerControl->GetMapping(u32(cmd)));
+-  if (func < EFunctionList::MAX) {
+-    if (BoolReturnFn fn = skPressFuncs[size_t(func)]) {
+-      ret = (input.*fn)();
++  if (!input.GetKBM()) {
++    const auto func = EFunctionList(g_currentPlayerControl->GetMapping(u32(cmd)));
++    if (func < EFunctionList::MAX) {
++      if (BoolReturnFn fn = skPressFuncs[size_t(func)]) {
++        ret = (input.*fn)();
++      }
+     }
+   }
+   if (const auto& kbm = input.GetKBM()) {
+@@ -257,10 +259,12 @@ bool ControlMapper::GetDigitalInput(ECommands cmd, const CFinalInput& input) {
+   }
+
+   bool ret = false;
+-  const auto func = EFunctionList(g_currentPlayerControl->GetMapping(u32(cmd)));
+-  if (func < EFunctionList::MAX) {
+-    if (BoolReturnFn fn = skDigitalFuncs[size_t(func)])
+-      ret = (input.*fn)();
++  if (!input.GetKBM()) {
++    const auto func = EFunctionList(g_currentPlayerControl->GetMapping(u32(cmd)));
++    if (func < EFunctionList::MAX) {
++      if (BoolReturnFn fn = skDigitalFuncs[size_t(func)])
++        ret = (input.*fn)();
++    }
+   }
+   if (const auto& kbm = input.GetKBM()) {
+     EKBMFunctionList kbmfunc = skKBMMapping[size_t(cmd)];
+@@ -333,40 +337,52 @@ float ControlMapper::GetAnalogInput(ECommands cmd, const CFinalInput& input) {
+   }
+
+   float ret = 0.f;
+-  const auto func = EFunctionList(g_currentPlayerControl->GetMapping(u32(cmd)));
+-  if (func < EFunctionList::MAX) {
+-    if (FloatReturnFn fn = skAnalogFuncs[size_t(func)]) {
+-      ret = (input.*fn)();
++  if (!input.GetKBM()) {
++    const auto func = EFunctionList(g_currentPlayerControl->GetMapping(u32(cmd)));
++    if (func < EFunctionList::MAX) {
++      if (FloatReturnFn fn = skAnalogFuncs[size_t(func)]) {
++        ret = (input.*fn)();
++      }
+     }
+   }
+-#if 0 // TODO: reimplement this
+   if (const auto& kbm = input.GetKBM()) {
++    const auto mouseAmount = [](float delta) { return zeus::clamp(0.f, std::fabs(delta) * 0.03f, 1.f); };
+     switch (cmd) {
+     case ECommands::Forward:
+-    case ECommands::LookDown:
+-    case ECommands::OrbitUp:
+     case ECommands::MapCircleDown:
+-      ret = std::max(ret, zeus::clamp(-1.f, KBToWASDY(*kbm) * input.m_leftMul, 1.f));
++      ret = std::max(ret, zeus::clamp(-1.f, KBToWASDY(*kbm), 1.f));
+       break;
+     case ECommands::Backward:
+-    case ECommands::LookUp:
+-    case ECommands::OrbitDown:
+     case ECommands::MapCircleUp:
+-      ret = std::max(ret, zeus::clamp(-1.f, -KBToWASDY(*kbm) * input.m_leftMul, 1.f));
++      ret = std::max(ret, zeus::clamp(-1.f, -KBToWASDY(*kbm), 1.f));
+       break;
+-    case ECommands::TurnLeft:
+     case ECommands::StrafeLeft:
+-    case ECommands::LookLeft:
+-    case ECommands::OrbitLeft:
+     case ECommands::MapCircleLeft:
+-      ret = std::max(ret, zeus::clamp(-1.f, -KBToWASDX(*kbm) * input.m_leftMul, 1.f));
++      ret = std::max(ret, zeus::clamp(-1.f, -KBToWASDX(*kbm), 1.f));
+       break;
+-    case ECommands::TurnRight:
+     case ECommands::StrafeRight:
+-    case ECommands::LookRight:
+-    case ECommands::OrbitRight:
+     case ECommands::MapCircleRight:
+-      ret = std::max(ret, zeus::clamp(-1.f, KBToWASDX(*kbm) * input.m_leftMul, 1.f));
++      ret = std::max(ret, zeus::clamp(-1.f, KBToWASDX(*kbm), 1.f));
++      break;
++    case ECommands::TurnLeft:
++      if (kbm->m_mouseCaptured && kbm->m_mouseDelta[0] < 0.f) {
++        ret = std::max(ret, mouseAmount(kbm->m_mouseDelta[0]));
++      }
++      break;
++    case ECommands::TurnRight:
++      if (kbm->m_mouseCaptured && kbm->m_mouseDelta[0] > 0.f) {
++        ret = std::max(ret, mouseAmount(kbm->m_mouseDelta[0]));
++      }
++      break;
++    case ECommands::LookUp:
++      if (kbm->m_mouseCaptured && kbm->m_mouseDelta[1] < 0.f) {
++        ret = std::max(ret, mouseAmount(kbm->m_mouseDelta[1]));
++      }
++      break;
++    case ECommands::LookDown:
++      if (kbm->m_mouseCaptured && kbm->m_mouseDelta[1] > 0.f) {
++        ret = std::max(ret, mouseAmount(kbm->m_mouseDelta[1]));
++      }
+       break;
+     case ECommands::MapMoveForward:
+       ret = std::max(ret, KBToArrowsY(*kbm));
+@@ -396,7 +412,6 @@ float ControlMapper::GetAnalogInput(ECommands cmd, const CFinalInput& input) {
+     }
+     }
    }
 -#endif
+   return ret;
  }
- } // namespace metaforce::WIP
+
+diff --git a/Runtime/Input/ControlMapper.hpp b/Runtime/Input/ControlMapper.hpp
+index 59643045a..50e028bca 100644
+--- a/Runtime/Input/ControlMapper.hpp
++++ b/Runtime/Input/ControlMapper.hpp
+@@ -108,9 +108,11 @@ public:
+     None,
+     KeyPress,
+     SpecialKeyPress = 259,
+-    MousePress = 285,
+-    MAX = 291 /* Provide space for keys/buttons within base actions */
++    MousePress = 336,
++    MAX = 342 /* Provide space for every special key and mouse button */
+   };
++  static_assert(int(EKBMFunctionList::MousePress) - int(EKBMFunctionList::SpecialKeyPress) >=
++                int(ESpecialKey::MAX));
+
+   static void SetCommandFiltered(ECommands cmd, bool filtered);
+   static void ResetCommandFilters();
+diff --git a/Runtime/World/CPlayer.cpp b/Runtime/World/CPlayer.cpp
+index 02763d312..fa9db17ec 100644
+--- a/Runtime/World/CPlayer.cpp
++++ b/Runtime/World/CPlayer.cpp
+@@ -32,6 +32,9 @@
+ #include "Runtime/Logging.hpp"
+ #include "Runtime/Formatting.hpp"
+
++#include <aurora/touch.hpp>
++#include <fmt/format.h>
++
+ #include "TCastTo.hpp" // Generated file, do not modify include path
+
+ namespace metaforce {
+@@ -5407,6 +5410,10 @@ float CPlayer::TurnInput(const CFinalInput& input) const {
+
+   float left = ControlMapper::GetAnalogInput(ControlMapper::ECommands::TurnLeft, input);
+   float right = ControlMapper::GetAnalogInput(ControlMapper::ECommands::TurnRight, input);
++  if (input.GetKBM() && x2f8_morphBallState != EPlayerMorphBallState::Unmorphed) {
++    left = ControlMapper::GetAnalogInput(ControlMapper::ECommands::StrafeLeft, input);
++    right = ControlMapper::GetAnalogInput(ControlMapper::ECommands::StrafeRight, input);
++  }
+
+   if (g_tweakPlayer->GetFreeLookTurnsPlayer()) {
+     if (!g_tweakPlayer->GetHoldButtonsForFreeLook() || x3dd_lookButtonHeld) {
+@@ -5435,7 +5442,9 @@ float CPlayer::TurnInput(const CFinalInput& input) const {
+ }
+
+ float CPlayer::StrafeInput(const CFinalInput& input) const {
+-  if (IsMorphBallTransitioning() || x304_orbitState == EPlayerOrbitState::NoOrbit) {
++  if (IsMorphBallTransitioning() ||
++      (x304_orbitState == EPlayerOrbitState::NoOrbit &&
++       (!input.GetKBM() || x2f8_morphBallState != EPlayerMorphBallState::Unmorphed))) {
+     return 0.f;
+   }
+   return ControlMapper::GetAnalogInput(ControlMapper::ECommands::StrafeRight, input) -
+@@ -5477,7 +5486,7 @@ float CPlayer::ForwardInput(const CFinalInput& input, float turnInput) const {
+     }
+   }
+
+-  if (!g_tweakPlayer->GetMoveDuringFreeLook()) {
++  if (!input.GetKBM() && !g_tweakPlayer->GetMoveDuringFreeLook()) {
+     zeus::CVector3f velFlat = x138_velocity;
+     velFlat.z() = 0.f;
+     if (x3dc_inFreeLook || x3dd_lookButtonHeld) {
+@@ -5637,6 +5646,7 @@ void CPlayer::ComputeMovement(const CFinalInput& input, CStateManager& mgr, floa
+   const float jumpInput = JumpInput(input, mgr);
+   float zRotateInput = TurnInput(input);
+   const float forwardInput = ForwardInput(input, zRotateInput);
++  const float strafeInput = StrafeInput(input);
+   SetVelocityWR(GetDampedClampedVelocityWR());
+   float turnSpeedMul = g_tweakPlayer->GetTurnSpeedMultiplier();
+   if (g_tweakPlayer->GetFreeLookTurnsPlayer()) {
+@@ -5685,12 +5695,25 @@ void CPlayer::ComputeMovement(const CFinalInput& input, CStateManager& mgr, floa
+     forwardForce = 0.f;
+   }
+
+-  if (x304_orbitState != EPlayerOrbitState::NoOrbit && x3dd_lookButtonHeld) {
++  float strafeForce = 0.f;
++  if (input.GetKBM() && x304_orbitState == EPlayerOrbitState::NoOrbit && std::fabs(strafeInput) >= 0.00001f) {
++    const float maxSpeed = g_tweakPlayer->GetPlayerTranslationMaxSpeed(int(restraints));
++    const float calcSpeed = g_tweakPlayer->GetPlayerTranslationFriction(int(restraints)) * xe8_mass /
++                            (dt * g_tweakPlayer->GetMaxTranslationalAcceleration(int(restraints))) * maxSpeed;
++    const float targetSpeed =
++        (strafeInput > 0.f ? 1.f : -1.f) * calcSpeed + (maxSpeed - calcSpeed) * strafeInput;
++    strafeForce =
++        zeus::clamp(-1.f, (targetSpeed - x34_transform.transposeRotate(x138_velocity).x()) / maxSpeed, 1.f) *
++        g_tweakPlayer->GetMaxTranslationalAcceleration(int(restraints));
++  }
++
++  const bool legacyFreeLookMovement = x3dd_lookButtonHeld && !input.GetKBM();
++  if (x304_orbitState != EPlayerOrbitState::NoOrbit && legacyFreeLookMovement) {
+     forwardForce = 0.f;
+   }
+
+-  if (x304_orbitState == EPlayerOrbitState::NoOrbit || x3dd_lookButtonHeld) {
+-    ApplyForceOR({0.f, forwardForce, jumpInput}, zeus::CAxisAngle());
++  if (x304_orbitState == EPlayerOrbitState::NoOrbit || legacyFreeLookMovement) {
++    ApplyForceOR({strafeForce, forwardForce, jumpInput}, zeus::CAxisAngle());
+     if (zRotateInput != 0.f) {
+       ApplyForceOR(zeus::skZero3f, zeus::CAxisAngle({0.f, 0.f, 1.f}, zRotateInput));
+     }
+@@ -5716,7 +5739,7 @@ void CPlayer::ComputeMovement(const CFinalInput& input, CStateManager& mgr, floa
+     ApplyForceOR({0.f, 0.f, jumpInput}, zeus::CAxisAngle());
+   }
+
+-  if (x3dc_inFreeLook || x3dd_lookButtonHeld) {
++  if (!input.GetKBM() && (x3dc_inFreeLook || x3dd_lookButtonHeld)) {
+     if (!x9c5_28_slidingOnWall && x258_movementState == EPlayerMovementState::OnGround) {
+       const zeus::CVector3f revVelFlat(-x138_velocity.x(), -x138_velocity.y(), 0.f);
+       const float revVelFlatMag = revVelFlat.magnitude();
+@@ -5773,6 +5796,11 @@ const CScriptWater* CPlayer::GetVisorRunoffEffect(const CStateManager& mgr) cons
+ }
+
+ void CPlayer::SetMorphBallState(EPlayerMorphBallState state, CStateManager& mgr) {
++  const EPlayerMorphBallState previousState = x2f8_morphBallState;
++  aurora::touch::log_ios_runtime_event(fmt::format(
++      "morph state previous={} next={} area={} position={:.3f},{:.3f},{:.3f}",
++      static_cast<int>(previousState), static_cast<int>(state), GetAreaIdAlways(),
++      GetTranslation().x(), GetTranslation().y(), GetTranslation().z()));
+   if (x2f8_morphBallState == EPlayerMorphBallState::Morphed && state != EPlayerMorphBallState::Morphed) {
+     x9c5_26_ = x9c4_31_inWaterMovement;
+   }
+diff --git a/imgui/CMakeLists.txt b/imgui/CMakeLists.txt
+index fb32ab720..9aa957aca 100644
+--- a/imgui/CMakeLists.txt
++++ b/imgui/CMakeLists.txt
+@@ -9,4 +9,9 @@ target_include_directories(imgui_support PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
+ target_include_directories(imgui_support PRIVATE ${CMAKE_SOURCE_DIR})
+
+ bintoc_compress(NotoMono.cpp NotoMono-Regular.ttf NOTO_MONO_FONT)
+-bintoc(MetaforceIcon.cpp ../Runtime/platforms/freedesktop/256x256/apps/metaforce.png METAFORCE_ICON)
++if(APPLE AND EXISTS "${CMAKE_SOURCE_DIR}/../../assets/app-icon/EctoPad-AppIcon-1024.png")
++    set(APP_ICON_SOURCE "${CMAKE_SOURCE_DIR}/../../assets/app-icon/EctoPad-AppIcon-1024.png")
++else()
++    set(APP_ICON_SOURCE "${CMAKE_CURRENT_SOURCE_DIR}/../Runtime/platforms/freedesktop/256x256/apps/metaforce.png")
++endif()
++bintoc(MetaforceIcon.cpp ${APP_ICON_SOURCE} METAFORCE_ICON)

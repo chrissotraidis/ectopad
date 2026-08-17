@@ -22,10 +22,32 @@ the README suggested. See [TECH-DEBT.md](TECH-DEBT.md) P2.
 
 ## macOS (Apple Silicon)
 
+From the EctoPad repository root, the maintained wrapper configures, builds,
+checks the arm64 app bundle, and runs the five focused controller slot tests:
+
+```sh
+./scripts/build-macos.sh
+./scripts/run-macos.sh /path/to/your/game.iso
+```
+
+The launcher accepts additional Metaforce options after the disc path. It
+validates the supported USA Rev 2 image locally and never copies or packages
+it. Connect a standard SDL3-compatible controller before or after launch.
+Without a controller, click the game window to capture the mouse; Escape
+releases it, and a second Escape opens the pause/back action. The desktop
+defaults are WASD movement, mouse look, Space to jump, left click to fire,
+right click to hold free-look, Shift to lock on/target, F for missiles or Power
+Bombs, C for Morph Ball, Q/E/Z/X for Combat/Scan/Thermal/X-Ray visors, 1-4 for
+beams, Tab for the map, arrow keys for menus/map navigation, and Enter for
+Start/confirm. Controller input owns player one while connected; mouse and
+keyboard resume when it disconnects.
+
+The equivalent underlying build commands are:
+
 ```sh
 cd ref/metaforce
 cmake --preset macos-default-relwithdebinfo
-cmake --build --preset macos-default-relwithdebinfo
+cmake --build --preset macos-default-relwithdebinfo --target metaforce controller_slots_tests
 ```
 
 Expected provider resolution on this machine:
@@ -34,7 +56,11 @@ Expected provider resolution on this machine:
 - SDL3: `system` (Homebrew 3.4.12)
 - nod, kabufuda, zeus, musyx, etc.: from in-tree submodules
 
-Artifacts land in `ref/metaforce/build/` (git-ignored via `ref/`).
+Artifacts land in `ref/metaforce/build/` (git-ignored via `ref/`). The native
+artifact is
+`ref/metaforce/build/macos-default-relwithdebinfo/Binaries/EctoPad.app`. Its
+bundle icon and SDL runtime/window icon are both generated from the tracked
+`assets/app-icon/EctoPad-AppIcon-1024.png` master.
 
 ## iOS / iPadOS (device, arm64)
 
@@ -57,7 +83,8 @@ cmake --build --preset ios-default --target metaforce -j8
 ```
 
 The local artifact is `build/ios-default/Binaries/Metaforce.app`. A full arm64
-iOS compile and link completed from final menu/audio sources on 2026-08-12.
+iOS compile and link completed again with the desktop-input changes on
+2026-08-17; keyboard/mouse input generation is excluded on iOS/tvOS.
 Cross-compiling must not import
 host libraries through pkg-config; Aurora skips that fallback and vendors a
 static zstd for iOS. A later same-day session development-signed this source
