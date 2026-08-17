@@ -23,9 +23,9 @@ below are retained as evidence; newer entries supersede older limitations.
 | Game data validated (GM8E01, Rev 2, CRC 61592372) | **Proven** | Hashes match Redump "(USA) (Rev 2)" entry exactly; see [GAME_DATA.md](GAME_DATA.md) |
 | Reference repos cloned/pinned | **Proven** | metaforce @ `621ee0f`, aurora @ `5143394` (pin used by metaforce), prime @ `72e31c7`, sunpad @ `7d84cec`; see [DEPENDENCIES.md](DEPENDENCIES.md) |
 | Architecture investigation | **Proven** | Current tree renders via Aurora GX-on-WebGPU (Dawn) → Metal on Apple; see [ARCHITECTURE.md](ARCHITECTURE.md) |
-| macOS ARM64 build of current Metaforce | **Proven** | Clean RelWithDebInfo build, 862/862 steps, arm64 Mach-O, 2026-08-11 |
-| Metaforce launch on macOS (Metal, frame, title flow) | **Proven** | Launches; Dawn initializes Metal (Apple M2 IntegratedGPU); 60 FPS; **frontend renders full-frame (title screen "METROID PRIME" logo + emblem verified)**; in-game warp renders fully (1752 draw calls, HUD) — after the KI-001 scissor/viewport fix |
-| Input on macOS (keyboard/mouse/controller) | **Partially proven (keyboard/mouse + software gamepad)** | Keyboard/mouse wired locally (was disabled upstream via `#if 0`); verified: Enter=Start advances title → save dialog, arrows/S navigate menus, D-pad/stick state reflected in the input overlay. On 2026-08-12 an SDL virtual gamepad exercised the same gamepad-added/event/Aurora/PAD path: Start advanced title → main menu, left-stick Y moved the controller overlay, and A began the game. Physical Apple GameController connection/reconnection and rumble remain untested. |
+| macOS ARM64 EctoPad build | **Proven** | `scripts/build-macos.sh` produces a native arm64 `EctoPad.app`, generates its bundle and runtime icon from the tracked EctoPad master, and passes five controller slot/reconnect checks; rebuilt 2026-08-17. |
+| EctoPad launch on macOS (Metal, frame, title flow) | **Proven and user-accepted** | Dawn initialized Metal on an Apple M3 Max; the branded app reached the complete title/file-select flow, loaded the preserved 59% Chozo Ruins save, rendered gameplay with audio, and exited cleanly with status 0 on 2026-08-17. |
+| Input on macOS (keyboard/mouse/controller) | **Keyboard/mouse accepted; controller software path proven** | The accepted desktop layout uses WASD movement, relative mouse look, left-click fire, right-click free-look, Shift lock-on, Space jump, F missiles, C Morph Ball, 1-4 beams, Q/E/Z/X visors, Tab map, arrow-key menu navigation, and Enter/Escape frontend actions. Scan and Combat visor switching were live-verified in Chozo Ruins. SDL controller presence takes player one and disconnect restores keyboard/mouse; five slot/reconnect tests pass. Physical Mac controller models and rumble remain untested. |
 | Audio on macOS | **Proven (frontend + in-game, local patches)** | SDL3 device (44100 Hz stereo) + amuse engine with a software mixer backend + **soxr voice resampler** + **streamed DSP audio & MIDI sequencer restored** (`CStreamAudioManager` + `CMidiManager`): all 28 Prime audio groups load into amuse; in-game warp plays area music + SFX continuously (6–7 voices, 3 submixes) at 60 FPS; non-32 kHz voices (24/16/12/4 kHz) resample to correct pitch; frontend RSF music plays; stable pump, clean exit; see KNOWN_ISSUES KI-003 |
 | HECL/game-data extraction from supplied ISO | **Proven** | Disc identified and all assets loaded from ISO at runtime ("Metroid Prime USA (Build v1.111 3/10/2003 17:56:21)"); raw ISO, no conversion required |
 | iOS/iPadOS ARM64 device build | **Proven** | Final-source ARM64 iOS build succeeded at `build/ios-default/Binaries/Metaforce.app` (platform 2/iPhoneOS, min iOS 14.0) after fixing host-zstd leakage; unsigned packaging SHA-256 `308f9e26861327b42e28359406237902f8b9ab60e30ba3c8751419055111617d` |
@@ -144,10 +144,13 @@ below are retained as evidence; newer entries supersede older limitations.
 - **Keyboard/mouse input enabled:** upstream disabled the kbm path
     (`#if 0` in `CInputGenerator::Update` and an unfinished kbm `CFinalInput`
     constructor). Implemented a working path: SDL key/mouse/text events →
-    `CKeyboardMouseControllerData` (in CMain) → kbm `CFinalInput` (WASD left
-    stick, IJKL right stick, J/K/I/U/H/Q/E = A/B/X/Y/Z/L/R, Enter = Start,
-    arrows = D-pad) pushed when no gamepad is connected. Verified: Enter at the
-    title opens the save/memory-card dialog; arrows/S navigate menus.
+    `CKeyboardMouseControllerData` (in CMain) → kbm `CFinalInput` pushed only
+    when no gamepad is connected. The 2026-08-17 desktop pass replaced the
+    inherited GameCube-keyboard layout with WASD plus relative mouse look,
+    separated Shift lock-on from right-click free-look, added direct beam and
+    visor keys, and raised mouse response 20%. The special-key encoding range
+    now covers all declared keys, fixing Shift being silently discarded. The
+    resulting controls and preserved-save gameplay were accepted on macOS.
 - **Streamed DSP audio + MIDI sequencer restored (KI-003):** restored
     `CStreamAudioManager` stream voice supply (DSPADPCM decode via amuse
     `DSPDecompressFrame`/`DSPDecompressFrameRanged`), stream voices through the

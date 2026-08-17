@@ -16,6 +16,7 @@
 
 <p align="center">
   <img alt="iOS 14 or newer" src="https://img.shields.io/badge/iOS%20%2F%20iPadOS-14%2B-0A84FF?logo=apple">
+  <img alt="Apple Silicon macOS" src="https://img.shields.io/badge/macOS-Apple%20Silicon-000000?logo=apple">
   <img alt="Metal renderer" src="https://img.shields.io/badge/renderer-Metal-5E5CE6">
   <img alt="Physical iPhone and iPad tested" src="https://img.shields.io/badge/physical%20iPhone%20%2F%20iPad-tested-30D158">
   <img alt="Development status" src="https://img.shields.io/badge/status-development%20preview-FF9F0A">
@@ -86,7 +87,7 @@ save-preserving device updates.
 | Physical iPhone/iPad development build | **Playable release baseline with known visual defects** | EctoPad 0.1.3 builds, signs, installs in place, reaches gameplay, and preserves existing game data, saves, and settings. The first-door and black-geometry defects below are confirmed on both device classes. |
 | Local iPhone/iPad build | **Developer workflow available** | The current checkout needs pinned upstream repositories plus the maintained patch sequence. A clean one-command public bootstrap is still planned. |
 | iOS Simulator | **Engineering path available** | Useful for build, UI, import, and regression work; it does not replace physical-device audio, controller, thermal, or accessory testing. |
-| Apple Silicon macOS | **Development build proven** | Native arm64 gameplay, Metal rendering, keyboard/mouse input, audio, and save/reload have been exercised. |
+| Apple Silicon macOS | **Playable development build** | The native `EctoPad.app` launches directly into the complete EctoPad/Metaforce runtime. Metal rendering, audio, existing memory-card loading, mouse/keyboard gameplay, visor switching, menus, and clean shutdown were accepted in a 59% Chozo Ruins save on 2026-08-17. |
 | Unsigned IPA | **Local audited artifact** | The deterministic package is game-data-free and intended for user signing. It is not installable as-is or approved for public redistribution until the corresponding-source and LGPL relink package is complete. |
 | TestFlight / App Store | **Not available** | No Apple-hosted distribution or App Store review has been completed. |
 
@@ -170,10 +171,65 @@ You currently need:
 - an Apple Silicon Mac with Xcode and its command-line tools;
 - CMake 3.25 or newer, Ninja, Python 3, Rust with the required Apple targets,
   and SDL3;
-- an Apple ID configured in Xcode for physical-device signing;
+- an Apple ID configured in Xcode only for physical iPhone/iPad signing;
 - the pinned upstream source trees and EctoPad patch sequence described in
   [`docs/DEPENDENCIES.md`](docs/DEPENDENCIES.md); and
 - your own legally acquired supported Metroid Prime disc image.
+
+### macOS (Apple Silicon)
+
+With the pinned `ref/` workspace and EctoPad patches already present, build and
+verify the native Mac app with:
+
+```sh
+./scripts/build-macos.sh
+```
+
+That produces `EctoPad.app` with the same original EctoPad icon used on iPhone
+and iPad, builds the controller regression target, and runs its five
+slot/reconnect checks. Launch it against your own verified
+Metroid Prime USA Rev 2 disc image with:
+
+```sh
+./scripts/run-macos.sh /path/to/your/game.iso
+```
+
+The launcher verifies the image locally before starting the app. Standard SDL3
+game controllers use the original GameCube input model and can be connected
+before or after launch. The Mac build is currently a source-built development
+app, not a notarized downloadable release. Physical Mac controller coverage is
+still narrower than the software path: reconnect handling is regression-tested,
+but individual controller models and rumble are not broadly certified.
+
+When no controller is connected, the Mac defaults are:
+
+| Input | Action |
+|---|---|
+| W / S | Move forward / backward |
+| A / D | Strafe left / right |
+| Mouse | Look and aim after clicking the game window |
+| Left click | Fire beam / drop bomb |
+| Right click (hold) | Free-look / aim; Spider Ball where available |
+| Shift (hold) | Lock on / target; scan and grapple context |
+| F | Missile / Power Bomb |
+| Space | Jump / Boost Ball |
+| C | Morph Ball |
+| Q / E | Combat Visor / Scan Visor |
+| Z / X | Thermal Visor / X-Ray Visor |
+| 1 / 2 / 3 / 4 | Power / Wave / Ice / Plasma Beam |
+| Tab | Map |
+| Arrow keys | Frontend, pause-menu, and map navigation |
+| Enter | Start / pause / confirm frontend |
+| Escape | Release mouse capture; press again for pause/back |
+
+The mouse response is tuned for desktop play while Shift and right click keep
+Prime's distinct lock-on and free-look behaviors separate. The four visor keys
+mirror the visor selector shown in the HUD, while the number row handles the
+four beam types. Connecting a controller gives the SDL gamepad path player-one
+input instead of mixing two active devices together; disconnecting it restores
+mouse and keyboard input.
+
+### iPhone and iPad
 
 The high-level device build is:
 
@@ -240,8 +296,15 @@ GameCube controls:
 Touch opacity, overall size, individual control size and position, and
 hide-on-controller behavior are adjustable. Controller button remapping is
 available from the native menu. Basic gameplay with a physical controller has
-been exercised; reconnection, rumble, mapping variants, and a wider controller
-matrix remain acceptance work.
+been exercised on Apple mobile hardware. The macOS SDL gamepad path and
+reconnect policy have deterministic coverage, but physical Mac controller
+models, rumble, and a wider controller matrix remain acceptance work.
+
+On macOS, EctoPad adds a desktop-native layer without changing the touch or
+controller defaults used on iPhone and iPad. WASD provides movement, the mouse
+provides camera control, Shift holds lock-on, right click holds free-look, and
+Q/E/Z/X select Combat/Scan/Thermal/X-Ray visors. See the complete table under
+[macOS (Apple Silicon)](#macos-apple-silicon).
 
 ## Reproducible and game-data-free
 
@@ -303,10 +366,12 @@ required before external-display play is called supported.
 <details>
 <summary><strong>Does it support controllers?</strong></summary>
 
-Yes, the SDL iOS controller path feeds the original GameCube input model and a
-physical controller has been used for gameplay. External-display connection,
-hot-plug/reconnect, rumble, and additional controller models still need broader
-testing before controller support is called complete.
+Yes. SDL3 gamepad input feeds the original GameCube input model on macOS and
+iOS/iPadOS, and a physical controller has been used for mobile gameplay. Five
+deterministic tests cover the current controller slot/reconnect policy.
+Physical Mac controller models, external-display use, rumble, and broader
+reconnect testing remain open before controller support is called
+comprehensive.
 </details>
 
 <details>
@@ -328,6 +393,8 @@ Never attach the disc image, memory cards, saves, or signing material.
 | [`scripts/audit-ios-package.sh`](scripts/audit-ios-package.sh) | Game-data, signing-material, and package-hygiene audit |
 | [`assets/app-icon/`](assets/app-icon/) | Original EctoPad icon master, Apple-size derivatives, and provenance |
 | [`scripts/sync-app-icon.sh`](scripts/sync-app-icon.sh) | Sync the tracked EctoPad icon into the ignored Metaforce build tree |
+| [`scripts/build-macos.sh`](scripts/build-macos.sh) | Build and verify the native arm64 `EctoPad.app`, its icon, and controller regression target |
+| [`scripts/run-macos.sh`](scripts/run-macos.sh) | Validate a private supported disc image and launch EctoPad fullscreen |
 | [`docs/BUILDING.md`](docs/BUILDING.md) | Complete build, signing, Simulator, and installation procedure |
 | [`docs/GAME_DATA.md`](docs/GAME_DATA.md) | Supported revision, hashes, and private import design |
 | [`docs/TECH-DEBT.md`](docs/TECH-DEBT.md) | Current physical iPhone/iPad defect queue |

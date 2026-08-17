@@ -553,6 +553,45 @@ Last updated: 2026-08-17
   This supersedes the earlier `1348c52c…` package as the final local validation
   artifact; it remains unsigned, uninstalled, and non-public.
 
+### 2026-08-17 — native macOS launch and desktop-input refresh
+
+- Rebuilt the native arm64 app and ran all five controller slot/reconnect
+  checks successfully.
+- Launched the rebuilt `EctoPad.app` on an Apple M3 Max with the supported
+  private disc image. Metal initialized, the existing 59% memory-card save
+  loaded into Chozo Ruins, gameplay and audio remained active, and Command-Q
+  completed a clean exit with status 0.
+- Restored the previously disabled keyboard/mouse input route with desktop-only
+  activation: WASD movement, mouse look, left-click fire, right-click
+  free-look, Shift lock-on, Space jump, F missiles, C Morph Ball, 1-4 beams,
+  Q/E/Z/X visors, Tab map, arrows, Enter, and Escape now reach the normal
+  `CFinalInput`/`ControlMapper` path when no gamepad is present. A live click
+  enabled relative-mouse capture; Escape released it. Focus loss clears held
+  desktop input.
+- Root-caused the failed Shift binding to the keyboard mapper's encoded range:
+  only 26 special-key slots were reserved, while SDL's Shift value is 76. The
+  corrected range covers every declared special key and has a compile-time
+  assertion preventing the silent truncation from returning.
+- Increased relative-mouse response by 20% from the preceding desktop build.
+  During the accepted live pass, E selected the Scan Visor and Q returned to
+  the Combat Visor in the preserved Chozo Ruins save. The user then accepted
+  the complete mouse/keyboard feel for this iteration.
+- The macOS bundle icon and the SDL window/runtime icon now consume the same
+  tracked 1024-pixel EctoPad master used to generate the iOS/iPadOS icons.
+- The same source linked successfully for the `ios-default` iPhoneOS target.
+  iPhone/iPad keep their existing touch/controller route because desktop input
+  generation is excluded for iOS/tvOS.
+- No physical controller was attached to the Mac, so controller hardware,
+  mapping feel, and rumble remain a hands-on acceptance gate despite the
+  passing deterministic controller-path checks.
+- The attached iPad was available, paired, awake, and unlocked. CoreDevice
+  established a tunnel and usage assertion, but both a read-only `Library`
+  listing and an exact read-only copy of
+  `Library/Application Support/dolphin-emu/GC/MemoryCardA.USA.raw` timed out in
+  the file service. Xcode's read-only **Download Container…** route stalled at
+  the same boundary, leaving only a 4 KB `.xcappdata` wrapper containing
+  `AppDataInfo.plist`. No device data was changed and no save was staged on Mac.
+
 ### 2026-08-11 — macOS rendering and keyboard fixes
 
 - In-game: `Metaforce -l --warp 2 2 +debugOverlay.* <iso>` — full-screen scene +
