@@ -31,9 +31,10 @@ physical-device claim.
   save/reload, lifecycle recovery, first-door animated presentation,
   black/distant geometry, and later-game stability.
 - The later 20:21 in-place update adds the iOS HDMI secondary-scene guard and
-  original green ectoplasm app icon. It is running as PID 2122; pre/post ISO and
-  both memory-card hashes remained byte-identical. HDMI no longer has an
-  unexplained crash signature, but physical accessory replay is still required.
+  original green ectoplasm app icon. Pre/post ISO and both memory-card hashes
+  remained byte-identical. A subsequent physical HDMI replay produced visible,
+  working external-display gameplay on the iPad. This is hands-on acceptance;
+  no separate video or diagnostic capture is recorded here.
 - A 34-minute-9-second controller session before that update had zero logged
   audio underruns/clipping and no fatal, jetsam, GPU, hang, or memory-warning
   marker. The logs did not persist controller enumeration, so the controller

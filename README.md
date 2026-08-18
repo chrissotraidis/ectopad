@@ -100,6 +100,7 @@ save, key, or signing material is included in this repository.
 | Option | Status | Details |
 |---|---|---|
 | Physical iPhone/iPad development build | **Playable release baseline with known visual defects** | EctoPad 0.1.3 builds, signs, installs in place, reaches gameplay, and preserves existing game data, saves, and settings. The first-door and black-geometry defects below are confirmed on both device classes. |
+| HDMI external display | **Working** | Physical HDMI output has been tested successfully with the current iPad build. |
 | Local iPhone/iPad build | **Developer workflow available** | The current checkout needs pinned upstream repositories plus the maintained patch sequence. A clean one-command public bootstrap is still planned. |
 | iOS Simulator | **Engineering path available** | Useful for build, UI, import, and regression work; it does not replace physical-device audio, controller, thermal, or accessory testing. |
 | Apple Silicon macOS | **Playable development build** | The native `EctoPad.app` launches directly into the complete EctoPad/Metaforce runtime. Metal rendering, audio, existing memory-card loading, mouse/keyboard gameplay, visor switching, menus, and clean shutdown were accepted in a 59% Chozo Ruins save on 2026-08-17. |
@@ -114,9 +115,6 @@ visual defects below are fixed or physically accepted.
 
 ### Known limitations
 
-- The HDMI crash has a source-level fix: SDL was entering Metaforce a second
-  time for the accessory's additional UIKit scene. The guard is built, but
-  physical HDMI gameplay replay remains an acceptance gate.
 - **P0 — selective black world geometry:** on both physical iPhone and iPad,
   individual walls, beams, debris, and large silhouettes can render completely
   or nearly black while the HUD, arm cannon, lights, screens, and door shields
@@ -367,6 +365,20 @@ behalf.
 </details>
 
 <details>
+<summary><strong>What is EctoPad, and what is Metaforce?</strong></summary>
+
+[Metaforce](https://github.com/AxioDL/metaforce) is the upstream native Metroid
+Prime engine. It provides the game systems and, through Aurora, the underlying
+rendering and platform foundation.
+
+EctoPad is a downstream Apple integration built on Metaforce. It applies a
+documented patch set and adds the iPhone/iPad interface, touch controls,
+on-device setup, native settings, diagnostics, save-safe installation workflow,
+and Apple-specific lifecycle and external-display fixes. EctoPad does not claim
+authorship of Metaforce, Aurora, or their original iOS support.
+</details>
+
+<details>
 <summary><strong>Does this repository contain Metroid Prime?</strong></summary>
 
 No. You must supply your own legally acquired supported disc image. Do not open
@@ -383,34 +395,34 @@ GameCube software.
 </details>
 
 <details>
-<summary><strong>Can I play through HDMI?</strong></summary>
-
-The previous build crashed because SDL entered the process-wide Metaforce main
-function again when HDMI created an additional UIKit scene. Four matching iOS
-crash reports established that cause. The current source keeps one engine
-instance and suppresses later scene entries; physical HDMI replay is still
-required before external-display play is called supported.
-</details>
-
-<details>
 <summary><strong>Does it support controllers?</strong></summary>
 
 Yes. SDL3 gamepad input feeds the original GameCube input model on macOS and
 iOS/iPadOS, and a physical controller has been used for mobile gameplay. Five
 deterministic tests cover the current controller slot/reconnect policy.
-Physical Mac controller models, external-display use, rumble, and broader
-reconnect testing remain open before controller support is called
-comprehensive.
+Physical Mac controller models, rumble, and broader reconnect testing remain
+open before controller support is called comprehensive.
 </details>
 
 <details>
-<summary><strong>Can I report a rendering, audio, or crash bug?</strong></summary>
+<summary><strong>Where should I report a bug?</strong></summary>
 
-Yes. Include the approximate time and room, Apple device/OS, render settings,
-the action immediately before the problem, whether touch or a controller was
-active, and a screenshot or short video for visual defects. Use
-`••• → Share Diagnostic Log` on the iPhone or iPad immediately afterward.
-Never attach the disc image, memory cards, saves, or signing material.
+Report EctoPad's Apple integration issues here, including touch controls,
+on-device import, native settings, lifecycle, external displays, installation,
+and diagnostics.
+
+EctoPad still runs the upstream Metaforce engine, Aurora renderer, and their
+dependencies. A rendering, audio, gameplay, or engine crash seen in EctoPad is
+not automatically an EctoPad-specific defect. File the report here first if you
+encountered it in EctoPad. We will triage it against the pinned upstream code;
+if it reproduces in unmodified Metaforce or the evidence places it upstream,
+the report will be linked or redirected to the appropriate project.
+
+Include the approximate time and room, Apple device/OS, render settings, the
+action immediately before the problem, whether touch or a controller was
+active, and a screenshot or short video for visual defects. Use `••• → Share
+Diagnostic Log` immediately afterward. Never attach the disc image, memory
+cards, saves, or signing material.
 </details>
 
 ## Project map

@@ -80,7 +80,7 @@ iPad Pro (iPad14,5). This is deploy proof only.
   creating another UIKit scene and SDL entered the process-wide Metaforce main
   again, causing the second `FileStoreManager` singleton construction to
   terminate. The final build guards SDL's scene entry so only the primary scene
-  starts the engine. Physical HDMI replay remains open.
+  starts the engine. Subsequent physical HDMI gameplay replay passed on iPad.
 - the 20:21 build also replaces the inherited compiled icon and loose PNGs with
   the tracked original green ectoplasm identity from `assets/app-icon/`.
 - that build was signed, strictly verified, installed in place, and launched as
@@ -151,7 +151,7 @@ happened. Gate 3 failed on the items below.
 | P0 | Later-game Morph Ball stability | **Prior session now explained by KI-026.** The retired report shows the same audio-mixer iterator crash; the card and Morph Ball state are not implicated by that stack. The snapshot fix is deployed, and physical checkpoint replay remains open. |
 | P1 | Later-game test coverage | **Mid-game USA Rev 2 state installed in Prime file slot 2, but not accepted as stable.** Existing file slot 1 is byte-preserved and the card persists across normal in-place installs. |
 | P1 | Native physical controller | **Implemented; hardware acceptance open.** SDL gamepad hot-plug, platform mappings, sticks, analog triggers, D-pad, rumble, and the native mapping panel feed the existing GameCube input path. Test one real controller on this iPad before calling it supported. |
-| P0 | HDMI / external display | **Root cause fixed in source and deployed; physical replay open.** SDL re-entered Metaforce main for HDMI's additional UIKit scene. The iOS guard retains the existing engine instead. Reconnect HDMI and verify visible, controllable gameplay before calling it supported. |
+| P0 | HDMI / external display | **Resolved and physically accepted.** SDL re-entered Metaforce main for HDMI's additional UIKit scene. The iOS guard retains the existing engine instead, and subsequent physical iPad replay produced working HDMI gameplay. |
 | P1 | Visual diagnostic capture | **Open.** Runtime logs can timestamp fog/audio/door state but cannot show flickering, black geometry, or actor duplication. The host screen-history recorder was unavailable for the 10:07–10:22 session. Add a bounded in-app game-frame snapshot/export path; do not rely on UIKit hierarchy capture unless it proves the Metal surface is present. |
 | P2 | Deploy / README / bootstrap | This session used the documented host `codesign` + in-place `devicectl` path. Still no one-command `deploy-ios-device.sh`. |
 | P3 | Later-area, controller, quiet perf, legal package | Not the current blocker; keep them listed so they are not forgotten |

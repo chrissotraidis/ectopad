@@ -2,6 +2,14 @@
 
 Last updated: 2026-08-18
 
+### 2026-08-18 — physical HDMI acceptance
+
+- The current iPad build was replayed with HDMI connected after deployment of
+  the secondary-scene guard. External-display gameplay worked without the prior
+  immediate relaunch crash.
+- This is hands-on physical acceptance supplied by the tester. No separate
+  video or diagnostic-log capture was retained for this replay.
+
 ### 2026-08-18 — public package release boundary
 
 - Removed the tracked unsigned IPA (13,742,479 bytes, SHA-256
