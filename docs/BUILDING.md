@@ -35,8 +35,9 @@ validates the supported USA Rev 2 image locally and never copies or packages
 it. Connect a standard SDL3-compatible controller before or after launch.
 Without a controller, click the game window to capture the mouse; Escape
 releases it, and a second Escape opens the pause/back action. The desktop
-defaults are WASD movement, persistent mouse look, Space to jump, left click to
-fire, right click for Spider Ball where available, Shift to lock on/target, F
+defaults are WASD movement, mouse turning, Space to jump, left click to fire,
+right click to hold vertical free-look/aim (and use Spider Ball where
+available), Shift to lock on/target, F
 for missiles or Power Bombs, C for Morph Ball, Q/E/Z/X for
 Combat/Scan/Thermal/X-Ray visors, 1-4 for
 beams, Tab for the map, arrow keys for menus/map navigation, and Enter for

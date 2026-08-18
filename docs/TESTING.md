@@ -25,13 +25,16 @@ Last updated: 2026-08-18
   value; the following zero-delta frame looked like a centered GameCube stick,
   so Prime selected its normal free-look snap target of zero. Holding right
   click held R but did not preserve the analog target.
-- Captured desktop mouse Y now accumulates into a clamped pitch target at 0.12
-  degrees per pixel. A no-motion frame retains that target, firing does not
-  clear it, and the crosshair stays visible while mouse capture owns free look.
-- Lock-on/orbit still owns the camera when active. Releasing capture restores
-  Prime's normal recenter path. Gamepad and iPhone/iPad touch/controller inputs
-  do not enter the desktop-only branch. Mouse capture does not masquerade as a
-  held GameCube R button, and desktop free look no longer suppresses footsteps.
+- The first correction incorrectly made mouse capture itself own free look,
+  leaving Samus's arm permanently raised. Physical macOS feedback rejected
+  that state.
+- Right mouse once again exclusively owns desktop free-look/aim. While it is
+  held, mouse Y accumulates into a clamped pitch target at 0.12 degrees per
+  pixel and a no-motion frame retains that target. Releasing right mouse exits
+  aim, lowers the arm, and restores Prime's normal recenter path.
+- Horizontal mouse turning does not enter aim. Lock-on/orbit still owns the
+  camera when active. Gamepad and iPhone/iPad touch/controller inputs do not
+  enter the desktop-only branch.
 - The native Apple Silicon macOS app and iPhoneOS app both compiled and linked.
   The tracked patch reverses cleanly against the patched source. `git diff --check`
   and all five controller slot/reconnect regressions pass.

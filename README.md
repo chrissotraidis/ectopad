@@ -222,9 +222,9 @@ When no controller is connected, the Mac defaults are:
 |---|---|
 | W / S | Move forward / backward |
 | A / D | Strafe left / right |
-| Mouse | Persistent look and aim after clicking the game window |
+| Mouse | Turn; look up/down while right click is held |
 | Left click | Fire beam / drop bomb |
-| Right click (hold) | Spider Ball where available |
+| Right click (hold) | Free-look / aim; Spider Ball where available |
 | Shift (hold) | Lock on / target; scan and grapple context |
 | F | Missile / Power Bomb |
 | Space | Jump / Boost Ball |
@@ -237,9 +237,11 @@ When no controller is connected, the Mac defaults are:
 | Enter | Start / pause / confirm frontend |
 | Escape | Release mouse capture; press again for pause/back |
 
-Captured mouse movement keeps its pitch instead of triggering Prime's original
-stick-recenter behavior. Shift retains lock-on/targeting, and right click keeps
-the contextual Spider Ball action. The four visor keys
+Right click retains Prime's distinct free-look/aim state: moving vertically
+while it is held raises Samus's arm and keeps the selected pitch steady.
+Releasing it exits aim and restores Prime's normal recenter behavior. Shift
+retains lock-on/targeting, and right click also keeps the contextual Spider
+Ball action. The four visor keys
 mirror the visor selector shown in the HUD, while the number row handles the
 four beam types. Connecting a controller gives the SDL gamepad path player-one
 input instead of mixing two active devices together; disconnecting it restores
@@ -318,8 +320,8 @@ models, rumble, and a wider controller matrix remain acceptance work.
 
 On macOS, EctoPad adds a desktop-native layer without changing the touch or
 controller defaults used on iPhone and iPad. WASD provides movement, the mouse
-provides persistent camera control, Shift holds lock-on, right click operates
-Spider Ball where available, and Q/E/Z/X select
+turns the camera, right click holds free-look for vertical aiming, Shift holds
+lock-on, and Q/E/Z/X select
 Combat/Scan/Thermal/X-Ray visors. See the complete table under
 [macOS (Apple Silicon)](#macos-apple-silicon).
 
