@@ -1,6 +1,6 @@
 # Legal & Provenance
 
-Last updated: 2026-08-12
+Last updated: 2026-08-18
 
 ## Boundaries
 
@@ -26,24 +26,32 @@ Last updated: 2026-08-12
 
 ## Release boundary
 
-- Distributable: engine/application source code and legally redistributable
-  dependencies under their licenses.
-- Not distributable: the Metroid Prime disc image or any extracted Nintendo
-  assets.
-- Every IPA/app/archive is audited before being called distributable
-  (see [TESTING.md](TESTING.md)). The current deterministic IPA is explicitly
-  an unsigned local validation artifact, not a distributable release.
-- Exact final local validation artifact: SHA-256
-  `308f9e26861327b42e28359406237902f8b9ab60e30ba3c8751419055111617d`.
-  It was reproduced byte-identically, but remains unsigned and non-public.
-- The combined binary includes GPL-covered SunPad-derived code and zeus plus a
-  statically linked LGPL-2.1 soxr build. Public distribution remains blocked
-  until corresponding-source and LGPL relink materials are assembled and
-  reviewed; `THIRD_PARTY_NOTICES.md` alone is not sufficient.
-- The pinned prebuilt Dawn library embeds its upstream GitHub Actions builder
-  source paths (`/Users/runner/work/dawn-build/...`) in diagnostic strings.
-  They are non-local provenance, not user data, but a public release should
-  rebuild Dawn with path remapping or obtain a scrubbed upstream package.
+There is no approved public binary release. The previously tracked EctoPad
+0.1.3 unsigned IPA, SHA-256
+`264cc139fda991a0b91954ce5df5574e15027fc606d3041703bbb7432481267c`,
+was removed from the current branch on 2026-08-18. It was a local package-audit
+artifact, not a completed redistribution package.
+
+Public binary distribution remains blocked by all of the following:
+
+- the pinned `zeus` and `kabufuda` trees contain no repository-wide license
+  file or other authoritative redistribution grant found by the current audit;
+- EctoPad-owned patches, scripts, and integration code do not yet have a root
+  project license selected by their copyright holder;
+- the combined executable includes SunPad-derived GPL-3.0-or-later code, but
+  exact corresponding source for the binary has not been assembled;
+- soxr is statically linked under LGPL-2.1-or-later, and the required library
+  source, license text, relinkable application material, and instructions have
+  not been packaged; and
+- the full binary-derived dependency notice inventory has not been bundled and
+  verified.
+
+The pinned prebuilt Dawn library also embeds upstream GitHub Actions builder
+paths (`/Users/runner/work/dawn-build/...`) in diagnostic strings. Those paths
+are provenance and release-hygiene debt rather than the central license blocker,
+but a future public build should use a path-remapped or scrubbed package.
+
+See [RELEASE_COMPLIANCE.md](RELEASE_COMPLIANCE.md) for the republication gate.
 
 ## Public-facing language
 

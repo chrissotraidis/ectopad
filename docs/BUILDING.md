@@ -103,6 +103,9 @@ reference for bootstrap/provision/deploy shape.
 
 ### Unsigned validation IPA
 
+No IPA is published or tracked by EctoPad. The command below creates temporary
+local audit output only. Do not upload or share it as a release.
+
 After the device app builds, create a deterministic local validation archive:
 
 ```sh
@@ -120,10 +123,11 @@ bundle mutations in a separate device workflow; public distribution also
 requires the GPL corresponding-source and LGPL relink materials described in
 [LEGAL_AND_PROVENANCE.md](LEGAL_AND_PROVENANCE.md).
 
-The exact twice-reproduced final archive is
+For historical reproducibility, the twice-reproduced 2026-08-12 archive was
 `/tmp/Metaforce-unsigned-menu-audio-2026-08-12.ipa`, SHA-256
 `308f9e26861327b42e28359406237902f8b9ab60e30ba3c8751419055111617d`.
-The package audit passed. Rebuilding it is unnecessary for physical testing;
+The package audit passed. That file is not a current public artifact. Rebuilding
+it is unnecessary for physical testing;
 sign the source device app using a valid development workflow instead.
 
 ## iOS Simulator (arm64)

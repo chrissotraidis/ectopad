@@ -1,6 +1,6 @@
 # Dependencies
 
-Last updated: 2026-08-12
+Last updated: 2026-08-18
 
 ## Reference repositories (cloned into `ref/`)
 
@@ -22,12 +22,12 @@ references.
 | `extern/aurora` | `514339438178ef2bed1b14e5149d90ece0c6e0cc` | Encounter/aurora; graphics + app layer |
 | `extern/fixNES` | `156fcaca9f4cd9c23d423737994c45cfb05d16ca` | NES emulation component |
 | `extern/jbus` | `7932b0a9b99e3461489b29ba3433f4c4256eb0f6` | CPU/JIT? (verify) |
-| `extern/kabufuda` | `9493afc8ff961ee04193038046308411904b8137` | Memory-card (CARD) support |
+| `extern/kabufuda` | `9493afc8ff961ee04193038046308411904b8137` | Memory-card support; no repository-wide license file found at this pin |
 | `extern/libjpeg-turbo` | `3d2da99c69d000c6351f6d2390b694f800e5ef4d` | JPEG decode (`heads/thp` branch) |
 | `extern/musyx` | `37e8ecd4e6503e90b97ea81cd7d669357861d501` | GameCube audio library reimplementation |
 | `extern/nod` | `0ab72ade73a3aacf967741daee0bd088271f2075` | Disc image reading (encounter/nod) |
 | `extern/spdlog` | `48bcf39a661a13be22666ac64db8a7f886f2637e` | Logging |
-| `extern/zeus` | `d64e9f502a07c808596c5112bfd46bf0a0d8138e` | SIMD math library (AxioDL/zeus) |
+| `extern/zeus` | `d64e9f502a07c808596c5112bfd46bf0a0d8138e` | SIMD math library; no repository-wide license file found at this pin |
 
 ## aurora dependency versions (pinned in `AuroraDependencyVersions.cmake`)
 
@@ -57,7 +57,7 @@ local patches (see `patches/amuse-audio-vendor/`; license texts in each repo).
 | athena | https://github.com/encounter/athena | `6adba82abd8b7f48e6eca9f74361d0c605bc9ec8` | MIT | Binary DNA reader; atdna codegen skipped without LLVM (pre-generated sources) |
 | logvisor | https://github.com/AxioDL/logvisor | `208a8c1f84f9968695d712b8e5625c0dc85edbae` | MIT | Logging |
 | lzokay | https://github.com/AxioDL/lzokay | `db2df1fcbebc2ed06c10f727f72567d40f06a2be` | MIT | LZO decompression |
-| soxr | https://github.com/chirlu/soxr | `945b592b70470e29f917f4de89b4281fbbd540c0` | LGPL-2.1 | Voice sample-rate conversion (24/16/12/4 kHz → 32 kHz mix) |
+| soxr | https://github.com/chirlu/soxr | `945b592b70470e29f917f4de89b4281fbbd540c0` | LGPL-2.1-or-later | Voice sample-rate conversion (24/16/12/4 kHz → 32 kHz mix) |
 
 All five build for macOS ARM64, iOS Simulator ARM64, and iPhoneOS ARM64
 (final-source builds verified 2026-08-12).
@@ -79,16 +79,21 @@ All five build for macOS ARM64, iOS Simulator ARM64, and iPhoneOS ARM64
 | metaforce | See `ref/metaforce/LICENSE` |
 | aurora | See `ref/aurora/LICENSE` |
 | nod | MIT (encounter/nod) |
-| zeus | GPL-3.0 (AxioDL/zeus) |
+| zeus | **NOASSERTION**; no repository-wide license file found at pin `d64e9f5` |
+| kabufuda | **NOASSERTION**; no repository-wide license file found at pin `9493afc` |
 | spdlog | MIT |
 | amuse (vendored for in-game audio) | MIT (AxioDL/amuse), pin `ad9bc96` |
 | athena (vendored, amuse dep) | MIT (encounter/athena), pin `6adba82` |
 | logvisor (vendored, amuse dep) | MIT (AxioDL/logvisor), pin `208a8c1` |
 | lzokay (vendored, amuse dep) | MIT (AxioDL/lzokay), pin `db2df1f` |
-| soxr (vendored, mixer resampler) | LGPL-2.1 (chirlu/soxr), pin `945b592` |
+| soxr (vendored, mixer resampler) | LGPL-2.1-or-later (chirlu/soxr), pin `945b592` |
 | libjpeg-turbo | BSD-3 / IJG |
 | SDL3 | Zlib |
 | Dawn | Apache-2.0 / BSD-3 (Chromium) |
 | ios-cmake (`ios.toolchain.cmake`) | BSD-3 |
 
-Full texts live inside each repository. Verify before any redistribution.
+The table records only grants verified at the pinned revisions. A public
+repository is not itself a redistribution license. Resolve every
+`NOASSERTION`, select a root EctoPad license, and complete the source/relink
+package in [RELEASE_COMPLIANCE.md](RELEASE_COMPLIANCE.md) before distributing a
+binary.

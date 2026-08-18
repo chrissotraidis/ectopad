@@ -1,6 +1,6 @@
 # Status
 
-Last updated: 2026-08-13
+Last updated: 2026-08-18
 
 For the concise authoritative handoff, artifact identity, and exact remaining
 checklist, start with [CURRENT_STATE.md](CURRENT_STATE.md). Dated observations
@@ -28,7 +28,7 @@ below are retained as evidence; newer entries supersede older limitations.
 | Input on macOS (keyboard/mouse/controller) | **Keyboard/mouse accepted; controller software path proven** | The accepted desktop layout uses WASD movement, relative mouse look, left-click fire, right-click free-look, Shift lock-on, Space jump, F missiles, C Morph Ball, 1-4 beams, Q/E/Z/X visors, Tab map, arrow-key menu navigation, and Enter/Escape frontend actions. Scan and Combat visor switching were live-verified in Chozo Ruins. SDL controller presence takes player one and disconnect restores keyboard/mouse; five slot/reconnect tests pass. Physical Mac controller models and rumble remain untested. |
 | Audio on macOS | **Proven (frontend + in-game, local patches)** | SDL3 device (44100 Hz stereo) + amuse engine with a software mixer backend + **soxr voice resampler** + **streamed DSP audio & MIDI sequencer restored** (`CStreamAudioManager` + `CMidiManager`): all 28 Prime audio groups load into amuse; in-game warp plays area music + SFX continuously (6–7 voices, 3 submixes) at 60 FPS; non-32 kHz voices (24/16/12/4 kHz) resample to correct pitch; frontend RSF music plays; stable pump, clean exit; see KNOWN_ISSUES KI-003 |
 | HECL/game-data extraction from supplied ISO | **Proven** | Disc identified and all assets loaded from ISO at runtime ("Metroid Prime USA (Build v1.111 3/10/2003 17:56:21)"); raw ISO, no conversion required |
-| iOS/iPadOS ARM64 device build | **Proven** | Final-source ARM64 iOS build succeeded at `build/ios-default/Binaries/Metaforce.app` (platform 2/iPhoneOS, min iOS 14.0) after fixing host-zstd leakage; unsigned packaging SHA-256 `308f9e26861327b42e28359406237902f8b9ab60e30ba3c8751419055111617d` |
+| iOS/iPadOS ARM64 device build | **Proven; no public IPA** | Final-source ARM64 iOS build succeeded at `build/ios-default/Binaries/Metaforce.app` (platform 2/iPhoneOS, min iOS 14.0) after fixing host-zstd leakage. Historical local package hashes remain in the evidence ledger, but no IPA or checksum is published or tracked. See [RELEASE_COMPLIANCE.md](RELEASE_COMPLIANCE.md). |
 | iOS Simulator (iPad) execution | **Proven** | iOS Simulator build succeeded (after fixing Dawn cross-compile host-tool issues: host protoc + GLFW disabled); **rebuilt 2026-08-11 23:20 with the vendored audio stack + CInputStream byte-order fix + kabufuda card-persistence fix**; installed and launched on iPad Pro 13-inch (M5) Simulator; loaded the user's ISO; Dawn/WebGPU reached Metal ("Apple iOS simulator GPU"); amuse audio initialized (32 kHz SDL backend); rendered the **Metroid Prime title screen**, and — via the `--autostart` test hook — ran the **full New Game flow: intro cinematic → first-person Frigate Orpheon gameplay** (visor HUD, ENERGY 99, arm cannon, radar) at 60 FPS, and **persisted a `GM8E01`/`MetroidPrime B` save to the sim's card** |
 | Audio on Apple targets | **macOS proven; physical iPad transition defect open** | The iPad producer has restored DSP stream mixing, AVAudioSession, a direct Amuse pull path, final limiting, and bounded diagnostics. The attempted SoXR path and 10 ms handoff ramp were physically rejected and removed. Current logs show Speaker at 48 kHz with zero queue underruns, but a frontend-to-cutscene aberration remains audible. |
 | Dawn/WebGPU reaching Metal on iOS device | **Launch proven; visual acceptance open** | The final development-signed build launched on the attached iPad. Native menu and core movement are accepted, but black/distant geometry, first-door pose presentation, and later-game stability remain open; see [TECH-DEBT.md](TECH-DEBT.md). |
@@ -272,14 +272,16 @@ below are retained as evidence; newer entries supersede older limitations.
   `308f9e26861327b42e28359406237902f8b9ab60e30ba3c8751419055111617d`.
   Two packages were identical and the package audit passed. It is not signed,
   installable as-is, or approved for public redistribution.
-- The current 0.1.3 packaging pass supersedes that validation artifact. The
-  ignored local file is `artifacts/EctoPad-0.1.3-unsigned.ipa`, 12,427,372
-  bytes, SHA-256
+- The 2026-08-17 validation run at
+  `artifacts/EctoPad-0.1.3-unsigned.ipa` produced 12,427,372 bytes, SHA-256
   `f90b353617d81ce3e4f6a0ebedf52f7c10a39d4b969d48a78335b35263010086`.
   Two 2026-08-17 packages were byte-identical and passed the same game-data,
-  save, log, signing-material, architecture, platform, linkage, path, and
-  credential audit. It remains unsigned/local-only under the current release
-  boundary.
+  save, log, signing-material, architecture, platform, linkage, path,
+  prohibited-content, and credential checks. The later tracked file at that
+  path was 13,742,479 bytes with SHA-256
+  `264cc139fda991a0b91954ce5df5574e15027fc606d3041703bbb7432481267c` and was
+  removed with its checksum on 2026-08-18. This is historical evidence only;
+  no IPA or checksum is currently published.
 - Next work is physical acceptance of the current build: audible audio,
   `•••` submenu/dismissal and 1×/2× changes, original Prime controls, and a
   save/relaunch/load cycle; then named textures and deploy automation.

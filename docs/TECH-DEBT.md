@@ -788,10 +788,10 @@ world rendering state, not as an unspecified texture-file problem.
 
 ### Report
 
-Launching the attached iPad was not as straightforward as it should have
-been. The process pulled unexpected dependencies, and the README still
-points at status docs that described an unsigned IPA and a missing signing
-identity. This is first-class process debt, not a footnote.
+Launching the attached iPad was not as straightforward as it should have been.
+The process pulled unexpected dependencies, and the source-build/sign/install
+path is still not a clean front door. The public unsigned IPA has now been
+removed; this remaining workflow gap is first-class process debt.
 
 ### Current evidence
 
@@ -800,8 +800,8 @@ identity. This is first-class process debt, not a footnote.
 - `docs/BUILDING.md` lists CMake/Ninja/Python+markupsafe/Homebrew SDL3, then
   raw cmake presets. The first device configure also needs Rust 1.97.1 plus
   Apple targets, vendored audio, and Dawn. That is easy to miss.
-- `docs/INSTALL_IPA.md` still described an unsigned validation IPA and said
-  this machine had no identity and no device.
+- `docs/INSTALL_IPA.md` now states that no public IPA exists and directs users
+  to the source-build/sign path.
 - EctoPad has only `scripts/package-ios.sh` and `scripts/audit-ios-package.sh`.
   There is no bootstrap for ignored `ref/` clones/pins/patches, and no
   `deploy-ios-device.sh`.
@@ -842,10 +842,11 @@ acceptance.
 
 ### Acceptance
 
-From a documented front door, a later session can bootstrap (if needed),
-build `ios-default`, development-sign, install in place, and launch without
-discovering hidden vendor steps. The unsigned IPA remains a validation
-artifact only. User data survives the install.
+From a documented front door, a later session can bootstrap (if needed), build
+`ios-default`, development-sign, install in place, and launch without
+discovering hidden vendor steps. Any locally generated unsigned IPA remains
+temporary validation output only and must not be published. User data survives
+the install.
 
 ## P3: keep the later gates visible
 

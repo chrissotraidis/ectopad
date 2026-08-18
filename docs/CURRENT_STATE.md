@@ -1,6 +1,6 @@
 # Authoritative current state
 
-Last audited: 2026-08-17 after the first-door/black-geometry physical trace
+Last audited: 2026-08-18 after the public-package release-boundary review
 
 This is the canonical starting point for future work. When older dated evidence
 describes an earlier limitation, this document and the newer dated entries in
@@ -38,9 +38,10 @@ physical-device claim.
   audio underruns/clipping and no fatal, jetsam, GPU, hang, or memory-warning
   marker. The logs did not persist controller enumeration, so the controller
   itself is hands-on rather than machine-recorded evidence.
-- The unsigned validation IPA remains a package-audit artifact only. Physical
-  install must sign the source `.app` at
-  `ref/metaforce/build/ios-default/Binaries/Metaforce.app`, not that IPA.
+- No IPA is published or tracked. Any unsigned archive produced by the local
+  packaging script is temporary audit output only. Physical install must sign
+  the source `.app` at
+  `ref/metaforce/build/ios-default/Binaries/Metaforce.app`.
 - The 2026-08-17 physical comparator conclusively separates the first door from
   ordinary doors: UIDs 410/409 are a same-area scripted `Inside/Outside` pair,
   while ordinary inter-area doors use the same animation assets and work. The
@@ -56,7 +57,7 @@ physical-device claim.
 - The current signed EctoPad 0.1.3 (1) device build was installed in place and
   launched on the paired physical iPhone 14 on 2026-08-17. The same bundle ID
   was retained and there was no uninstall, data-container replacement, or ISO
-  transfer. This is the selected source/build baseline for the next IPA pass;
+  transfer. This is the selected source/build baseline for the next device pass;
   it does not convert the open KI-022/KI-023 physical visual failures into
   accepted fixes.
 - The subsequent iPhone playthrough physically reproduces the first-door and
@@ -79,6 +80,12 @@ legally obtained `GM8E01` revision-2 image and never packages Nintendo data.
 
 ## Build and package artifacts
 
+**Current release boundary:** this repository does not distribute an IPA. The
+previously tracked unsigned IPA and checksum were removed on 2026-08-18. Local
+packaging evidence below is retained as historical build evidence, not as a
+current download or authorization to redistribute a binary. See
+[RELEASE_COMPLIANCE.md](RELEASE_COMPLIANCE.md).
+
 Final-source builds completed successfully on 2026-08-12 for:
 
 | Target | Artifact | Verified fact |
@@ -87,9 +94,10 @@ Final-source builds completed successfully on 2026-08-12 for:
 | iOS Simulator | `ref/metaforce/build/ios-sim/Binaries/Metaforce.app` | arm64 Simulator app; current SunPad interaction harness passed |
 | iPhoneOS/iPadOS device | `ref/metaforce/build/ios-default/Binaries/Metaforce.app` | arm64 Mach-O, minimum iOS 14; later development-signed, installed, and launched on the attached iPad. Launch is not Gate 3 acceptance. |
 
-The selected EctoPad 0.1.3 (1) device app was packaged twice on 2026-08-17:
+The selected EctoPad 0.1.3 (1) device app was packaged twice locally on
+2026-08-17. This records that validation run, not the later tracked file:
 
-- IPA: ignored local artifact `artifacts/EctoPad-0.1.3-unsigned.ipa`;
+- IPA path at the time: `artifacts/EctoPad-0.1.3-unsigned.ipa`;
 - size: 12,427,372 bytes;
 - SHA-256:
   `f90b353617d81ce3e4f6a0ebedf52f7c10a39d4b969d48a78335b35263010086`;
@@ -99,11 +107,14 @@ The selected EctoPad 0.1.3 (1) device app was packaged twice on 2026-08-17:
   paths, game data, saves, logs, and signing-material exclusion passed;
 - 241 upstream Dawn CI source paths remain embedded as non-local provenance.
 
-This IPA is unsigned, not installable as-is, and remains a local validation
-artifact. Its successful audit does not override the corresponding-source,
-LGPL relink, or Dawn provenance release boundary below.
+The tracked file later present at that path was 13,742,479 bytes with SHA-256
+`264cc139fda991a0b91954ce5df5574e15027fc606d3041703bbb7432481267c`; it and
+its checksum were removed on 2026-08-18. Both packages were unsigned and not
+installable as-is. A successful hygiene audit did not override the licensing
+and provenance release boundary.
 
-The exact final menu/audio device app was packaged twice with identical bytes:
+An earlier menu/audio device app was also packaged twice locally with identical
+bytes:
 
 - IPA: `/tmp/Metaforce-unsigned-menu-audio-2026-08-12.ipa`
 - SHA-256:

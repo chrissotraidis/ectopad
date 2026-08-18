@@ -103,7 +103,7 @@ save, key, or signing material is included in this repository.
 | Local iPhone/iPad build | **Developer workflow available** | The current checkout needs pinned upstream repositories plus the maintained patch sequence. A clean one-command public bootstrap is still planned. |
 | iOS Simulator | **Engineering path available** | Useful for build, UI, import, and regression work; it does not replace physical-device audio, controller, thermal, or accessory testing. |
 | Apple Silicon macOS | **Playable development build** | The native `EctoPad.app` launches directly into the complete EctoPad/Metaforce runtime. Metal rendering, audio, existing memory-card loading, mouse/keyboard gameplay, visor switching, menus, and clean shutdown were accepted in a 59% Chozo Ruins save on 2026-08-17. |
-| Unsigned IPA | **Developer preview available** | [Download EctoPad 0.1.3](artifacts/EctoPad-0.1.3-unsigned.ipa). The deterministic package is game-data-free and must be re-signed with the user's own Apple identity before installation. |
+| Public IPA | **Not available** | The previously tracked unsigned validation IPA was removed while dependency licensing, corresponding-source, and relink requirements are resolved. Source builds remain available. |
 | TestFlight / App Store | **Not available** | No Apple-hosted distribution or App Store review has been completed. |
 
 The current 0.1.3 source/device build is the selected packaging baseline. It is
@@ -338,19 +338,30 @@ flowchart LR
 `ref/`, build outputs, disc images, extracted material, saves, logs, and signing
 assets are ignored. [`scripts/audit-ios-package.sh`](scripts/audit-ios-package.sh)
 rejects game data, private artifacts, credentials, and signing material from the
-published unsigned developer preview. The accompanying source, patch records,
-dependency pins, notices, and provenance boundary remain documented in this
-repository.
+local unsigned validation package. Passing that audit proves package hygiene,
+not permission to distribute the binary. Generated IPAs and checksums remain
+ignored until the release gates in
+[`docs/RELEASE_COMPLIANCE.md`](docs/RELEASE_COMPLIANCE.md) are complete.
 
 ## Frequently asked questions
 
 <details>
 <summary><strong>Where can I download the IPA?</strong></summary>
 
-[Download the deterministic, audited, game-data-free EctoPad 0.1.3 unsigned
-IPA](artifacts/EctoPad-0.1.3-unsigned.ipa). It is not installable as-is and must
-be re-signed for the user's device. There is currently no TestFlight, App Store,
-or AltStore PAL release.
+There is no public IPA right now. The previous unsigned validation package was
+removed because the repository had not yet assembled the exact corresponding
+source and LGPL relink materials required for a binary release. The licensing
+status of the pinned
+[zeus](https://github.com/AxioDL/zeus) and
+[kabufuda](https://github.com/AxioDL/kabufuda) trees also needs authoritative
+clarification or clearly licensed replacements.
+
+Help is welcome through an [EctoPad issue](https://github.com/chrissotraidis/ectopad/issues)
+or pull request. Useful contributions include source-backed license evidence,
+licensed replacement dependencies, a replacement for the statically linked
+[soxr](https://github.com/chirlu/soxr) path, and reproducible source/relink
+packaging. Please do not contact or pressure upstream maintainers on EctoPad's
+behalf.
 </details>
 
 <details>
@@ -416,8 +427,11 @@ Never attach the disc image, memory cards, saves, or signing material.
 | [`docs/TECH-DEBT.md`](docs/TECH-DEBT.md) | Current physical iPhone/iPad defect queue |
 | [`docs/TESTING.md`](docs/TESTING.md) | Evidence ledger and remaining acceptance checks |
 | [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) | Metaforce, Aurora, Dawn, Metal, input, audio, and storage architecture |
+| [`docs/RELEASE_COMPLIANCE.md`](docs/RELEASE_COMPLIANCE.md) | Public-binary blockers and the exact republication gate |
 | [`docs/LEGAL_AND_PROVENANCE.md`](docs/LEGAL_AND_PROVENANCE.md) | Redistribution and provenance boundary |
 | [`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.md) | Dependency licenses and notices |
+| [`artifacts/README.md`](artifacts/README.md) | Why no public IPA is currently tracked |
+| [`scripts/check-release-boundary.sh`](scripts/check-release-boundary.sh) | Reject accidentally tracked IPAs, checksums, or README download links |
 | `ref/` | Ignored local source/game-data workspace; never published by this repository |
 
 ## Contributing and support

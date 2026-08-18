@@ -2,6 +2,22 @@
 
 Last updated: 2026-08-18
 
+### 2026-08-18 — public package release boundary
+
+- Removed the tracked unsigned IPA (13,742,479 bytes, SHA-256
+  `264cc139fda991a0b91954ce5df5574e15027fc606d3041703bbb7432481267c`) and its
+  checksum. No IPA is now published by this repository; local packaging remains
+  available only for reproducibility and package auditing. The 2026-08-17 entry
+  below records an earlier package generated at the same path.
+- Added `scripts/check-release-boundary.sh`, which rejects a tracked IPA,
+  tracked artifact checksum, or a direct Markdown link to an IPA.
+- Reconciled the README, installation guidance, dependency inventory, notices,
+  and legal/provenance docs. A future binary remains blocked pending the exact
+  source-and-license work in `RELEASE_COMPLIANCE.md`, including resolution of
+  the zeus and kabufuda licensing status and the static soxr LGPL obligations.
+- `git diff --check` and the release-boundary check pass. Historical local
+  package hashes below remain evidence, not current downloads.
+
 ### 2026-08-18 — persistent desktop mouse aim
 
 - A macOS report that aim continually pulled back toward center was reproduced

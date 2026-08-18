@@ -1,17 +1,16 @@
-# Installing the iOS build
+# Building and installing iOS locally
 
-Last updated: 2026-08-17
+Last updated: 2026-08-18
 
-There are two artifacts, and they are not interchangeable.
+There is no public IPA release. The supported path is to build the source app,
+sign it with your own Apple identity, and install it on your own device.
 
 ## Unsigned validation IPA
 
-`scripts/package-ios.sh` creates a deterministic **unsigned local validation
-IPA** from the iPhoneOS `.app`. It is game-data-free but not installable as-is:
-the person installing it must sign it with an Apple identity and provisioning
-profile valid for their device. It is not approved for public redistribution
-until the corresponding-source and LGPL relink package described below is
-complete.
+`scripts/package-ios.sh` can create a deterministic **unsigned local validation
+IPA** from the iPhoneOS `.app`. It is for local package auditing only, remains
+ignored by Git, and must not be uploaded or shared. Passing the audit does not
+resolve the release blockers in [RELEASE_COMPLIANCE.md](RELEASE_COMPLIANCE.md).
 
 ## Physical iPhone/iPad path (what actually launched)
 
@@ -47,7 +46,7 @@ Rev 2 disc image. The importer validates the expected revision and hash
 before atomically activating the private copy. The current native menu also
 exposes **Share Diagnostic Log** for privacy-bounded runtime evidence.
 
-Do not share an IPA that contains game data, saves, logs, provisioning
-profiles, private keys, certificates, or other signing material. Public binary
-distribution also remains blocked until the GPL corresponding-source and LGPL
-relink requirements recorded in `THIRD_PARTY_NOTICES.md` are fulfilled.
+Do not upload or share the generated IPA. Public distribution remains blocked
+until every item in `RELEASE_COMPLIANCE.md` is resolved and the exact final
+binary, source bundle, relink materials, notices, and hashes are audited
+together.
