@@ -9,9 +9,9 @@
 </p>
 
 <p align="center">
-  <strong>Metroid Prime through Metaforce, rebuilt for iPhone, iPad, and Apple Silicon Mac.</strong><br>
-  Native Metal rendering, touch controls, controller support, private game-data
-  import, and durable GameCube memory cards.
+  <strong>Metroid Prime through Metaforce, with a complete Apple mobile layer.</strong><br>
+  Touch controls, on-device setup, native settings, diagnostics, save-safe
+  updates, and targeted device fixes for iPhone, iPad, and Apple Silicon Mac.
 </p>
 
 <p align="center">
@@ -23,37 +23,52 @@
   <img alt="Game data not included" src="https://img.shields.io/badge/game%20data-not%20included-FF453A">
 </p>
 
-EctoPad packages the complete [Metaforce](https://github.com/AxioDL/metaforce)
-engine as a native Apple-platform app. Metaforce reimplements the original
-Metroid Prime engine; EctoPad supplies the iOS/iPadOS integration, Metal-backed
-presentation, touch interface, controller plumbing, settings, import flow,
-saves, diagnostics, and reproducible patch record needed to run it on Apple
-hardware.
+EctoPad is a downstream Apple integration of
+[Metaforce](https://github.com/AxioDL/metaforce), the native Metroid Prime
+engine originally authored by Jack Andersen and Phillip "Antidote" Stephens
+and developed by its contributors.
+
+Metaforce and [Aurora](https://github.com/encounter/aurora) provide the engine,
+game systems, Metal rendering path, controller foundation, and original
+iOS/tvOS platform support. EctoPad builds on that work with the mobile
+interface, on-device workflows, and Apple-specific fixes recorded in this
+repository.
+
+## What EctoPad adds
+
+At the pinned public upstream revisions used by this project, the iOS build
+expected `game.iso` to be placed manually in app storage and did not include
+EctoPad's mobile layer:
+
+- SunPad-derived on-screen controls, layout editing, and touch settings;
+- Files-based game-data import, validation, and private activation;
+- native display, controller, save, and diagnostic interfaces;
+- automatic iOS memory-card provisioning and save-preserving updates;
+- lifecycle, secondary-scene, resume, and controller-reconnect fixes; and
+- reproducible packaging, diagnostics, and physical-device validation.
+
+EctoPad was created because the existing iOS target did not provide this
+complete, touch-ready experience in the public revision tested. If that
+experience had already existed, there would have been no reason to build
+EctoPad.
+
+## Project scope
+
+Metaforce remains the engine, and Aurora remains the rendering and platform
+foundation. EctoPad does not claim authorship of either project or of the
+original iOS target. Its scope is the downstream mobile integration,
+device-specific fixes, and validation documented here.
+
+EctoPad has sustained native gameplay on the physical iPhone and iPad devices
+recorded in this repository. That is the basis for describing the tested build
+as stable. It does not mean bug-free operation, full-game validation, or
+universal stability across every device. The remaining visual, audio,
+lifecycle, and gameplay defects are documented below.
 
 This is **not** a Dolphin or RetroArch frontend, an official Nintendo product,
 or a general GameCube emulator. It requires a user-supplied, legally obtained
 **Metroid Prime (USA, Rev 2)** disc image. No game, disc image, extracted asset,
 save, key, or signing material is included in this repository.
-
-## Powered by Metaforce
-
-[Metaforce](https://github.com/AxioDL/metaforce) is the native
-reimplementation at the heart of EctoPad. It recreates the Metroid Prime engine
-and its game systems instead of emulating an entire GameCube, preserving the
-original exploration, combat, cinematics, interface, animation, audio, and save
-behavior while making those systems available to modern platforms.
-
-| Metaforce foundation | What it provides in EctoPad |
-|---|---|
-| Complete Prime runtime | Rooms, actors, combat, scanning, inventory, logbook, cinematics, and progression |
-| Native rendering architecture | GameCube GX behavior translated through Aurora and Dawn/WebGPU to Metal |
-| Original game systems | Animation, AI, audio, input, and GameCube memory-card behavior |
-| Focused game support | A purpose-built Metroid Prime runtime rather than a general GameCube emulator |
-
-EctoPad builds on that foundation with a native Apple application shell,
-landscape touch controls, physical-controller input, render and aspect-ratio
-settings, Files-based private import, lifecycle recovery, diagnostics, and
-save-preserving device updates.
 
 ## EctoPad in action
 
@@ -75,7 +90,7 @@ save-preserving device updates.
     </td>
     <td width="50%" valign="top">
       <img src="assets/screenshots/ectopad-samus-closeup.jpg" alt="Samus close-up rendered by EctoPad on iPad">
-      <br><sub><strong>Built for Apple hardware.</strong> EctoPad connects Metaforce's runtime to Metal-backed rendering and an iPhone/iPad application layer.</sub>
+      <br><sub><strong>Built on upstream rendering.</strong> Metaforce and Aurora render through Metal; EctoPad adds the iPhone/iPad interface and device workflow.</sub>
     </td>
   </tr>
 </table>
