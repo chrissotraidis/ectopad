@@ -222,9 +222,9 @@ When no controller is connected, the Mac defaults are:
 |---|---|
 | W / S | Move forward / backward |
 | A / D | Strafe left / right |
-| Mouse | Look and aim after clicking the game window |
+| Mouse | Persistent look and aim after clicking the game window |
 | Left click | Fire beam / drop bomb |
-| Right click (hold) | Free-look / aim; Spider Ball where available |
+| Right click (hold) | Spider Ball where available |
 | Shift (hold) | Lock on / target; scan and grapple context |
 | F | Missile / Power Bomb |
 | Space | Jump / Boost Ball |
@@ -237,8 +237,9 @@ When no controller is connected, the Mac defaults are:
 | Enter | Start / pause / confirm frontend |
 | Escape | Release mouse capture; press again for pause/back |
 
-The mouse response is tuned for desktop play while Shift and right click keep
-Prime's distinct lock-on and free-look behaviors separate. The four visor keys
+Captured mouse movement keeps its pitch instead of triggering Prime's original
+stick-recenter behavior. Shift retains lock-on/targeting, and right click keeps
+the contextual Spider Ball action. The four visor keys
 mirror the visor selector shown in the HUD, while the number row handles the
 four beam types. Connecting a controller gives the SDL gamepad path player-one
 input instead of mixing two active devices together; disconnecting it restores
@@ -317,8 +318,9 @@ models, rumble, and a wider controller matrix remain acceptance work.
 
 On macOS, EctoPad adds a desktop-native layer without changing the touch or
 controller defaults used on iPhone and iPad. WASD provides movement, the mouse
-provides camera control, Shift holds lock-on, right click holds free-look, and
-Q/E/Z/X select Combat/Scan/Thermal/X-Ray visors. See the complete table under
+provides persistent camera control, Shift holds lock-on, right click operates
+Spider Ball where available, and Q/E/Z/X select
+Combat/Scan/Thermal/X-Ray visors. See the complete table under
 [macOS (Apple Silicon)](#macos-apple-silicon).
 
 ## Reproducible and game-data-free

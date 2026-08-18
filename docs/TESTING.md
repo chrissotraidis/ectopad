@@ -1,6 +1,26 @@
 # Testing
 
-Last updated: 2026-08-17
+Last updated: 2026-08-18
+
+### 2026-08-18 — persistent desktop mouse aim
+
+- A macOS report that aim continually pulled back toward center was reproduced
+  in the input logic. Relative mouse Y was emitted as a one-frame analog-stick
+  value; the following zero-delta frame looked like a centered GameCube stick,
+  so Prime selected its normal free-look snap target of zero. Holding right
+  click held R but did not preserve the analog target.
+- Captured desktop mouse Y now accumulates into a clamped pitch target at 0.12
+  degrees per pixel. A no-motion frame retains that target, firing does not
+  clear it, and the crosshair stays visible while mouse capture owns free look.
+- Lock-on/orbit still owns the camera when active. Releasing capture restores
+  Prime's normal recenter path. Gamepad and iPhone/iPad touch/controller inputs
+  do not enter the desktop-only branch. Mouse capture does not masquerade as a
+  held GameCube R button, and desktop free look no longer suppresses footsteps.
+- The native Apple Silicon macOS app and iPhoneOS app both compiled and linked.
+  The tracked patch reverses cleanly against the patched source. `git diff --check`
+  and all five controller slot/reconnect regressions pass.
+- Hands-on mouse feel across combat, scanning, Morph Ball, pause/resume, and
+  different Mac pointing devices remains an external acceptance gate.
 
 ### 2026-08-17 — EctoPad 0.1.3 unsigned IPA packaging
 

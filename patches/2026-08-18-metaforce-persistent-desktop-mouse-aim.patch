@@ -1,0 +1,41 @@
+diff --git a/Runtime/World/CPlayer.cpp b/Runtime/World/CPlayer.cpp
+--- a/Runtime/World/CPlayer.cpp
++++ b/Runtime/World/CPlayer.cpp
+@@ -1618,4 +1618,16 @@ void CPlayer::ComputeFreeLook(const CFinalInput& input) {
+ void CPlayer::ComputeFreeLook(const CFinalInput& input) {
++  if (const auto& kbm = input.GetKBM();
++      kbm && kbm->m_mouseCaptured && x304_orbitState == EPlayerOrbitState::NoOrbit) {
++    constexpr float MousePitchRadiansPerPixel = 0.0020943951f; // 0.12 degrees
++    const float invert = g_GameState->GameOptions().GetInvertYAxis() ? 1.f : -1.f;
++    const float maxPitch = g_tweakPlayer->GetVerticalFreeLookAngleVel();
++    x3f0_vertFreeLookAngleVel = zeus::clamp(
++        -maxPitch, x3f0_vertFreeLookAngleVel + kbm->m_mouseDelta[1] * MousePitchRadiansPerPixel * invert,
++        maxPitch);
++    x3e8_horizFreeLookAngleVel = 0.f;
++    return;
++  }
++
+   const float lookLeft = ControlMapper::GetAnalogInput(ControlMapper::ECommands::LookLeft, input);
+   const float lookRight = ControlMapper::GetAnalogInput(ControlMapper::ECommands::LookRight, input);
+   float lookUp = ControlMapper::GetAnalogInput(ControlMapper::ECommands::LookUp, input);
+@@ -1674,3 +1686,12 @@ void CPlayer::UpdateFreeLookState(const CFinalInput& input, float dt, CStateMana
++  if (const auto& kbm = input.GetKBM();
++      kbm && kbm->m_mouseCaptured && x304_orbitState == EPlayerOrbitState::NoOrbit) {
++    x3dc_inFreeLook = true;
++    x3dd_lookButtonHeld = false;
++    x3de_lookAnalogHeld = true;
++    x9c4_25_showCrosshairs = true;
++    return;
++  }
++
+   if (g_tweakPlayer->GetHoldButtonsForFreeLook()) {
+     if ((g_tweakPlayer->GetTwoButtonsForFreeLook() &&
+          (ControlMapper::GetDigitalInput(ControlMapper::ECommands::LookHold1, input) &&
+@@ -2863,5 +2884,5 @@ void CPlayer::UpdateFootstepSounds(const CFinalInput& input, CStateManager& mgr,
+ void CPlayer::UpdateFootstepSounds(const CFinalInput& input, CStateManager& mgr, float dt) {
+-  if (x2f8_morphBallState != EPlayerMorphBallState::Unmorphed || x258_movementState != EPlayerMovementState::OnGround ||
+-      x3dc_inFreeLook || x3dd_lookButtonHeld) {
++  if (x2f8_morphBallState != EPlayerMorphBallState::Unmorphed || x258_movementState != EPlayerMovementState::OnGround ||
++      (!input.GetKBM() && (x3dc_inFreeLook || x3dd_lookButtonHeld))) {
+     return;
+   }
