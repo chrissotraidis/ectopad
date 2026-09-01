@@ -1,0 +1,189 @@
+EctoPad iOS three-dot menu hierarchy and stable button appearance, 2026-09-02
+
+Apply after the existing EctoPad Aurora iOS overlay patches with
+`git apply --unidiff-zero`.
+
+- Make UIKit own the ellipsis glyph, circular fill, and border through one
+  explicit UIButtonConfiguration so menu dismissal cannot synthesize a square
+  selected appearance. Tint the symbol itself white with always-original
+  rendering so UIKit cannot substitute the system accent color.
+- Keep an iOS 14 legacy fallback because the device target remains iOS 14+.
+- Group Render Resolution and Aspect Ratio under Display.
+- Keep Show FPS Counter independent at the top level.
+- Group controller mapping and touch settings under Controls.
+- Give Game Data & Saves an internal-drive icon.
+- Replace the loose log-sharing item with a final Report a Problem flow that
+  can export the existing privacy-redacted log or open EctoPad's GitHub issue
+  form directly.
+- Restore alpha and repeat overlay z-order recovery on the next main-queue turn
+  after foregrounding.
+- Extend the interaction harness to require the new hierarchy and configured
+  menu-button appearance.
+
+diff --git a/lib/ios/SunPadGameOverlay.mm b/lib/ios/SunPadGameOverlay.mm
+--- a/lib/ios/SunPadGameOverlay.mm
++++ b/lib/ios/SunPadGameOverlay.mm
+@@ -397,0 +398,2 @@ static NSString *const SunPadExperimentalDPadScaleKey = @"SunPadExperimentalDPad
++    ellipsis = [ellipsis imageWithTintColor:UIColor.whiteColor
++                               renderingMode:UIImageRenderingModeAlwaysOriginal];
+@@ -399,11 +400,0 @@ static NSString *const SunPadExperimentalDPadScaleKey = @"SunPadExperimentalDPad
+-    [_menuButton setImage:ellipsis forState:UIControlStateHighlighted];
+-    [_menuButton setImage:ellipsis forState:UIControlStateFocused];
+-    [_menuButton setImage:ellipsis forState:UIControlStateSelected];
+-    [_menuButton setImage:ellipsis
+-                 forState:UIControlStateSelected | UIControlStateHighlighted];
+-    _menuButton.tintColor = UIColor.whiteColor;
+-    _menuButton.backgroundColor = [UIColor colorWithWhite:0.06 alpha:0.72];
+-    _menuButton.layer.cornerRadius = 20.0;
+-    _menuButton.layer.borderWidth = 1.0;
+-    _menuButton.layer.borderColor = [UIColor colorWithWhite:1.0 alpha:0.30].CGColor;
+-    _menuButton.layer.masksToBounds = YES;
+@@ -415,0 +407,33 @@ static NSString *const SunPadExperimentalDPadScaleKey = @"SunPadExperimentalDPad
++
++    if (@available(iOS 15.0, *)) {
++        UIButtonConfiguration *configuration =
++            [UIButtonConfiguration plainButtonConfiguration];
++        configuration.image = ellipsis;
++        configuration.baseForegroundColor = UIColor.whiteColor;
++        configuration.contentInsets = NSDirectionalEdgeInsetsZero;
++        configuration.cornerStyle = UIButtonConfigurationCornerStyleCapsule;
++
++        UIBackgroundConfiguration *background =
++            [UIBackgroundConfiguration clearConfiguration];
++        background.backgroundColor = [UIColor colorWithWhite:0.06 alpha:0.72];
++        background.cornerRadius = 20.0;
++        background.strokeColor = [UIColor colorWithWhite:1.0 alpha:0.30];
++        background.strokeWidth = 1.0;
++        configuration.background = background;
++
++        // Keep the primary-action menu transition on one circular appearance.
++        // Otherwise iPadOS can synthesize a rectangular selected state while
++        // the menu is being dismissed.
++        _menuButton.automaticallyUpdatesConfiguration = NO;
++        _menuButton.configuration = configuration;
++        _menuButton.backgroundColor = UIColor.clearColor;
++        _menuButton.layer.borderWidth = 0.0;
++    } else {
++        _menuButton.tintColor = UIColor.whiteColor;
++        _menuButton.backgroundColor = [UIColor colorWithWhite:0.06 alpha:0.72];
++        _menuButton.layer.cornerRadius = 20.0;
++        _menuButton.layer.borderWidth = 1.0;
++        _menuButton.layer.borderColor =
++            [UIColor colorWithWhite:1.0 alpha:0.30].CGColor;
++        _menuButton.layer.masksToBounds = YES;
++    }
+@@ -451 +475,11 @@ static NSString *const SunPadExperimentalDPadScaleKey = @"SunPadExperimentalDPad
+-    UIMenu *dataMenu = [UIMenu menuWithTitle:@"Game Data & Saves" children:@[
++    UIMenu *displayMenu = [UIMenu menuWithTitle:@"Display"
++                                          image:[UIImage systemImageNamed:@"display"]
++                                     identifier:nil
++                                        options:0
++                                       children:@[renderMenu, aspectMenu]];
++
++    UIMenu *dataMenu = [UIMenu menuWithTitle:@"Game Data & Saves"
++                                       image:[UIImage systemImageNamed:@"internaldrive"]
++                                  identifier:nil
++                                     options:0
++                                    children:@[
+@@ -484,12 +518,5 @@ static NSString *const SunPadExperimentalDPadScaleKey = @"SunPadExperimentalDPad
+-    UIAction *shareLogAction =
+-        [UIAction actionWithTitle:@"Share Diagnostic Log…"
+-                            image:[UIImage systemImageNamed:@"square.and.arrow.up"]
+-                       identifier:nil handler:^(__kindof UIAction *action) {
+-        (void)action;
+-        [weakSelf shareDiagnosticLog];
+-    }];
+-
+-    return [UIMenu menuWithTitle:@"EctoPad" children:@[
+-        renderMenu,
+-        aspectMenu,
+-        fpsAction,
++    UIMenu *controlsMenu = [UIMenu menuWithTitle:@"Controls"
++                                           image:[UIImage systemImageNamed:@"gamecontroller"]
++                                      identifier:nil
++                                         options:0
++                                        children:@[
+@@ -507,0 +535,14 @@ static NSString *const SunPadExperimentalDPadScaleKey = @"SunPadExperimentalDPad
++    ]];
++
++    UIAction *reportProblemAction =
++        [UIAction actionWithTitle:@"Report a Problem…"
++                            image:[UIImage systemImageNamed:@"exclamationmark.bubble"]
++                       identifier:nil handler:^(__kindof UIAction *action) {
++        (void)action;
++        [weakSelf reportProblem];
++    }];
++
++    return [UIMenu menuWithTitle:@"EctoPad" children:@[
++        displayMenu,
++        fpsAction,
++        controlsMenu,
+@@ -509 +550 @@ static NSString *const SunPadExperimentalDPadScaleKey = @"SunPadExperimentalDPad
+-        shareLogAction,
++        reportProblemAction,
+@@ -512,0 +554,34 @@ static NSString *const SunPadExperimentalDPadScaleKey = @"SunPadExperimentalDPad
++- (void)reportProblem {
++    UIViewController *presenter = self.window.rootViewController;
++    UIAlertController *prompt =
++        [UIAlertController alertControllerWithTitle:@"Report a Problem"
++                                            message:@"Export the diagnostic log, then attach it to a GitHub report along with a screenshot if the problem is visual. The log can include your iOS version, display and controller details, game-image filename, app-container paths, and runtime errors. It never includes the game image, extracted files, or saves. GitHub reports and attachments are public."
++                                     preferredStyle:UIAlertControllerStyleAlert];
++    [prompt addAction:[UIAlertAction actionWithTitle:@"Cancel"
++                                                style:UIAlertActionStyleCancel
++                                              handler:nil]];
++    __weak SunPadGameOverlay *weakSelf = self;
++    [prompt addAction:[UIAlertAction actionWithTitle:@"Export Diagnostic Log…"
++                                                style:UIAlertActionStyleDefault
++                                              handler:^(UIAlertAction *action) {
++        (void)action;
++        [weakSelf presentDiagnosticLogShareSheet];
++    }]];
++    [prompt addAction:[UIAlertAction actionWithTitle:@"Report on GitHub"
++                                                style:UIAlertActionStyleDefault
++                                              handler:^(UIAlertAction *action) {
++        (void)action;
++        NSURL *url = [NSURL URLWithString:
++            @"https://github.com/chrissotraidis/ectopad/issues/new"];
++        if (url != nil) {
++            [UIApplication.sharedApplication openURL:url options:@{}
++                                   completionHandler:^(BOOL success) {
++                if (!success)
++                    SunPadLog(@"diagnostic github open failed");
++            }];
++        }
++    }]];
++    prompt.preferredAction = prompt.actions.lastObject;
++    [presenter presentViewController:prompt animated:YES completion:nil];
++}
++
+diff --git a/lib/ios/OverlayBridge.mm b/lib/ios/OverlayBridge.mm
+--- a/lib/ios/OverlayBridge.mm
++++ b/lib/ios/OverlayBridge.mm
+@@ -477,2 +477,2 @@ void run_interaction_test() {
+-    @"EctoPad", @"Render Resolution", @"Aspect Ratio", @"Show FPS Counter",
+-    @"Controller Button Mapping…", @"Touch Control Settings…", @"Game Data & Saves",
++    @"EctoPad", @"Display", @"Render Resolution", @"Aspect Ratio", @"Show FPS Counter",
++    @"Controls", @"Controller Button Mapping…", @"Touch Control Settings…", @"Game Data & Saves",
+@@ -480 +480 @@ void run_interaction_test() {
+-    @"Remove Stored Game Data", @"Share Diagnostic Log…",
++    @"Remove Stored Game Data", @"Report a Problem…",
+@@ -483,0 +484,7 @@ void run_interaction_test() {
++  if (@available(iOS 15.0, *)) {
++    if (menuButton.configuration == nil ||
++        menuButton.configuration.image.renderingMode != UIImageRenderingModeAlwaysOriginal ||
++        menuButton.automaticallyUpdatesConfiguration ||
++        menuButton.layer.borderWidth != 0.0)
++      result |= 1;
++  }
+@@ -749,0 +757 @@ void recover_ios_overlay(std::string_view reason) noexcept {
++    g_overlay.alpha = 1.0;
+@@ -761,0 +770,9 @@ void recover_ios_overlay(std::string_view reason) noexcept {
++    dispatch_async(dispatch_get_main_queue(), ^{
++      UIView* finalHost = g_overlay.superview;
++      if (finalHost != nil) {
++        [finalHost bringSubviewToFront:g_overlay];
++        if (g_fpsLabel != nil)
++          [finalHost bringSubviewToFront:g_fpsLabel];
++        [g_overlay setNeedsLayout];
++      }
++    });

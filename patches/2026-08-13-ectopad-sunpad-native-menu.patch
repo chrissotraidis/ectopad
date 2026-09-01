@@ -45,12 +45,20 @@ root choices, and popup choices in `FRME_NewFileSelect`. The user physically
 accepted this solution on 2026-08-13. Do not replace it with a global geometry
 color override or recolor both authored panes.
 
-The UIKit `•••` button is non-focusable, disables pointer focus, and provides
-the ellipsis image for selected and selected+highlighted states to prevent the
-brief empty/square focus artifact after native menu dismissal.
+The original selected-image workaround was superseded on 2026-09-02 after
+SunPad and KartPad proved the more complete UIKit repair. The UIKit `•••`
+button remains non-focusable and disables pointer focus, but its glyph,
+circular fill, and border now belong to one non-updating
+`UIButtonConfiguration`. This prevents UIKit from synthesizing a rectangular
+selected appearance during menu dismissal. EctoPad also groups Display and
+Controls, keeps Show FPS Counter independent, adds the Game Data & Saves icon,
+and ends with a Report a Problem flow for redacted-log export or direct GitHub
+reporting. The exact incremental patch is
+`patches/2026-09-02-ectopad-ios-menu-hierarchy-and-button.patch`.
 
 Foreground recovery now observes UIKit lifecycle notifications and reattaches
 the existing overlay to the current SDL root-controller view when its host was
-replaced. Periodic recovery performs the same host check. Diagnostics persist
+replaced. Recovery also restores alpha, repeats the z-order assertion on the
+next main-queue turn, and retains the periodic host check. Diagnostics persist
 the lifecycle name, old/new host, window attachment, menu attachment, and touch
 visibility.

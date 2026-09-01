@@ -113,6 +113,12 @@ menu, render scaling, aspect-ratio selection, FPS counter, touch movement, and
 basic controller gameplay. That release decision does not mean the confirmed
 visual defects below are fixed or physically accepted.
 
+The 2026-09-02 iPad menu correction is physically accepted. The persistent
+white `•••` button now keeps its circular appearance through menu dismissal and
+foreground recovery. Its first level is intentionally short: **Display**,
+**Show FPS Counter**, **Controls**, **Game Data & Saves**, and
+**Report a Problem**.
+
 ### Known limitations
 
 - **P0 — selective black world geometry:** on both physical iPhone and iPad,
@@ -143,9 +149,9 @@ The prioritized defect list and dated evidence live in
 
 ### Reporting a useful visual defect
 
-Open `••• → Share Diagnostic Log` immediately after the problem and share the
-resulting EctoPad diagnostic file. Include the Apple device and OS version,
-approximate time, room, render scale/aspect mode, whether the app recently
+Open `••• → Report a Problem` immediately after the problem. Export the
+diagnostic log and attach it to the linked GitHub report. Include the Apple
+device and OS version, approximate time, room, render scale/aspect mode, whether the app recently
 resumed from the background, and a screenshot or short video showing the exact
 surface. For focus/sharpness changes, hold the camera direction fixed and record
 a slow approach to the surface. Never attach the disc image, memory-card files,
@@ -161,7 +167,7 @@ saves, or signing material.
 | Input | Touch controls, SDL game controllers, and desktop keyboard/mouse support |
 | Saves | Automatically provisioned Slot A and Slot B GameCube memory-card images |
 | Game data | Files-based import with exact revision validation, private staging, and atomic activation |
-| Diagnostics | Persistent rotating runtime log plus an in-app **Share Diagnostic Log** action |
+| Diagnostics | Persistent rotating runtime log plus **Report a Problem**, with redacted-log export and a direct GitHub issue link |
 | Audio | Metaforce/amuse game audio through SDL3 and the Apple audio session |
 
 ## Supported game
@@ -306,8 +312,9 @@ GameCube controls:
 - **L/R touch latch:** hold either shoulder for 0.5 seconds to latch it; tap it
   again to release. The control changes color and provides haptic feedback.
 - **START:** pause or advance the frontend.
-- **`•••`:** open display, controller, touch, game-data, save, and diagnostic
-  settings without leaving the game.
+- **`•••`:** open **Display** (render resolution and aspect ratio), the
+  independent FPS toggle, **Controls** (controller mapping and touch settings),
+  **Game Data & Saves**, and **Report a Problem** without leaving the game.
 
 Touch opacity, overall size, individual control size and position, and
 hide-on-controller behavior are adjustable. Controller button remapping is
@@ -420,8 +427,9 @@ the report will be linked or redirected to the appropriate project.
 
 Include the approximate time and room, Apple device/OS, render settings, the
 action immediately before the problem, whether touch or a controller was
-active, and a screenshot or short video for visual defects. Use `••• → Share
-Diagnostic Log` immediately afterward. Never attach the disc image, memory
+active, and a screenshot or short video for visual defects. Use `••• → Report
+a Problem` immediately afterward, export the redacted diagnostic log, and
+attach it to the GitHub report. Never attach the disc image, memory
 cards, saves, or signing material.
 </details>
 
