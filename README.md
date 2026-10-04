@@ -21,6 +21,7 @@
   <img alt="Physical iPhone and iPad tested" src="https://img.shields.io/badge/physical%20iPhone%20%2F%20iPad-tested-30D158">
   <img alt="Development status" src="https://img.shields.io/badge/status-development%20preview-FF9F0A">
   <img alt="Game data not included" src="https://img.shields.io/badge/game%20data-not%20included-FF453A">
+  <a href="https://discord.gg/xwHfUD2bxW"><img alt="Join the EctoPad Discord" src="https://img.shields.io/badge/Discord-Join%20the%20community-5865F2?logo=discord&amp;logoColor=white"></a>
 </p>
 
 EctoPad is a downstream Apple integration of
@@ -33,6 +34,13 @@ game systems, Metal rendering path, controller foundation, and original
 iOS/tvOS platform support. EctoPad builds on that work with the mobile
 interface, on-device workflows, and Apple-specific fixes recorded in this
 repository.
+
+> [!NOTE]
+> **AI disclosure:** EctoPad uses substantial AI assistance for code, tests,
+> documentation, debugging and maintenance. Some support replies and maintenance
+> tasks are automated. There is no audited percentage of AI-generated code.
+> Build, test and device records describe what was checked. This disclosure
+> concerns EctoPad's workflow, not the authorship of its upstream projects.
 
 ## What EctoPad adds
 
@@ -463,6 +471,16 @@ reproducible platform or gameplay defect. Include the EctoPad version, Apple
 device and OS version, input method, display route, reproduction steps, and a
 redacted diagnostic log when possible. Never upload copyrighted game material
 or personal signing assets.
+
+## Community and support
+
+[Join the Discord](https://discord.gg/xwHfUD2bxW) for help and news. It is one
+community for EctoPad and its sibling projects, such as KartPad, BlueWake and
+MeleePad: ask about setup and installing, share how it runs on your device, and
+hear about new releases first.
+
+Found a bug? [Open an issue](https://github.com/chrissotraidis/ectopad/issues)
+with your device, its OS version, and the steps that led to it.
 
 ## Legal and acknowledgements
 
