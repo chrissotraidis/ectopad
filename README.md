@@ -193,6 +193,9 @@ accepted data flow. EctoPad never downloads game data.
 
 ## Getting started
 
+There is no download yet, so you build EctoPad yourself as described below.
+[PadMint](https://github.com/chrissotraidis/padmint) lists EctoPad under **Not available yet** and links back here.
+
 You currently need:
 
 - an Apple Silicon Mac with Xcode and its command-line tools;
