@@ -4,9 +4,12 @@
 # Metaforce and every component are fetched at the commits EctoPad was built
 # and tested with, then patches/workspace/<component>.patch restores EctoPad's
 # changes exactly (captured from the maintained workspace). Git checks each
-# commit by its hash, so mirrors yield identical sources. Two upstream
-# repositories (AxioDL/kabufuda and AxioDL/amuse) are no longer on GitHub;
-# their pinned commits are fetched from public forks that still carry them.
+# commit by its hash, so mirrors yield identical sources. Several upstream
+# repositories are no longer on GitHub: AxioDL/kabufuda and AxioDL/amuse come from
+# public forks that still carry their pinned commits, and AxioDL/metaforce and
+# AxioDL/zeus (gone in October 2026) from EctoPad's mirrors of the pinned commits.
+# Metaforce's submodules named relative to it (jbus, libjpeg-turbo, zeus, kabufuda)
+# are pointed at where those commits are now.
 #
 #   scripts/bootstrap-workspace.sh
 set -euo pipefail
@@ -43,8 +46,11 @@ fetch() { # directory url commit
 }
 
 echo "EctoPad: fetching Metaforce and its components"
-fetch "$ref" https://github.com/AxioDL/metaforce.git 621ee0fed3fdd5fccbbdadbce33343f29dce071c
+fetch "$ref" https://github.com/chrissotraidis/metaforce.git 621ee0fed3fdd5fccbbdadbce33343f29dce071c
 git -C "$ref" config submodule.extern/kabufuda.url https://github.com/cualquiercosa327/kabufuda.git
+git -C "$ref" config submodule.extern/jbus.url https://github.com/AxioDL/jbus.git
+git -C "$ref" config submodule.extern/libjpeg-turbo.url https://github.com/AxioDL/libjpeg-turbo.git
+git -C "$ref" config submodule.extern/zeus.url https://github.com/chrissotraidis/zeus.git
 git -C "$ref" submodule update -q --init --recursive
 
 ext="$ref/extern"
