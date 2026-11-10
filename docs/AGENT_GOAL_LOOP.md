@@ -95,10 +95,17 @@ has the draft release in front of him. Gate F happens only on his word.
 ### Gate C: iPad and iPhone play again
 
 - [x] `ref/sunpad` present (GPL license for packaging).
-- [ ] iOS build via `scripts/build-padmint-ios.sh` succeeds (version 0.1.4).
-- [ ] Back up the iPad app container (it now holds the copied disc image
+- [x] iOS build via `scripts/build-padmint-ios.sh` succeeds (version 0.1.4).
+      2026-11-10: IPA SHA-256 `fd650080…21b4` (local validation only).
+- [x] Back up the iPad app container (it now holds the copied disc image
       from the reconstruction test), then install the workspace build in place.
-- [ ] Diagnostic log: no crash, audio route opened; rendering confirmed.
+      2026-11-10: cards, prefs, log saved to `ref/_ipad-backup-20261110/`;
+      installed in place; disc image and cards preserved.
+- [~] Diagnostic log: no crash, audio route opened; rendering confirmed.
+      2026-11-10: title music playing (0 underruns, 0 clipped), ••• menu
+      visible with 5 items, overlay attached
+      (`docs/evidence/2026-11-10-gate-c/ipad-runtime-workspace-0.1.4.log`).
+      Rendering to be confirmed by eye in the playtest.
 - [ ] **Chris playtest on iPad:** touch controls (R hold, L/R latch), •••
       menu, render scale and aspect, controller connect/reconnect, music and
       sound, save at a station, quit, relaunch, load.
@@ -110,10 +117,14 @@ has the draft release in front of him. Gate F happens only on his word.
 - [x] `scripts/bootstrap-workspace.sh` fetches from the `ectopad-*` mirrors
       (2026-11-10); Metaforce's full 7,460-commit history is on
       `ectopad-metaforce` `main`.
-- [ ] Recapture `patches/workspace/` after new fixes (soxr CMake policy).
-- [ ] From an empty `ref/`: bootstrap + Mac build + iOS build succeed.
-- [ ] Update DEPENDENCIES.md, BUILDING.md, LEGAL_AND_PROVENANCE.md for the
-      mirrors and recovery.
+- [x] Recapture `patches/workspace/` after new fixes (soxr CMake policy).
+      2026-11-10: metaforce.patch updated; applies cleanly to `621ee0f`.
+- [x] From an empty `ref/`: bootstrap + Mac build + iOS build succeed.
+      2026-11-10: fresh worktree bootstrap + `build-macos.sh` (5/5 checks);
+      freshly bootstrapped `build-padmint-ios.sh` produced the 0.1.4 IPA.
+- [~] Update DEPENDENCIES.md, BUILDING.md, LEGAL_AND_PROVENANCE.md for the
+      mirrors and recovery. 2026-11-10: DEPENDENCIES.md and SOURCE_RECOVERY.md
+      done; BUILDING/LEGAL in Gate E with the stashed attribution edits.
 
 ### Gate E: ready to publish (everything except the switch)
 

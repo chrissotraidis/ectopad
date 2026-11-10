@@ -1,8 +1,34 @@
 # Dependencies
 
-Last updated: 2026-08-18
+Last updated: 2026-11-10
 
-## Reference repositories (cloned into `ref/`)
+## Where the sources come from now
+
+AxioDL made `metaforce`, `zeus`, `amuse`, and `kabufuda` private on GitHub in
+2026. The exact revisions EctoPad pins were recovered from Software Heritage
+and saved, with their original files and history, in private
+`chrissotraidis/ectopad-*` repositories, which also mirror the AxioDL
+repositories that are still public. See [SOURCE_RECOVERY.md](SOURCE_RECOVERY.md).
+
+`scripts/bootstrap-workspace.sh` recreates `ref/metaforce` from those exact
+commits and applies `patches/workspace/*.patch`. The pins below are unchanged;
+only the fetch locations moved:
+
+| Component | Fetched from | Pinned revision |
+| --- | --- | --- |
+| metaforce | `chrissotraidis/ectopad-metaforce` (full upstream history) | `621ee0f` |
+| zeus, kabufuda, jbus, musyx, libjpeg-turbo | `chrissotraidis/ectopad-<name>` (submodule URL overrides) | Metaforce's gitlinks |
+| amuse, logvisor, lzokay | `chrissotraidis/ectopad-<name>` | `ad9bc96`, `208a8c1`, `db2df1f` |
+| aurora, nod, fixNES, spdlog | their public upstreams (Metaforce's submodules) | Metaforce's gitlinks |
+| athena, soxr | encounter/athena, chirlu/soxr (public) | `6adba82`, `945b592` |
+
+**License gaps:** the pinned `zeus` and `kabufuda` trees contain no license
+file (verified 2026-11-10). They are fine for private builds but block public
+redistribution; see [RELEASE_COMPLIANCE.md](RELEASE_COMPLIANCE.md).
+
+The `ectopad-*` repositories stay private until the public release.
+
+## Reference repositories (cloned into `ref/`) — August 2026 inventory
 
 `ref/` is git-ignored; these are separate clones used as source pins and research
 references.
