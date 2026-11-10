@@ -171,7 +171,7 @@ Blockers from docs/RELEASE_COMPLIANCE.md, updated 2026-11-10:
       Verified 2026-11-10: two fresh worktrees at different paths produced
       byte-identical IPAs, SHA-256 `4c2dbdc7ba48f6ad4682aa6edba348ef4151f1caeaf296b0d963f4a6056ffbca` (commit `2bf3f17`); that
       IPA passes `release_gate.py`. Mac zip: two fresh builds at different paths
-      were byte-identical, SHA-256 `2b198694966bef33d4197ce2b608bb36d5cfdd00fc560489a4670e1e87074c89` (commit `65dd0a4`), and pass
+      were byte-identical, SHA-256 `2b198694966bef33d4197ce2b608bb36d5cfdd00fc560489a4670e1e87074c89` (commit `fb94bee`), and pass
       `release_gate.py`.
 - [ ] IP-law review of the release boundary (Chris).
 - [ ] README updated; draft GitHub release prepared, not published.
