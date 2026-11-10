@@ -134,7 +134,17 @@ has the draft release in front of him. Gate F happens only on his word.
 - [ ] **Chris playtest on iPad:** touch controls (R hold, L/R latch), •••
       menu, render scale and aspect, controller connect/reconnect, music and
       sound, save at a station, quit, relaunch, load.
-- [ ] Same install and short smoke test on the iPhone.
+- [~] Same install and short smoke test on the iPhone.
+      2026-11-10 21:43 JST, iPhone 14 (iOS 27.2): EctoPad was not installed
+      before, so there were no saves to back up. Installed the same build as
+      the iPad (binary `3de2370b…`); first launch opened the Metal view and the
+      ••• menu (5 items) with no errors. The disc image was copied into the app
+      container with afcclient (the same place the in-app import uses); on
+      relaunch the audio session opened on the speaker and the title music
+      played (frontend 0.57, 0 underruns, 0 clipped)
+      (`docs/evidence/2026-11-10-gate-c/iphone-runtime-own-zeus-kabufuda.log`).
+      Screen not captured (developer disk image not mounted). Still to do by
+      Chris: look at the screen, touch controls, start or load a game.
 - [ ] Known 0.1.3 defects still documented; any new defect fixed or listed.
 
 ### Gate D: rebuildable from scratch
