@@ -46,7 +46,11 @@ copy bzip2 "$deps/nod_bzip2-src/COPYING"
 copy xz-liblzma-0BSD "$deps/nod_xz-src/COPYING.0BSD"
 copy xz-COPYING "$deps/nod_xz-src/COPYING"
 
-missing Dawn "Dawn/Tint (BSD-3-Clause and bundled third-party notices). The pinned prebuilt package (encounter/dawn-build v20260603.191052) ships no license files; obtain the matching Dawn LICENSE and third_party notices before public release."
+# Dawn/Tint: the prebuilt package (encounter/dawn-build v20260603.191052, built
+# from google/dawn 13abc3bc8ea2d3c2050f9e77a12d012108ceee24) ships no license
+# file; this is that commit's LICENSE. Of Dawn's third_party code only abseil
+# is linked (covered above), verified from the app's symbols on 2026-11-10.
+copy Dawn-Tint "$root/docs/notices/Dawn-LICENSE.txt"
 missing zeus "zeus (AxioDL/zeus d64e9f5): no license file or license commit exists in the recovered tree. Redistribution is not permitted without a grant."
 missing kabufuda "kabufuda (AxioDL/kabufuda 9493afc): no license file or license commit exists in the recovered tree. Redistribution is not permitted without a grant."
 
