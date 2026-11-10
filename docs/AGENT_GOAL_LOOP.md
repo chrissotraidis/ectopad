@@ -141,7 +141,10 @@ Blockers from docs/RELEASE_COMPLIANCE.md, updated 2026-11-10:
       symbols in the workspace Mac binary (voice resampler in SDLBackend.cpp).
       Replace it with a compatibly licensed resampler or ship LGPL source and
       relink materials.
-- [ ] Complete license/notice inventory from the final dependency graph.
+- [~] Complete license/notice inventory from the final dependency graph.
+      2026-11-10: THIRD_PARTY_NOTICES.md covers the C/C++ components; the 59
+      Rust crates linked through nod are listed in docs/notices/rust-crates.md
+      (all permissive). Full license texts still need bundling.
 - [ ] Dawn builder paths: rebuild with path remapping or document.
 - [~] Unsigned IPA and Mac zip built, audited (`audit-ios-package.sh`,
       `release_gate.py`), reproduced byte-identically.
@@ -150,6 +153,10 @@ Blockers from docs/RELEASE_COMPLIANCE.md, updated 2026-11-10:
       EctoPad-0.1.4-unsigned.ipa and EctoPad-0.1.4-macos.zip both PASS
       `release_gate.py`; the IPA passes the package audit. Byte-identical
       reproduction still to do. Local files only (/tmp/ectopad-build).
+      Packaging is deterministic (same app → same IPA hash). A clean build in a
+      different checkout path produced a different binary (identical strings,
+      +128 bytes, different UUID); testing a second clean build at the same
+      path to see whether the checkout path is the cause.
 - [ ] IP-law review of the release boundary (Chris).
 - [ ] README updated; draft GitHub release prepared, not published.
 - [ ] Chris marks the repository Clear in his release audit.

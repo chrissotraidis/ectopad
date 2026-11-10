@@ -6,6 +6,9 @@
 #
 #   scripts/build-padmint-macos.sh OUTPUT.zip
 set -euo pipefail
+# Reproducible links: Apple's linker otherwise records archive member
+# timestamps, so identical sources would produce different binaries.
+export ZERO_AR_DATE=1
 
 root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 output="${1:?usage: scripts/build-padmint-macos.sh OUTPUT.zip}"

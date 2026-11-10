@@ -1,5 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
+# Reproducible links: Apple's linker otherwise records archive member
+# timestamps, so identical sources would produce different binaries.
+export ZERO_AR_DATE=1
 
 ROOT="$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)"
 SOURCE="$ROOT/ref/metaforce"
