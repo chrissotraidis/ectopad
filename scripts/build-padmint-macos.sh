@@ -54,6 +54,7 @@ for pattern in '*.iso' '*.gcm' '*.ciso' '*.rvz' '*.wbfs' '*.gci' '*.mobileprovis
 done
 
 echo "EctoPad: signing for this Mac and packaging"
+bash "$root/scripts/collect-licenses.sh" "ref/metaforce/build/$preset" "$app/Contents/Resources/Licenses"
 codesign --force --deep --sign - "$app"
 codesign --verify --deep --strict "$app"
 rm -f "$output"
