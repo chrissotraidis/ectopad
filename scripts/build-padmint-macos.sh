@@ -57,4 +57,8 @@ echo "EctoPad: signing for this Mac and packaging"
 codesign --force --deep --sign - "$app"
 codesign --verify --deep --strict "$app"
 rm -f "$output"
-ditto -c -k --keepParent "$app" "$output"
+# Reproducible archive: every file carries the commit's time, and the zip holds
+# no resource forks, extended attributes or quarantine flags.
+stamp="$(TZ=UTC git -C "$root" log -1 --format=%cd --date=format-local:%Y%m%d%H%M.%S)"
+find "$app" -exec env TZ=UTC touch -h -t "$stamp" {} +
+ditto -c -k --norsrc --noextattr --noqtn --keepParent "$app" "$output"
