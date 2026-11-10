@@ -222,8 +222,14 @@ Blockers from docs/RELEASE_COMPLIANCE.md, updated 2026-11-10:
       SHA-256 `292c1268264cad20674ee77f8045e980bf692e9075ed4def3482ce08727d4e2e`, links only
       /usr/lib, passes `release_gate.py`, bundles 148 license texts (0
       missing), and the zipped app loaded the 59% save into Chozo Ruins.
-      Byte-identical rebuild of this zip still to repeat. Local files:
-      /tmp/ectopad-release.
+      Reproducibility at commit `747c98b`: two builds from fresh build folders
+      gave byte-identical zips, SHA-256
+      `ae2fabf9588c6ed7d10e7874e90667ffd247b8353d41b52d8af966118ac0a56f` (passes `release_gate.py`,
+      starts with audio). The `292c1268…` zip above came from a reused build
+      folder whose stale Rust (nod) build pulled in extra compiler builtins;
+      release builds must start from a fresh build folder. Local release
+      candidates in /tmp/ectopad-release: that Mac zip and the IPA
+      `5b2623c7…`.
 - [ ] IP-law review of the release boundary (Chris).
 - [ ] README updated; draft GitHub release prepared, not published.
 - [ ] Chris marks the repository Clear in his release audit.
