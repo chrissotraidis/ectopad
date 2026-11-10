@@ -122,9 +122,10 @@ has the draft release in front of him. Gate F happens only on his word.
 - [x] From an empty `ref/`: bootstrap + Mac build + iOS build succeed.
       2026-11-10: fresh worktree bootstrap + `build-macos.sh` (5/5 checks);
       freshly bootstrapped `build-padmint-ios.sh` produced the 0.1.4 IPA.
-- [~] Update DEPENDENCIES.md, BUILDING.md, LEGAL_AND_PROVENANCE.md for the
-      mirrors and recovery. 2026-11-10: DEPENDENCIES.md and SOURCE_RECOVERY.md
-      done; BUILDING/LEGAL in Gate E with the stashed attribution edits.
+- [x] Update DEPENDENCIES.md, BUILDING.md, LEGAL_AND_PROVENANCE.md for the
+      mirrors and recovery. 2026-11-10: all three plus SOURCE_RECOVERY.md;
+      the stashed attribution edits (CREDITS.md, upstream-credit wording)
+      are merged; the stash's mouse-aim doc edits were left out.
 
 ### Gate E: ready to publish (everything except the switch)
 

@@ -1,6 +1,27 @@
 # Building
 
-Last updated: 2026-08-12
+Last updated: 2026-11-10
+
+## Quick start (2026-11-10)
+
+```sh
+bash scripts/bootstrap-workspace.sh            # ref/metaforce from exact pins + patches/workspace
+./scripts/build-macos.sh                        # EctoPad.app + controller checks
+bash scripts/build-padmint-ios.sh OUT.ipa       # iPhone/iPad app and unsigned IPA
+bash scripts/build-padmint-macos.sh OUT.zip     # Mac app zip
+ECTOPAD_PROFILE=<profile> ECTOPAD_IDENTITY=<sha1> \
+  ./scripts/sign-install-device.sh <device-udid> # sign and install in place
+```
+
+The bootstrap fetches Metaforce and the AxioDL components from EctoPad's
+`chrissotraidis/ectopad-*` mirrors (see [SOURCE_RECOVERY.md](SOURCE_RECOVERY.md))
+and blanks nod's Wii common keys. Tested with CMake 4.4 and rustup Rust with
+the `aarch64-apple-ios` target. Release builds should start from a fresh
+`build/` folder: the iOS toolchain appends flags on every reconfigure. The
+build scripts set `ZERO_AR_DATE=1`, and two fresh builds at different paths
+produce byte-identical IPAs and Mac zips.
+
+The sections below are the original August 2026 notes.
 
 ## Prerequisites (macOS)
 
@@ -11,8 +32,7 @@ Last updated: 2026-08-12
 - Rust 1.97.1 plus the Apple targets used by the proven macOS, Simulator, and
   iPhoneOS builds
 - ignored `ref/` checkouts at the pins in [DEPENDENCIES.md](DEPENDENCIES.md),
-  with the local `patches/` sequence applied; there is not yet an EctoPad
-  bootstrap script for this
+  created by `scripts/bootstrap-workspace.sh`
 - for a physical iPad: an Apple Development identity, the attached device, and
   in-place `devicectl` install of the signed source `.app`
 
