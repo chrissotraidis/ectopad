@@ -49,15 +49,19 @@ fetch() { # directory url commit
 echo "EctoPad: fetching Metaforce and its components"
 mirror="https://github.com/chrissotraidis/ectopad"
 fetch "$ref" "$mirror-metaforce.git" 621ee0fed3fdd5fccbbdadbce33343f29dce071c
-for component in zeus jbus musyx libjpeg-turbo; do
+for component in jbus musyx libjpeg-turbo; do
   git -C "$ref" config "submodule.extern/$component.url" "$mirror-$component.git"
 done
-# kabufuda is replaced by EctoPad's own memory-card library (components/kabufuda):
-# AxioDL's kabufuda carries no license.
-git -C "$ref" config submodule.extern/kabufuda.update none
+# zeus (math) and kabufuda (memory cards) are replaced by EctoPad's own
+# libraries in components/: AxioDL's versions never carried a license.
+for component in zeus kabufuda; do
+  git -C "$ref" config "submodule.extern/$component.update" none
+done
 git -C "$ref" submodule update -q --init --recursive
-mkdir -p "$ref/extern/kabufuda"
-cp -R "$root/components/kabufuda/." "$ref/extern/kabufuda/"
+for component in zeus kabufuda; do
+  mkdir -p "$ref/extern/$component"
+  cp -R "$root/components/$component/." "$ref/extern/$component/"
+done
 
 ext="$ref/extern"
 fetch "$ext/amuse" "$mirror-amuse.git" ad9bc96af472dae03fde215163446bdec80be67f

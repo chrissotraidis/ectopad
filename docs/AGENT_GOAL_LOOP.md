@@ -145,11 +145,15 @@ has the draft release in front of him. Gate F happens only on his word.
 
 Blockers from docs/RELEASE_COMPLIANCE.md, updated 2026-11-10:
 
-- [~] **zeus and kabufuda have no license.** 2026-11-10: Chris chose
+- [x] **zeus and kabufuda have no license.** 2026-11-10: Chris chose
       independent replacements. Verified: neither history ever had a license.
-      kabufuda: done. `components/kabufuda` (GPL-3.0-or-later) replaces it;
-      round-trip tests pass, real cards read identically to AxioDL's reader,
-      and a Mac save-station save reloads. zeus: still to write.
+      kabufuda: `components/kabufuda` (GPL-3.0-or-later); round-trip tests
+      pass, real cards read identically to AxioDL's reader, and a Mac
+      save-station save reloads. zeus: `components/zeus` (GPL-3.0-or-later),
+      written from the declarations Metaforce calls; its probe output matches
+      the original on 2,020 of 2,065 lines, the rest in functions the game
+      does not use or edge cases (components/zeus/README.md). The full game
+      builds on it. Gameplay on it still to check (Mac and iPad).
 - [x] **Chris chooses a license** for EctoPad's own patches, scripts, and docs.
       2026-11-10: delegated; GPL-3.0-or-later (`LICENSE`).
 - [ ] Corresponding source: bootstrap + patches + mirrors at exact commits
@@ -164,8 +168,8 @@ Blockers from docs/RELEASE_COMPLIANCE.md, updated 2026-11-10:
       (all permissive). 2026-11-10: `scripts/collect-licenses.sh` bundles
       every license text (153 files incl. all Rust crates and Dawn's license
       from its source commit) into the IPA (`Licenses/`) and Mac app
-      (`Contents/Resources/Licenses`). Only zeus is recorded as
-      MISSING, because no license exists.
+      (`Contents/Resources/Licenses`). Nothing is missing now that zeus
+      and kabufuda are EctoPad's own code.
 - [ ] Dawn builder paths: 241 `/Users/runner/work/dawn-build/...` strings come
       from the prebuilt Dawn (non-local CI paths, allowed by the package
       audit). Remaining choice: build Dawn from source with path remapping

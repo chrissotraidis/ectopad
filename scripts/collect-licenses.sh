@@ -51,9 +51,8 @@ copy xz-COPYING "$deps/nod_xz-src/COPYING"
 # file; this is that commit's LICENSE. Of Dawn's third_party code only abseil
 # is linked (covered above), verified from the app's symbols on 2026-11-10.
 copy Dawn-Tint "$root/docs/notices/Dawn-LICENSE.txt"
-missing zeus "zeus (AxioDL/zeus d64e9f5): no license file or license commit exists in the recovered tree. Redistribution is not permitted without a grant."
-# kabufuda: replaced by EctoPad's own memory-card library, covered by EctoPad's
-# GPL-3.0-or-later license (SunPad-GPL-3.0.txt / the repository LICENSE).
+# zeus and kabufuda: replaced by EctoPad's own libraries (components/), covered
+# by EctoPad's GPL-3.0-or-later license (SunPad-GPL-3.0.txt / the repository LICENSE).
 
 # Rust crates statically linked through nod-ffi (normal dependencies only).
 PATH="${CARGO_HOME:-$HOME/.cargo}/bin:$PATH" cargo metadata --format-version 1 \

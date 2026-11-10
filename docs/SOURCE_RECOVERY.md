@@ -4,8 +4,8 @@ AxioDL made the Metaforce engine and several of its libraries private on
 GitHub by October 2026. Metaforce and amuse had been published under the MIT
 license, and the licenses granted for those published revisions still apply.
 zeus and kabufuda were public but never carried a license (none in either
-history, checked 2026-11-10); EctoPad replaced kabufuda with its own library and
-zeus is still to be resolved. EctoPad's exact pins were recovered on
+history, checked 2026-11-10); EctoPad replaced both with its own libraries
+(`components/`). EctoPad's exact pins were recovered on
 2026-11-09 from [Software Heritage](https://archive.softwareheritage.org/), a
 public archive of open-source code.
 

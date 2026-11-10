@@ -17,17 +17,17 @@ only the fetch locations moved:
 | Component | Fetched from | Pinned revision |
 | --- | --- | --- |
 | metaforce | `chrissotraidis/ectopad-metaforce` (full upstream history) | `621ee0f` |
-| zeus, jbus, musyx, libjpeg-turbo | `chrissotraidis/ectopad-<name>` (submodule URL overrides) | Metaforce's gitlinks |
-| kabufuda (memory cards) | EctoPad's own `components/kabufuda`, copied in at bootstrap | this repository |
+| jbus, musyx, libjpeg-turbo | `chrissotraidis/ectopad-<name>` (submodule URL overrides) | Metaforce's gitlinks |
+| zeus (math), kabufuda (memory cards) | EctoPad's own `components/zeus`, `components/kabufuda`, copied in at bootstrap | this repository |
 | amuse, logvisor, lzokay | `chrissotraidis/ectopad-<name>` | `ad9bc96`, `208a8c1`, `db2df1f` |
 | aurora, nod, fixNES, spdlog | their public upstreams (Metaforce's submodules) | Metaforce's gitlinks |
 | athena, soxr | encounter/athena, chirlu/soxr (public) | `6adba82`, `945b592` |
 
-**License gaps:** the pinned `zeus` tree contains no license file (verified
-2026-11-10: none in its 354-commit history). That blocks public redistribution;
-see [RELEASE_COMPLIANCE.md](RELEASE_COMPLIANCE.md). AxioDL's `kabufuda` had
-the same gap (none in its 107 commits) and is replaced by EctoPad's own
-GPL-3.0-or-later memory-card library in `components/kabufuda`.
+**License gaps (resolved):** AxioDL's `zeus` and `kabufuda` never carried a
+license (verified 2026-11-10: none in their 354- and 107-commit histories), so
+they could not be redistributed. EctoPad replaces both with its own
+GPL-3.0-or-later libraries in `components/`; see each folder's README for
+how they were written and checked.
 
 The `ectopad-*` repositories stay private until the public release.
 
@@ -56,7 +56,7 @@ references.
 | `extern/musyx` | `37e8ecd4e6503e90b97ea81cd7d669357861d501` | GameCube audio library reimplementation |
 | `extern/nod` | `0ab72ade73a3aacf967741daee0bd088271f2075` | Disc image reading (encounter/nod) |
 | `extern/spdlog` | `48bcf39a661a13be22666ac64db8a7f886f2637e` | Logging |
-| `extern/zeus` | `d64e9f502a07c808596c5112bfd46bf0a0d8138e` | SIMD math library; no repository-wide license file found at this pin |
+| `extern/zeus` | `d64e9f502a07c808596c5112bfd46bf0a0d8138e` | Not used since 2026-11-10: replaced by `components/zeus` (no license existed at this pin) |
 
 ## aurora dependency versions (pinned in `AuroraDependencyVersions.cmake`)
 
@@ -108,7 +108,7 @@ All five build for macOS ARM64, iOS Simulator ARM64, and iPhoneOS ARM64
 | metaforce | See `ref/metaforce/LICENSE` |
 | aurora | See `ref/aurora/LICENSE` |
 | nod | MIT (encounter/nod) |
-| zeus | **NOASSERTION**; no repository-wide license file found at pin `d64e9f5` |
+| math library (`components/zeus`) | GPL-3.0-or-later (EctoPad's own; replaces AxioDL's unlicensed zeus) |
 | memory-card library (`components/kabufuda`) | GPL-3.0-or-later (EctoPad's own; replaces AxioDL's unlicensed kabufuda) |
 | spdlog | MIT |
 | amuse (vendored for in-game audio) | MIT (AxioDL/amuse), pin `ad9bc96` |
