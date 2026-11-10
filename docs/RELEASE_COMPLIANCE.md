@@ -1,11 +1,26 @@
 # Public binary release gate
 
-Last updated: 2026-08-18
+Last updated: 2026-11-10
 
 EctoPad currently distributes source and documentation only. No IPA, TestFlight,
 App Store, or AltStore PAL release is approved.
 
 ## Blocking items
+
+Status checked 2026-11-10 against the restored 0.1.4 build:
+
+- [x] **Nintendo key material.** `release_gate.py` found the Wii retail,
+  Korean and vWii common keys in the app binary (from nod's Wii ticket
+  decryption). `scripts/bootstrap-workspace.sh` now blanks those rows and
+  `patches/workspace/nod.patch` refuses Wii decryption; the rebuilt 0.1.4 IPA
+  passes `release_gate.py`. EctoPad reads GameCube discs only.
+- zeus and kabufuda (below) were re-verified in the recovered trees: no
+  license file and no license commit in either history.
+- soxr (below) is still statically linked: 78 soxr symbols in the macOS
+  binary, used by the voice resampler in `Runtime/Audio/SDLBackend.cpp`.
+- AxioDL removed the upstream repositories; exact pins now come from EctoPad's
+  mirrors ([SOURCE_RECOVERY.md](SOURCE_RECOVERY.md)). That moves where
+  corresponding source lives; it does not change any component's license.
 
 - [ ] Resolve the redistribution status of pinned
   [`AxioDL/zeus`](https://github.com/AxioDL/zeus) revision `d64e9f5`. No

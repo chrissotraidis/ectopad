@@ -143,8 +143,13 @@ Blockers from docs/RELEASE_COMPLIANCE.md, updated 2026-11-10:
       relink materials.
 - [ ] Complete license/notice inventory from the final dependency graph.
 - [ ] Dawn builder paths: rebuild with path remapping or document.
-- [ ] Unsigned IPA and Mac zip built, audited (`audit-ios-package.sh`,
+- [~] Unsigned IPA and Mac zip built, audited (`audit-ios-package.sh`,
       `release_gate.py`), reproduced byte-identically.
+      2026-11-10: the gate first FAILED on Wii common keys embedded by nod;
+      fixed by blanking them at bootstrap + nod.patch guard. Rebuilt
+      EctoPad-0.1.4-unsigned.ipa and EctoPad-0.1.4-macos.zip both PASS
+      `release_gate.py`; the IPA passes the package audit. Byte-identical
+      reproduction still to do. Local files only (/tmp/ectopad-build).
 - [ ] IP-law review of the release boundary (Chris).
 - [ ] README updated; draft GitHub release prepared, not published.
 - [ ] Chris marks the repository Clear in his release audit.
