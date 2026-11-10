@@ -161,7 +161,9 @@ Blockers from docs/RELEASE_COMPLIANCE.md, updated 2026-11-10:
       paths before `strip -S`; the final link now uses
       `-oso_prefix,<source root>/`. (3) The iOS toolchain appends flags on every
       reconfigure, so release builds must start from a fresh build folder.
-      Verification: two fresh worktrees at different paths, building now.
+      Verified 2026-11-10: two fresh worktrees at different paths produced
+      byte-identical IPAs, SHA-256 `4c2dbdc7ba48f6ad4682aa6edba348ef4151f1caeaf296b0d963f4a6056ffbca` (commit `2bf3f17`); that
+      IPA passes `release_gate.py`. Mac zip reproducibility not yet checked.
 - [ ] IP-law review of the release boundary (Chris).
 - [ ] README updated; draft GitHub release prepared, not published.
 - [ ] Chris marks the repository Clear in his release audit.
