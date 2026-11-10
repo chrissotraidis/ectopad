@@ -215,6 +215,15 @@ Blockers from docs/RELEASE_COMPLIANCE.md, updated 2026-11-10:
       with none missing. Caveat: the main checkout's first link once came out
       different (1,008 bytes of __text); relinking the same objects gave the
       matching binary twice. Recheck at release time by building twice.
+      2026-11-10 Mac zip (commit `3fefa1f` scripts): the earlier zip linked
+      Homebrew's SDL3, FreeType, libpng and zstd, which players do not have.
+      `build-padmint-macos.sh` now hides Homebrew so Aurora builds them in,
+      and refuses any non-system library link. Result: EctoPad-0.1.4-macos.zip,
+      SHA-256 `292c1268264cad20674ee77f8045e980bf692e9075ed4def3482ce08727d4e2e`, links only
+      /usr/lib, passes `release_gate.py`, bundles 148 license texts (0
+      missing), and the zipped app loaded the 59% save into Chozo Ruins.
+      Byte-identical rebuild of this zip still to repeat. Local files:
+      /tmp/ectopad-release.
 - [ ] IP-law review of the release boundary (Chris).
 - [ ] README updated; draft GitHub release prepared, not published.
 - [ ] Chris marks the repository Clear in his release audit.

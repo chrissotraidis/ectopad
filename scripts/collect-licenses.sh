@@ -42,9 +42,13 @@ copy SDL3 "$deps/sdl-src/LICENSE.txt"
 copy tracy "$deps/tracy-src/LICENSE"
 copy xxhash "$deps/xxhash-src/LICENSE"
 copy zstd "$deps/zstd-src/LICENSE"
-copy bzip2 "$deps/nod_bzip2-src/COPYING"
-copy xz-liblzma-0BSD "$deps/nod_xz-src/COPYING.0BSD"
-copy xz-COPYING "$deps/nod_xz-src/COPYING"
+# iOS builds link nod's own bzip2 and liblzma; the Mac app uses the copies in
+# macOS (/usr/lib), which are part of the operating system.
+if [[ -d "$deps/nod_bzip2-src" || -d "$deps/nod_xz-src" ]]; then
+  copy bzip2 "$deps/nod_bzip2-src/COPYING"
+  copy xz-liblzma-0BSD "$deps/nod_xz-src/COPYING.0BSD"
+  copy xz-COPYING "$deps/nod_xz-src/COPYING"
+fi
 
 # Dawn/Tint: the prebuilt package (encounter/dawn-build v20260603.191052, built
 # from google/dawn 13abc3bc8ea2d3c2050f9e77a12d012108ceee24) ships no license
@@ -55,8 +59,10 @@ copy Dawn-Tint "$root/docs/notices/Dawn-LICENSE.txt"
 # by EctoPad's GPL-3.0-or-later license (SunPad-GPL-3.0.txt / the repository LICENSE).
 
 # Rust crates statically linked through nod-ffi (normal dependencies only).
+rust_target=aarch64-apple-ios
+[[ "$build" == *macos* ]] && rust_target=aarch64-apple-darwin
 PATH="${CARGO_HOME:-$HOME/.cargo}/bin:$PATH" cargo metadata --format-version 1 \
-  --filter-platform aarch64-apple-ios --manifest-path "$m/extern/nod/Cargo.toml" > "$out/.cargo.json"
+  --filter-platform "$rust_target" --manifest-path "$m/extern/nod/Cargo.toml" > "$out/.cargo.json"
 python3 - "$out" <<'EOF'
 import glob, json, os, shutil, sys
 out = sys.argv[1]
