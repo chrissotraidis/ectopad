@@ -158,10 +158,11 @@ Blockers from docs/RELEASE_COMPLIANCE.md, updated 2026-11-10:
       2026-11-10: delegated; GPL-3.0-or-later (`LICENSE`).
 - [ ] Corresponding source: bootstrap + patches + mirrors at exact commits
       (largely done via Gate D; publish the mirrors with the release).
-- [ ] soxr (LGPL-2.1) is statically linked: verified 2026-11-10, 78 soxr
+- [~] soxr (LGPL-2.1) is statically linked: verified 2026-11-10, 78 soxr
       symbols in the workspace Mac binary (voice resampler in SDLBackend.cpp).
-      Replace it with a compatibly licensed resampler or ship LGPL source and
-      relink materials.
+      Kept: the GPL app's complete public source (bootstrap pins soxr and its
+      patch) lets anyone relink a modified soxr; see RELEASE_COMPLIANCE.md.
+      Needs the release to link the exact source, and the IP-law review.
 - [~] Complete license/notice inventory from the final dependency graph.
       2026-11-10: THIRD_PARTY_NOTICES.md covers the C/C++ components; the 59
       Rust crates linked through nod are listed in docs/notices/rust-crates.md
@@ -194,6 +195,14 @@ Blockers from docs/RELEASE_COMPLIANCE.md, updated 2026-11-10:
       IPA passes `release_gate.py`. Mac zip: two fresh builds at different paths
       were byte-identical, SHA-256 `2b198694966bef33d4197ce2b608bb36d5cfdd00fc560489a4670e1e87074c89` (commit `fb94bee`), and pass
       `release_gate.py`.
+      2026-11-10, with EctoPad's own zeus and kabufuda (commit `521ed6c`): a
+      fresh worktree bootstrapped from the mirrors and the main checkout (fresh
+      build folder) produced identical objects and libraries and the same IPA,
+      SHA-256 `5b2623c7cbb151090c0dcdd9acc5660e3d660fc0f587354017fae742f3938e08`. It passes
+      `audit-ios-package.sh` and `release_gate.py` and bundles 151 license texts
+      with none missing. Caveat: the main checkout's first link once came out
+      different (1,008 bytes of __text); relinking the same objects gave the
+      matching binary twice. Recheck at release time by building twice.
 - [ ] IP-law review of the release boundary (Chris).
 - [ ] README updated; draft GitHub release prepared, not published.
 - [ ] Chris marks the repository Clear in his release audit.

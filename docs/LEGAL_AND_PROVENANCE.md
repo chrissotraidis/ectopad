@@ -54,9 +54,10 @@ Public binary distribution remains blocked by all of the following:
 
 - the combined executable includes SunPad-derived GPL-3.0-or-later code, but
   exact corresponding source for the binary has not been assembled;
-- soxr is statically linked under LGPL-2.1-or-later, and the required library
-  source, license text, relinkable application material, and instructions have
-  not been packaged; and
+- soxr is statically linked under LGPL-2.1-or-later; its license text ships in
+  the app, and EctoPad's complete public source (which pins soxr and its patch)
+  serves as the relinking material, but the release still has to link that
+  exact source; and
 - the full binary-derived dependency notice inventory has not been bundled and
   verified.
 

@@ -45,10 +45,18 @@ Status checked 2026-11-10 against the restored 0.1.4 build:
 - [ ] Assemble exact corresponding source for the final binary: every pinned
   upstream tree, submodule, vendored dependency, EctoPad patch, generated source
   needed for the build, and the scripts and configuration needed to rebuild it.
-- [ ] Replace the statically linked
+- [~] Replace the statically linked
   [`soxr`](https://github.com/chirlu/soxr) path with a clearly compatible
   alternative, or provide its LGPL-2.1-or-later text, exact source, relinkable
   application material, and working relink instructions.
+  2026-11-10: kept, because the whole app is GPL-3.0-or-later and built from
+  public source. LGPL-2.1 section 3 lets soxr be used under the GPL, and the
+  relinking requirement (section 6) is met by the complete corresponding
+  source: the release must point to the EctoPad tag, whose
+  `scripts/bootstrap-workspace.sh` fetches soxr `945b592` and applies
+  `patches/workspace/soxr.patch`, so anyone can rebuild the app with a
+  modified soxr. soxr's license text ships in the app. Confirm in the IP-law
+  review.
 - [ ] Generate and bundle the complete license and copyright notice inventory
   from the actual final dependency graph.
 - [ ] Rebuild Dawn with path remapping or use a scrubbed package so release
