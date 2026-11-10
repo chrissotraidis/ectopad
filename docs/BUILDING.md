@@ -9,8 +9,8 @@ bash scripts/bootstrap-workspace.sh            # ref/metaforce from exact pins +
 ./scripts/build-macos.sh                        # EctoPad.app + controller checks
 bash scripts/build-padmint-ios.sh OUT.ipa       # iPhone/iPad app and unsigned IPA
 bash scripts/build-padmint-macos.sh OUT.zip     # Mac app zip
+./scripts/backup-device-saves.sh <device-udid> <folder> # back up cards first
 ECTOPAD_PROFILE=<profile> ECTOPAD_IDENTITY=<sha1> \
-  ./scripts/backup-device-saves.sh <device-udid> <folder> # back up cards first
   ./scripts/sign-install-device.sh <device-udid> # sign and install in place
 ```
 

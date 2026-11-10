@@ -27,4 +27,3 @@ for card in MemoryCardA.USA.raw MemoryCardB.USA.raw; do
 done
 shasum -a 256 MemoryCard*.USA.raw
 echo "Saves backed up to $DEST"
-
