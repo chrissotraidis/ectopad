@@ -21,6 +21,12 @@ Status checked 2026-11-10 against the restored 0.1.4 build:
 - AxioDL removed the upstream repositories; exact pins now come from EctoPad's
   mirrors ([SOURCE_RECOVERY.md](SOURCE_RECOVERY.md)). That moves where
   corresponding source lives; it does not change any component's license.
+- License texts: `scripts/collect-licenses.sh` now bundles the texts of every
+  linked component, including the 57 Rust crates in nod and Dawn's license from
+  the commit its prebuilt package was built from (`google/dawn` `13abc3b`), in
+  the IPA and Mac app. zeus and kabufuda are recorded as missing.
+- Reproducible builds: two fresh IPA builds at different checkout paths were
+  byte-identical (`ZERO_AR_DATE=1`, `-oso_prefix`, fixed file times).
 
 - [ ] Resolve the redistribution status of pinned
   [`AxioDL/zeus`](https://github.com/AxioDL/zeus) revision `d64e9f5`. No

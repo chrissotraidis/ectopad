@@ -144,8 +144,15 @@ Blockers from docs/RELEASE_COMPLIANCE.md, updated 2026-11-10:
 - [~] Complete license/notice inventory from the final dependency graph.
       2026-11-10: THIRD_PARTY_NOTICES.md covers the C/C++ components; the 59
       Rust crates linked through nod are listed in docs/notices/rust-crates.md
-      (all permissive). Full license texts still need bundling.
-- [ ] Dawn builder paths: rebuild with path remapping or document.
+      (all permissive). 2026-11-10: `scripts/collect-licenses.sh` bundles
+      every license text (153 files incl. all Rust crates and Dawn's license
+      from its source commit) into the IPA (`Licenses/`) and Mac app
+      (`Contents/Resources/Licenses`). Only zeus and kabufuda are recorded as
+      MISSING, because no license exists.
+- [ ] Dawn builder paths: 241 `/Users/runner/work/dawn-build/...` strings come
+      from the prebuilt Dawn (non-local CI paths, allowed by the package
+      audit). Remaining choice: build Dawn from source with path remapping
+      (`AURORA_DAWN_PROVIDER=vendor`) or accept and document.
 - [~] Unsigned IPA and Mac zip built, audited (`audit-ios-package.sh`,
       `release_gate.py`), reproduced byte-identically.
       2026-11-10: the gate first FAILED on Wii common keys embedded by nod;
