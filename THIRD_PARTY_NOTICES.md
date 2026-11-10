@@ -20,6 +20,7 @@ included.
 | libjpeg-turbo | BSD-3-Clause and IJG |
 | spdlog, fmt, ImGui, Tracy, xxHash | permissive upstream licenses |
 | zlib, zstd, bzip2, xz/liblzma, libpng, FreeType, Abseil | upstream licenses |
+| Rust crates in nod (59, statically linked) | MIT / Apache-2.0 / BSD / Zlib / BSL-1.0 / Unicode-3.0; see [docs/notices/rust-crates.md](docs/notices/rust-crates.md) |
 
 Metaforce's MIT text and SunPad's GPLv3 text were included in the retired local
 validation package. That package did not contain the complete license texts,
