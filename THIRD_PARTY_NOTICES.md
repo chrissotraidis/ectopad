@@ -7,7 +7,7 @@ included.
 
 | Component | License / notice |
 | --- | --- |
-| Metaforce | MIT |
+| Metaforce | MIT; original authors Jack Andersen and Phillip "Antidote" Stephens |
 | SunPad-derived Apple application-shell code | GPL-3.0-or-later |
 | Aurora | MIT |
 | zeus | **NOASSERTION**; no repository-wide license file found at pinned revision `d64e9f5` |
@@ -31,6 +31,11 @@ The SunPad-derived source relationship is documented at checkout `7d84cec`;
 SunPad's root `LICENSE` states GPL-3.0-or-later. The copied source files did not
 carry separate file-level license headers in either tree, so this repository
 does not claim that such headers were preserved.
+
+EctoPad is a downstream integration. Metaforce and Aurora already contained
+iOS/tvOS platform support before EctoPad; the EctoPad name applies to the
+additional Apple user experience, fixes, patch records, and validation in this
+repository, not to the upstream engine itself.
 
 No license is inferred merely because a repository is public or included as a
 Metaforce submodule. `zeus` and `kabufuda` must receive authoritative license
