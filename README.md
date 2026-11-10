@@ -345,11 +345,9 @@ ignored until the release gates in
 
 There is no public IPA right now. The previous unsigned validation package was
 removed because the repository had not yet assembled the exact corresponding
-source and LGPL relink materials required for a binary release. The licensing
-status of the pinned
-[zeus](https://github.com/AxioDL/zeus) and
-[kabufuda](https://github.com/AxioDL/kabufuda) trees also needs authoritative
-clarification or clearly licensed replacements.
+source and LGPL relink materials required for a binary release. (The unlicensed
+zeus math and kabufuda memory-card libraries have been replaced by EctoPad's
+own, in `components/`.)
 
 Help is welcome through an [EctoPad issue](https://github.com/chrissotraidis/ectopad/issues)
 or pull request. Useful contributions include source-backed license evidence,
@@ -468,12 +466,18 @@ EctoPad is an unofficial community project and is not affiliated with or
 endorsed by Nintendo, Retro Studios, or Metroid Prime's rights holders. Game
 names, trademarks, and content belong to their respective owners.
 
-EctoPad builds on Metaforce, Aurora, Dawn, SDL3, nod, kabufuda, amuse, athena,
-logvisor, musyx, zeus, soxr, SunPad's Apple application shell, and their
-contributors. Each component retains its own copyright and license. See
+EctoPad builds on Metaforce, Aurora, Dawn, SDL3, nod, amuse, athena, logvisor,
+musyx, soxr, SunPad's Apple application shell, and their contributors, and on
+the API of AxioDL's zeus and kabufuda, which EctoPad reimplements. Each
+component retains its own copyright and license. See
 [`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.md) and
 [`docs/DEPENDENCIES.md`](docs/DEPENDENCIES.md) for the pinned inventory and
 license summary.
+
+EctoPad's own code, patches, scripts, and documentation are licensed under the
+GNU General Public License, version 3 or (at your option) any later version.
+See [`LICENSE`](LICENSE). The app already combines GPL-3.0-or-later code from
+SunPad, so the combined work is distributed under the same terms.
 
 ## Legal
 

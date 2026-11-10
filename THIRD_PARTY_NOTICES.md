@@ -7,11 +7,11 @@ included.
 
 | Component | License / notice |
 | --- | --- |
-| Metaforce | MIT |
+| Metaforce | MIT; original authors Jack Andersen and Phillip "Antidote" Stephens |
 | SunPad-derived Apple application-shell code | GPL-3.0-or-later |
 | Aurora | MIT |
-| zeus | **NOASSERTION**; no repository-wide license file found at pinned revision `d64e9f5` |
-| kabufuda | **NOASSERTION**; no repository-wide license file found at pinned revision `9493afc` |
+| Math library (`components/zeus`) | GPL-3.0-or-later; EctoPad's own code, replacing AxioDL's unlicensed zeus |
+| Memory-card library (`components/kabufuda`) | GPL-3.0-or-later; EctoPad's own code, replacing AxioDL's unlicensed kabufuda |
 | nod | MIT OR Apache-2.0 |
 | SDL3 | Zlib |
 | Dawn / Tint / WebGPU headers | BSD-3-Clause and Apache-2.0; see upstream notices |
@@ -20,6 +20,7 @@ included.
 | libjpeg-turbo | BSD-3-Clause and IJG |
 | spdlog, fmt, ImGui, Tracy, xxHash | permissive upstream licenses |
 | zlib, zstd, bzip2, xz/liblzma, libpng, FreeType, Abseil | upstream licenses |
+| Rust crates in nod (59, statically linked) | MIT / Apache-2.0 / BSD / Zlib / BSL-1.0 / Unicode-3.0; see [docs/notices/rust-crates.md](docs/notices/rust-crates.md) |
 
 Metaforce's MIT text and SunPad's GPLv3 text were included in the retired local
 validation package. That package did not contain the complete license texts,
@@ -31,10 +32,15 @@ SunPad's root `LICENSE` states GPL-3.0-or-later. The copied source files did not
 carry separate file-level license headers in either tree, so this repository
 does not claim that such headers were preserved.
 
+EctoPad is a downstream integration. Metaforce and Aurora already contained
+iOS/tvOS platform support before EctoPad; the EctoPad name applies to the
+additional Apple user experience, fixes, patch records, and validation in this
+repository, not to the upstream engine itself.
+
 No license is inferred merely because a repository is public or included as a
-Metaforce submodule. `zeus` and `kabufuda` must receive authoritative license
-clarification or be replaced before another binary is distributed. See
-`docs/RELEASE_COMPLIANCE.md`.
+Metaforce submodule. AxioDL's `zeus` and `kabufuda` never carried a license, so
+EctoPad does not ship them: `components/zeus` and `components/kabufuda` are
+EctoPad's own replacements. See `docs/RELEASE_COMPLIANCE.md`.
 
 Metroid Prime, Nintendo, and GameCube names and game content belong to their
 respective rights holders. This project is not affiliated with or endorsed by

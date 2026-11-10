@@ -17,6 +17,24 @@ Last updated: 2026-08-18
   assets, generated game-derived data, saves, signing material, provisioning
   profiles, certificates, or private artifacts.
 
+## Upstream authorship and platform history
+
+- Metaforce's MIT license names Jack Andersen and Phillip "Antidote" Stephens
+  as its original authors. EctoPad preserves that notice and does not claim
+  authorship of the Metaforce engine.
+- Metaforce already contained iOS/tvOS build support before EctoPad. The pinned
+  repository history traces its introduction to Luke Street's 2022 commit
+  `4048492` ("iOS and tvOS support"), followed by later Metaforce and Aurora
+  work.
+- EctoPad is a downstream Apple-focused integration and patch set. Its claims
+  must be limited to the additions and device evidence recorded in this
+  repository.
+- AxioDL made Metaforce, zeus, amuse and kabufuda private in 2026. The exact
+  pinned revisions were recovered from Software Heritage and are kept, with
+  their original files and authorship, in private `chrissotraidis/ectopad-*`
+  mirrors ([SOURCE_RECOVERY.md](SOURCE_RECOVERY.md)). Recovery does not change
+  any component's license.
+
 ## Supported revision / hash (provenance anchor)
 
 - Game: Metroid Prime (USA) (Rev 2), serial DOL-GM8E-USA, game ID `GM8E01`
@@ -34,17 +52,22 @@ artifact, not a completed redistribution package.
 
 Public binary distribution remains blocked by all of the following:
 
-- the pinned `zeus` and `kabufuda` trees contain no repository-wide license
-  file or other authoritative redistribution grant found by the current audit;
-- EctoPad-owned patches, scripts, and integration code do not yet have a root
-  project license selected by their copyright holder;
 - the combined executable includes SunPad-derived GPL-3.0-or-later code, but
   exact corresponding source for the binary has not been assembled;
-- soxr is statically linked under LGPL-2.1-or-later, and the required library
-  source, license text, relinkable application material, and instructions have
-  not been packaged; and
+- soxr is statically linked under LGPL-2.1-or-later; its license text ships in
+  the app, and EctoPad's complete public source (which pins soxr and its patch)
+  serves as the relinking material, but the release still has to link that
+  exact source; and
 - the full binary-derived dependency notice inventory has not been bundled and
   verified.
+
+Progress on 2026-11-10 (restored 0.1.4, local only): the app no longer contains
+nod's embedded Wii common keys (blanked at bootstrap; the IPA and Mac zip pass
+`release_gate.py`); license texts for every linked component are bundled by
+`scripts/collect-licenses.sh`; the IPA and Mac zip rebuild byte-identically
+from a fresh checkout; EctoPad's own work is GPL-3.0-or-later (`LICENSE`); and
+AxioDL's unlicensed zeus and kabufuda are replaced by EctoPad's own libraries
+(`components/`). The corresponding-source and soxr items above remain open.
 
 The pinned prebuilt Dawn library also embeds upstream GitHub Actions builder
 paths (`/Users/runner/work/dawn-build/...`) in diagnostic strings. Those paths
@@ -55,10 +78,15 @@ See [RELEASE_COMPLIANCE.md](RELEASE_COMPLIANCE.md) for the republication gate.
 
 ## Public-facing language
 
-- "Native reimplementation / native Apple port"
+- "Downstream Apple-focused integration of Metaforce"
 - "Requires user-supplied, legally obtained game data"
 - "No Nintendo game data included"
 - "Not affiliated with or endorsed by Nintendo"
+- Credit Metaforce and its original authors prominently whenever introducing
+  EctoPad.
+- Do not claim that EctoPad first brought Metaforce or Metroid Prime to iOS,
+  that it replaces Metaforce, or that the complete app is stable while known
+  blockers remain.
 
 Because Metroid Prime Remastered is a commercially active Nintendo product,
 elevated takedown/DMCA exposure is assumed; keep the above language factual and

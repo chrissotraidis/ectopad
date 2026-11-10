@@ -1,8 +1,37 @@
 # Dependencies
 
-Last updated: 2026-08-18
+Last updated: 2026-11-10
 
-## Reference repositories (cloned into `ref/`)
+## Where the sources come from now
+
+AxioDL made `metaforce`, `zeus`, `amuse`, and `kabufuda` private on GitHub in
+2026. The exact revisions EctoPad pins were recovered from Software Heritage
+and saved, with their original files and history, in private
+`chrissotraidis/ectopad-*` repositories, which also mirror the AxioDL
+repositories that are still public. See [SOURCE_RECOVERY.md](SOURCE_RECOVERY.md).
+
+`scripts/bootstrap-workspace.sh` recreates `ref/metaforce` from those exact
+commits and applies `patches/workspace/*.patch`. The pins below are unchanged;
+only the fetch locations moved:
+
+| Component | Fetched from | Pinned revision |
+| --- | --- | --- |
+| metaforce | `chrissotraidis/ectopad-metaforce` (full upstream history) | `621ee0f` |
+| jbus, musyx, libjpeg-turbo | `chrissotraidis/ectopad-<name>` (submodule URL overrides) | Metaforce's gitlinks |
+| zeus (math), kabufuda (memory cards) | EctoPad's own `components/zeus`, `components/kabufuda`, copied in at bootstrap | this repository |
+| amuse, logvisor, lzokay | `chrissotraidis/ectopad-<name>` | `ad9bc96`, `208a8c1`, `db2df1f` |
+| aurora, nod, fixNES, spdlog | their public upstreams (Metaforce's submodules) | Metaforce's gitlinks |
+| athena, soxr | encounter/athena, chirlu/soxr (public) | `6adba82`, `945b592` |
+
+**License gaps (resolved):** AxioDL's `zeus` and `kabufuda` never carried a
+license (verified 2026-11-10: none in their 354- and 107-commit histories), so
+they could not be redistributed. EctoPad replaces both with its own
+GPL-3.0-or-later libraries in `components/`; see each folder's README for
+how they were written and checked.
+
+The `ectopad-*` repositories stay private until the public release.
+
+## Reference repositories (cloned into `ref/`) — August 2026 inventory
 
 `ref/` is git-ignored; these are separate clones used as source pins and research
 references.
@@ -22,12 +51,12 @@ references.
 | `extern/aurora` | `514339438178ef2bed1b14e5149d90ece0c6e0cc` | Encounter/aurora; graphics + app layer |
 | `extern/fixNES` | `156fcaca9f4cd9c23d423737994c45cfb05d16ca` | NES emulation component |
 | `extern/jbus` | `7932b0a9b99e3461489b29ba3433f4c4256eb0f6` | CPU/JIT? (verify) |
-| `extern/kabufuda` | `9493afc8ff961ee04193038046308411904b8137` | Memory-card support; no repository-wide license file found at this pin |
+| `extern/kabufuda` | `9493afc8ff961ee04193038046308411904b8137` | Not used since 2026-11-10: replaced by `components/kabufuda` (no license existed at this pin) |
 | `extern/libjpeg-turbo` | `3d2da99c69d000c6351f6d2390b694f800e5ef4d` | JPEG decode (`heads/thp` branch) |
 | `extern/musyx` | `37e8ecd4e6503e90b97ea81cd7d669357861d501` | GameCube audio library reimplementation |
 | `extern/nod` | `0ab72ade73a3aacf967741daee0bd088271f2075` | Disc image reading (encounter/nod) |
 | `extern/spdlog` | `48bcf39a661a13be22666ac64db8a7f886f2637e` | Logging |
-| `extern/zeus` | `d64e9f502a07c808596c5112bfd46bf0a0d8138e` | SIMD math library; no repository-wide license file found at this pin |
+| `extern/zeus` | `d64e9f502a07c808596c5112bfd46bf0a0d8138e` | Not used since 2026-11-10: replaced by `components/zeus` (no license existed at this pin) |
 
 ## aurora dependency versions (pinned in `AuroraDependencyVersions.cmake`)
 
@@ -79,8 +108,8 @@ All five build for macOS ARM64, iOS Simulator ARM64, and iPhoneOS ARM64
 | metaforce | See `ref/metaforce/LICENSE` |
 | aurora | See `ref/aurora/LICENSE` |
 | nod | MIT (encounter/nod) |
-| zeus | **NOASSERTION**; no repository-wide license file found at pin `d64e9f5` |
-| kabufuda | **NOASSERTION**; no repository-wide license file found at pin `9493afc` |
+| math library (`components/zeus`) | GPL-3.0-or-later (EctoPad's own; replaces AxioDL's unlicensed zeus) |
+| memory-card library (`components/kabufuda`) | GPL-3.0-or-later (EctoPad's own; replaces AxioDL's unlicensed kabufuda) |
 | spdlog | MIT |
 | amuse (vendored for in-game audio) | MIT (AxioDL/amuse), pin `ad9bc96` |
 | athena (vendored, amuse dep) | MIT (encounter/athena), pin `6adba82` |

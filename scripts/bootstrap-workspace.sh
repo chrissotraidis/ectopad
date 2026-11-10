@@ -4,9 +4,11 @@
 # Metaforce and every component are fetched at the commits EctoPad was built
 # and tested with, then patches/workspace/<component>.patch restores EctoPad's
 # changes exactly (captured from the maintained workspace). Git checks each
-# commit by its hash, so mirrors yield identical sources. Two upstream
-# repositories (AxioDL/kabufuda and AxioDL/amuse) are no longer on GitHub;
-# their pinned commits are fetched from public forks that still carry them.
+# commit by its hash, so mirrors yield identical sources. AxioDL made Metaforce,
+# zeus, amuse and kabufuda private in 2026; their pinned commits were recovered
+# from Software Heritage (docs/SOURCE_RECOVERY.md) and are fetched from
+# EctoPad's chrissotraidis/ectopad-* repositories, which also mirror the AxioDL
+# repositories that are still public.
 #
 #   scripts/bootstrap-workspace.sh
 set -euo pipefail
@@ -15,7 +17,9 @@ root="$(cd "$(dirname "$0")/.." && pwd)"
 ref="$root/ref/metaforce"
 patches="$root/patches/workspace"
 marker="$ref/.ectopad-workspace"
-want="$(cat "$patches"/*.patch | shasum -a 256 | cut -d' ' -f1)"
+# The marker covers the patches and EctoPad's own components, so changing
+# either one asks for a fresh workspace.
+want="$({ cat "$patches"/*.patch; cd "$root" && find components -type f -print0 | sort -z | xargs -0 shasum -a 256; } | shasum -a 256 | cut -d' ' -f1)"
 
 # EctoPad's touch shell comes from SunPad (GPL-3.0); its license ships in the app.
 if [ ! -f "$root/ref/sunpad/LICENSE" ]; then
@@ -43,16 +47,28 @@ fetch() { # directory url commit
 }
 
 echo "EctoPad: fetching Metaforce and its components"
-fetch "$ref" https://github.com/AxioDL/metaforce.git 621ee0fed3fdd5fccbbdadbce33343f29dce071c
-git -C "$ref" config submodule.extern/kabufuda.url https://github.com/cualquiercosa327/kabufuda.git
+mirror="https://github.com/chrissotraidis/ectopad"
+fetch "$ref" "$mirror-metaforce.git" 621ee0fed3fdd5fccbbdadbce33343f29dce071c
+for component in jbus musyx libjpeg-turbo; do
+  git -C "$ref" config "submodule.extern/$component.url" "$mirror-$component.git"
+done
+# zeus (math) and kabufuda (memory cards) are replaced by EctoPad's own
+# libraries in components/: AxioDL's versions never carried a license.
+for component in zeus kabufuda; do
+  git -C "$ref" config "submodule.extern/$component.update" none
+done
 git -C "$ref" submodule update -q --init --recursive
+for component in zeus kabufuda; do
+  mkdir -p "$ref/extern/$component"
+  cp -R "$root/components/$component/." "$ref/extern/$component/"
+done
 
 ext="$ref/extern"
-fetch "$ext/amuse" https://github.com/derselbst/amuse.git ad9bc96af472dae03fde215163446bdec80be67f
+fetch "$ext/amuse" "$mirror-amuse.git" ad9bc96af472dae03fde215163446bdec80be67f
 fetch "$ext/athena" https://github.com/encounter/athena.git 6adba82abd8b7f48e6eca9f74361d0c605bc9ec8
 git -C "$ext/athena" submodule update -q --init --recursive
-fetch "$ext/logvisor" https://github.com/AxioDL/logvisor.git 208a8c1f84f9968695d712b8e5625c0dc85edbae
-fetch "$ext/lzokay" https://github.com/AxioDL/lzokay.git db2df1fcbebc2ed06c10f727f72567d40f06a2be
+fetch "$ext/logvisor" "$mirror-logvisor.git" 208a8c1f84f9968695d712b8e5625c0dc85edbae
+fetch "$ext/lzokay" "$mirror-lzokay.git" db2df1fcbebc2ed06c10f727f72567d40f06a2be
 fetch "$ext/soxr" https://github.com/chirlu/soxr.git 945b592b70470e29f917f4de89b4281fbbd540c0
 
 echo "EctoPad: applying the EctoPad changes"
@@ -62,9 +78,22 @@ apply() { # directory patch
   fi
 }
 apply "$ref" metaforce
-for component in aurora kabufuda nod amuse athena logvisor lzokay soxr; do
+for component in aurora nod amuse athena logvisor lzokay soxr; do
   apply "$ext/$component" "$component"
 done
+
+# Nintendo's Wii common keys are not part of EctoPad. nod embeds them only to
+# decrypt Wii disc tickets; EctoPad reads GameCube discs only, and nod.patch
+# makes nod refuse Wii decryption once the key rows are blank.
+scrub_wii_keys() {
+  local wii_rs="$ext/nod/nod/src/disc/wii.rs"
+  perl -pi -e 'if (/static (?:RETAIL|DEBUG)_COMMON_KEYS/ .. /^\];/) { s/\[0x[0-9a-f]{2}(?:, 0x[0-9a-f]{2}){15}\]/[0; 16]/ }' "$wii_rs"
+  if [ "$(grep -c '\[0; 16\],' "$wii_rs")" != 6 ] || grep -Eq '^ *\[0x[0-9a-f]{2}(, 0x[0-9a-f]{2}){15}\],' "$wii_rs"; then
+    echo "EctoPad: could not blank nod's Wii common keys in $wii_rs" >&2
+    exit 1
+  fi
+}
+scrub_wii_keys
 
 echo "$want" > "$marker"
 echo "EctoPad workspace is ready at $ref"

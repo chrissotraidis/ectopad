@@ -24,3 +24,21 @@ index 38e03be..7a541d9 100644
  if (NOD_COMPRESS_BZIP2)
      nod_require_bzip2(_nod_bzip2_target)
      target_link_libraries(nod_ffi INTERFACE "${_nod_bzip2_target}")
+diff --git a/nod/src/disc/wii.rs b/nod/src/disc/wii.rs
+index a6064c5..c36e77a 100644
+--- a/nod/src/disc/wii.rs
++++ b/nod/src/disc/wii.rs
+@@ -184,6 +184,13 @@ impl Ticket {
+         let common_key = common_keys.get(self.common_key_idx as usize).ok_or(Error::DiscFormat(
+             format!("unknown common key index {}", self.common_key_idx),
+         ))?;
++        // EctoPad reads GameCube discs only and ships no Wii common keys; its
++        // bootstrap blanks them, so refuse Wii decryption with a clear error.
++        if common_key.iter().all(|&b| b == 0) {
++            return Err(Error::DiscFormat(
++                "Wii disc decryption is not available in EctoPad (GameCube discs only)".to_string(),
++            ));
++        }
+         let mut title_key = self.title_key;
+         aes_cbc_decrypt(common_key, &iv, &mut title_key);
+         Ok(title_key)

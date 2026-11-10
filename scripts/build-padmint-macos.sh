@@ -6,6 +6,9 @@
 #
 #   scripts/build-padmint-macos.sh OUTPUT.zip
 set -euo pipefail
+# Reproducible links: Apple's linker otherwise records archive member
+# timestamps, so identical sources would produce different binaries.
+export ZERO_AR_DATE=1
 
 root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 output="${1:?usage: scripts/build-padmint-macos.sh OUTPUT.zip}"
@@ -36,12 +39,28 @@ iconutil -c icns "$iconset" -o ref/metaforce/Runtime/platforms/macos/mainicon.ic
 
 preset=macos-default-relwithdebinfo
 echo "EctoPad: configuring and building the Mac app"
-(cd ref/metaforce && cmake --preset "$preset" -DMETAFORCE_BUNDLE_SHORT_VERSION="$version" && cmake --build --preset "$preset" --target metaforce --parallel "$jobs")
+# Players' Macs have no Homebrew, so the app must not link libraries from it:
+# hide Homebrew and /usr/local from CMake and pkg-config, which makes Aurora
+# build SDL3, FreeType, libpng and zstd from their pinned sources and link them
+# in. --fresh drops any cached system library paths from an earlier configure.
+empty_pkgconfig="$(mktemp -d "${TMPDIR:-/tmp}/ectopad-nopkgconfig.XXXXXX")"
+(cd ref/metaforce &&
+  PKG_CONFIG_LIBDIR="$empty_pkgconfig" PKG_CONFIG_PATH="" cmake --fresh --preset "$preset" \
+    -DMETAFORCE_BUNDLE_SHORT_VERSION="$version" \
+    "-DCMAKE_IGNORE_PREFIX_PATH=/opt/homebrew;/usr/local" \
+    -DAURORA_SDL3_PROVIDER=vendor &&
+  cmake --build --preset "$preset" --target metaforce --parallel "$jobs")
 
 app="$root/ref/metaforce/build/$preset/Binaries/EctoPad.app"
 binary="$app/Contents/MacOS/EctoPad"
 [[ -x "$binary" ]] || { echo "EctoPad Mac app not found: $app" >&2; exit 1; }
 [[ "$(file "$binary")" == *"Mach-O 64-bit executable arm64"* ]] || { echo "EctoPad is not a native arm64 app" >&2; exit 1; }
+foreign="$(otool -L "$binary" | tail -n +2 | awk '{print $1}' | grep -Ev '^(/System/|/usr/lib/|@rpath/|@executable_path/)' || true)"
+if [[ -n "$foreign" ]]; then
+  echo "EctoPad links libraries players will not have:" >&2
+  echo "$foreign" >&2
+  exit 1
+fi
 for pattern in '*.iso' '*.gcm' '*.ciso' '*.rvz' '*.wbfs' '*.gci' '*.mobileprovision' '*.p12' '*.cer' '*.key'; do
   forbidden="$(find "$app" -type f -iname "$pattern" -print -quit)"
   if [[ -n "$forbidden" ]]; then
@@ -51,7 +70,12 @@ for pattern in '*.iso' '*.gcm' '*.ciso' '*.rvz' '*.wbfs' '*.gci' '*.mobileprovis
 done
 
 echo "EctoPad: signing for this Mac and packaging"
+bash "$root/scripts/collect-licenses.sh" "ref/metaforce/build/$preset" "$app/Contents/Resources/Licenses"
 codesign --force --deep --sign - "$app"
 codesign --verify --deep --strict "$app"
 rm -f "$output"
-ditto -c -k --keepParent "$app" "$output"
+# Reproducible archive: every file carries the commit's time, and the zip holds
+# no resource forks, extended attributes or quarantine flags.
+stamp="$(TZ=UTC git -C "$root" log -1 --format=%cd --date=format-local:%Y%m%d%H%M.%S)"
+find "$app" -exec env TZ=UTC touch -h -t "$stamp" {} +
+ditto -c -k --norsrc --noextattr --noqtn --keepParent "$app" "$output"
