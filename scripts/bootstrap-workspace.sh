@@ -71,6 +71,19 @@ for component in aurora kabufuda nod amuse athena logvisor lzokay soxr; do
   apply "$ext/$component" "$component"
 done
 
+# Nintendo's Wii common keys are not part of EctoPad. nod embeds them only to
+# decrypt Wii disc tickets; EctoPad reads GameCube discs only, and nod.patch
+# makes nod refuse Wii decryption once the key rows are blank.
+scrub_wii_keys() {
+  local wii_rs="$ext/nod/nod/src/disc/wii.rs"
+  perl -pi -e 'if (/static (?:RETAIL|DEBUG)_COMMON_KEYS/ .. /^\];/) { s/\[0x[0-9a-f]{2}(?:, 0x[0-9a-f]{2}){15}\]/[0; 16]/ }' "$wii_rs"
+  if [ "$(grep -c '\[0; 16\],' "$wii_rs")" != 6 ] || grep -Eq '^ *\[0x[0-9a-f]{2}(, 0x[0-9a-f]{2}){15}\],' "$wii_rs"; then
+    echo "EctoPad: could not blank nod's Wii common keys in $wii_rs" >&2
+    exit 1
+  fi
+}
+scrub_wii_keys
+
 echo "$want" > "$marker"
 echo "EctoPad workspace is ready at $ref"
 
