@@ -99,4 +99,3 @@ inline bool operator==(const CAABox& left, const CAABox& right) {
 }
 inline bool operator!=(const CAABox& left, const CAABox& right) { return !(left == right); }
 } // namespace zeus
-

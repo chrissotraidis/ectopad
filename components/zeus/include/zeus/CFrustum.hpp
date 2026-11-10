@@ -23,4 +23,3 @@ public:
   bool pointFrustumTest(const CVector3f& point) const;
 };
 } // namespace zeus
-

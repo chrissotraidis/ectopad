@@ -5,4 +5,3 @@
 namespace zeus {
 const CMatrix4f skIdentityMatrix4f = CMatrix4f();
 } // namespace zeus
-

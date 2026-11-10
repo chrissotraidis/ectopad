@@ -14,4 +14,3 @@ public:
   CVector3f x18_end;
 };
 } // namespace zeus
-

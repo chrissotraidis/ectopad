@@ -40,4 +40,3 @@ public:
   zeus::simd<float> mSimd;
 };
 } // namespace zeus
-

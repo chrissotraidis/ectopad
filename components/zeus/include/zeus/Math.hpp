@@ -114,4 +114,3 @@ bool close_enough(const CVector2f& a, const CVector2f& b, float epsilon = FLT_EP
 inline bool close_enough(float a, float b, double epsilon = FLT_EPSILON) { return std::fabs(a - b) <= epsilon; }
 inline bool close_enough(double a, double b, double epsilon = FLT_EPSILON) { return std::fabs(a - b) <= epsilon; }
 } // namespace zeus
-

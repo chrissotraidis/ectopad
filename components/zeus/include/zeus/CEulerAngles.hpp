@@ -15,4 +15,3 @@ public:
   explicit CEulerAngles(const CVector3f& vec) : CVector3f(vec) {}
 };
 } // namespace zeus
-

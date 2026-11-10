@@ -27,4 +27,3 @@ struct CMRay {
   CVector3f dir;
 };
 } // namespace zeus
-

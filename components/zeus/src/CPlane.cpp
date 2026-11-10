@@ -26,4 +26,3 @@ bool CPlane::rayPlaneIntersection(const CVector3f& from, const CVector3f& to, CV
   return true;
 }
 } // namespace zeus
-

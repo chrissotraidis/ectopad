@@ -95,4 +95,3 @@ CTransform CTransformFromEditorEulers(const CVector3f& eulerVec, const CVector3f
 CTransform CTransformFromAxisAngle(const CVector3f& axis, float angle);
 CTransform lookAt(const CVector3f& pos, const CVector3f& lookPos, const CVector3f& up = skUp);
 } // namespace zeus
-

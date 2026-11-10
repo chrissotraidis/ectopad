@@ -11,4 +11,3 @@ constexpr void hash_combine_impl(SizeT& seed, SizeT value) noexcept {
   seed ^= value + SizeT(0x9e3779b97f4a7c15ull) + (seed << 6) + (seed >> 2);
 }
 } // namespace zeus
-

@@ -52,4 +52,3 @@ bool CVector2d::canBeNormalized() const {
   return magSquared() >= DBL_EPSILON * DBL_EPSILON;
 }
 } // namespace zeus
-

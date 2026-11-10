@@ -95,4 +95,3 @@ CColor CColor::toGrayscale() const {
   return {gray, gray, gray, a()};
 }
 } // namespace zeus
-

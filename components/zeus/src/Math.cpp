@@ -84,4 +84,3 @@ bool close_enough(const CVector2f& a, const CVector2f& b, float epsilon) {
   return std::fabs(a.x() - b.x()) <= epsilon && std::fabs(a.y() - b.y()) <= epsilon;
 }
 } // namespace zeus
-

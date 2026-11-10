@@ -42,4 +42,3 @@ CMatrix3f CMatrix3f::RotateZ(float theta) {
   return {CVector3f(c, s, 0.f), CVector3f(-s, c, 0.f), CVector3f(0.f, 0.f, 1.f)};
 }
 } // namespace zeus
-

@@ -23,4 +23,3 @@ public:
   constexpr CVector2i operator*(int32_t val) const noexcept { return {x * val, y * val}; }
 };
 } // namespace zeus
-

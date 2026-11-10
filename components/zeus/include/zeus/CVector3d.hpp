@@ -50,4 +50,3 @@ constexpr CVector3d operator-(double lhs, const CVector3d& rhs) { return CVector
 constexpr CVector3d operator*(double lhs, const CVector3d& rhs) { return CVector3d(simd<double>(lhs) * rhs.mSimd); }
 constexpr CVector3d operator/(double lhs, const CVector3d& rhs) { return CVector3d(simd<double>(lhs) / rhs.mSimd); }
 } // namespace zeus
-

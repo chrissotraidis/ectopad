@@ -53,4 +53,3 @@ CTransform lookAt(const CVector3f& pos, const CVector3f& lookPos, const CVector3
   return {CMatrix3f(right, front, upVec), pos};
 }
 } // namespace zeus
-

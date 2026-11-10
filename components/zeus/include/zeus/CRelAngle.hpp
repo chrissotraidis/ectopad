@@ -47,4 +47,3 @@ public:
   CRelAngle asRel() const noexcept { return CRelAngle(MakeRelativeAngle(angle)); }
 };
 } // namespace zeus
-

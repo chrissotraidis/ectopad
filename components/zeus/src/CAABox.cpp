@@ -144,4 +144,3 @@ void CAABox::splitZ(CAABox& negZ, CAABox& posZ) const {
   posZ = {{min.x(), min.y(), mid}, max};
 }
 } // namespace zeus
-

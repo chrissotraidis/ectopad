@@ -25,4 +25,3 @@ CEulerAngles::CEulerAngles(const CQuaternion& quat) {
 }
 CEulerAngles::CEulerAngles(const CTransform& xf) : CEulerAngles(CQuaternion(xf.basis)) {}
 } // namespace zeus
-

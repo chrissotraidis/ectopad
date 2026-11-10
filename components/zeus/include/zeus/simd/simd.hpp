@@ -77,4 +77,3 @@ using simd_floats = simd_values<float>;
 using simd_doubles = simd_values<double>;
 
 } // namespace zeus
-

@@ -16,4 +16,3 @@ public:
   float radius;
 };
 } // namespace zeus
-

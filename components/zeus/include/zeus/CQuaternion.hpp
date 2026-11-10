@@ -161,4 +161,3 @@ CQuaternion operator-(float lhs, const CQuaternion& rhs);
 CQuaternion operator*(float lhs, const CQuaternion& rhs);
 CNUQuaternion operator*(float lhs, const CNUQuaternion& rhs);
 } // namespace zeus
-

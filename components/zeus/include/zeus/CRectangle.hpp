@@ -20,4 +20,3 @@ public:
   CVector2f size;
 };
 } // namespace zeus
-

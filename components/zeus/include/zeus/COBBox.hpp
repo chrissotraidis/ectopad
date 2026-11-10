@@ -23,4 +23,3 @@ public:
   bool AABoxIntersectsBox(const CAABox& other) const { return OBBIntersectsBox(COBBox(other)); }
 };
 } // namespace zeus
-

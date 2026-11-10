@@ -40,4 +40,3 @@ bool COBBox::OBBIntersectsBox(const COBBox& other) const {
   return true;
 }
 } // namespace zeus
-

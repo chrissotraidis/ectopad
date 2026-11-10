@@ -165,4 +165,3 @@ struct hash<zeus::CColor> {
   }
 };
 } // namespace std
-

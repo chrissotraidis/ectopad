@@ -119,4 +119,3 @@ constexpr CVector3f operator/(float lhs, const CVector3f& rhs) { return CVector3
 inline CVector3f radToDeg(const CVector3f& rad) { return CVector3f::radToDeg(rad); }
 inline CVector3f degToRad(const CVector3f& deg) { return CVector3f::degToRad(deg); }
 } // namespace zeus
-

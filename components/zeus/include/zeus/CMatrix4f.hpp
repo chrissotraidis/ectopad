@@ -68,4 +68,3 @@ inline CMatrix4f operator*(const CMatrix4f& lhs, const CMatrix4f& rhs) {
   return {lhs * rhs.m[0], lhs * rhs.m[1], lhs * rhs.m[2], lhs * rhs.m[3]};
 }
 } // namespace zeus
-

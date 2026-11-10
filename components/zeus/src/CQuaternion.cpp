@@ -189,4 +189,3 @@ CQuaternion operator-(float lhs, const CQuaternion& rhs) { return CQuaternion(si
 CQuaternion operator*(float lhs, const CQuaternion& rhs) { return CQuaternion(simd<float>(lhs) * rhs.mSimd); }
 CNUQuaternion operator*(float lhs, const CNUQuaternion& rhs) { return CNUQuaternion(simd<float>(lhs) * rhs.mSimd); }
 } // namespace zeus
-

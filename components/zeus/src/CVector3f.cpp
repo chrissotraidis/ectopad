@@ -26,4 +26,3 @@ bool CVector3f::canBeNormalized() const {
   return magSquared() >= FLT_EPSILON * FLT_EPSILON;
 }
 } // namespace zeus
-

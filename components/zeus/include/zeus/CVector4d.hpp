@@ -83,4 +83,3 @@ constexpr CVector4d operator-(double lhs, const CVector4d& rhs) { return CVector
 constexpr CVector4d operator*(double lhs, const CVector4d& rhs) { return CVector4d(simd<double>(lhs) * rhs.mSimd); }
 constexpr CVector4d operator/(double lhs, const CVector4d& rhs) { return CVector4d(simd<double>(lhs) / rhs.mSimd); }
 } // namespace zeus
-

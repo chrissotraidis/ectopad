@@ -27,4 +27,3 @@ if (PROJECT_IS_TOP_LEVEL)
   add_executable(zeus_probe tests/zeus_probe.cpp)
   target_link_libraries(zeus_probe zeus)
 endif ()
-

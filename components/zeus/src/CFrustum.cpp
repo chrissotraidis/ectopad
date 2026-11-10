@@ -52,4 +52,3 @@ bool CFrustum::pointFrustumTest(const CVector3f& point) const {
   return true;
 }
 } // namespace zeus
-

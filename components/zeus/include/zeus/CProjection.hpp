@@ -66,4 +66,3 @@ protected:
   CMatrix4f m_mtx;
 };
 } // namespace zeus
-

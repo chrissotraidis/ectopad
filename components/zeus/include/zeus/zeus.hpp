@@ -27,4 +27,3 @@
 #include "zeus/CVector4f.hpp"
 #include "zeus/Global.hpp"
 #include "zeus/Math.hpp"
-

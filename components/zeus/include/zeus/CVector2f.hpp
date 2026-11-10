@@ -81,4 +81,3 @@ constexpr CVector2f operator-(float lhs, const CVector2f& rhs) { return CVector2
 constexpr CVector2f operator*(float lhs, const CVector2f& rhs) { return CVector2f(simd<float>(lhs) * rhs.mSimd); }
 constexpr CVector2f operator/(float lhs, const CVector2f& rhs) { return CVector2f(simd<float>(lhs) / rhs.mSimd); }
 } // namespace zeus
-
