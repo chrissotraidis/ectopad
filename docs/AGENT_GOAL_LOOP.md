@@ -155,8 +155,13 @@ Blockers from docs/RELEASE_COMPLIANCE.md, updated 2026-11-10:
       reproduction still to do. Local files only (/tmp/ectopad-build).
       Packaging is deterministic (same app → same IPA hash). A clean build in a
       different checkout path produced a different binary (identical strings,
-      +128 bytes, different UUID); testing a second clean build at the same
-      path to see whether the checkout path is the cause.
+      +128 bytes, different UUID). Causes found: (1) Apple's linker recorded
+      archive member timestamps; `ZERO_AR_DATE=1` in the build scripts makes
+      relinks byte-identical (verified). (2) The UUID hashed absolute object
+      paths before `strip -S`; the final link now uses
+      `-oso_prefix,<source root>/`. (3) The iOS toolchain appends flags on every
+      reconfigure, so release builds must start from a fresh build folder.
+      Verification: two fresh worktrees at different paths, building now.
 - [ ] IP-law review of the release boundary (Chris).
 - [ ] README updated; draft GitHub release prepared, not published.
 - [ ] Chris marks the repository Clear in his release audit.
