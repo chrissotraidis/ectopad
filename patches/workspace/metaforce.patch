@@ -170510,10 +170510,10 @@ zR<OD}Tm}HpSy)90w%-gZs=%#rh;r9cFi3=9B@nK6L6j@Qa10E`!Zl<>xo)}uMx|>a
 K%D3-04E!HxR)=o@
 
 diff --git a/extern/CMakeLists.txt b/extern/CMakeLists.txt
-index f1872d0c6..a84c1d743 100644
+index f1872d0c60a378f800e7735e3162eb36aa5f8658..1756d7b690227cb965d4e1058aac5429747080dd 100644
 --- a/extern/CMakeLists.txt
 +++ b/extern/CMakeLists.txt
-@@ -13,6 +13,17 @@ if (NOT TARGET spdlog)
+@@ -13,6 +13,20 @@ if (NOT TARGET spdlog)
    add_subdirectory(spdlog EXCLUDE_FROM_ALL)
  endif ()
  
@@ -170526,7 +170526,10 @@ index f1872d0c6..a84c1d743 100644
 +set(BUILD_TESTS OFF CACHE BOOL "Build soxr tests" FORCE)
 +set(BUILD_EXAMPLES OFF CACHE BOOL "Build soxr examples" FORCE)
 +set(BUILD_SHARED_LIBS OFF CACHE BOOL "Build shared libraries" FORCE)
++# soxr declares a pre-3.5 CMake minimum, which CMake 4 rejects without this.
++set(CMAKE_POLICY_VERSION_MINIMUM 3.5)
 +add_subdirectory(soxr EXCLUDE_FROM_ALL)
++unset(CMAKE_POLICY_VERSION_MINIMUM)
 +
  if (WIN32 AND NOT TARGET nowide)
    include(FetchContent)

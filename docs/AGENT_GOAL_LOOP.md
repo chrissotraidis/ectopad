@@ -1,181 +1,144 @@
-# Ectopad Agent Goal Loop (handoff for the next agent)
+# EctoPad Goal Loop: back online, then public
 
-This file is the standing goal-based loop for the agent working on Ectopad
-(Metroid Prime → Apple Silicon via Metaforce). It replaces the plain objective
-statement: it keeps the full mission, adds a mandatory **review pass** over the
-prior agent's work, and elevates **SunPad parity** (menus + touch controls that
-are virtually identical to SunPad, **reusing SunPad's code directly**) to a
-first-class requirement that every turn checks.
+Last updated: 2026-11-10
 
-## 1. Mission (unchanged from the original objective)
+This is the standing work loop for getting EctoPad playable again after the
+upstream sources went private, and then preparing a public release. Work on
+branch `codex/restore-0.1.4` (based on `origin/main`).
 
-Build Metroid Prime (NTSC-U Rev 2, GM8E01, CRC 61592372) natively for Apple
-Silicon macOS, iOS, and iPadOS using **Metaforce** (Dawn/WebGPU → Metal), driven
-agentically from research through implementation, testing, documentation, and
-final validation. The engine must execute as Metaforce through Dawn/Metal — no
-Dolphin/RetroArch wrapper.
+## Goal
 
-Feasibility gates, in order:
-- **Gate 1 (macOS ARM64):** clean build, game data validated/prepared, launch,
-  Dawn selects Metal, frame renders, startup/title flow, input, audio,
-  saves/config. → **PROVEN** (see §4).
-- **Gate 2 (iOS/iPadOS hard go/no-go):** physical ARM64 device build installs,
-  launches, Dawn/WebGPU reaches Metal, loads prepared Prime data, visible
-  rendering. **Simulator is proven; physical device is the remaining unknown**
-  (blocked on user: signing identity + hardware).
-- **Gate 3 (real gameplay):** physical iPad through Frigate Orpheon and
-  representative later areas — rendering, audio, movement, camera, aiming,
-  lock-on, Morph Ball, beams, missiles, jumping, scanning, menus, pause,
-  save/reload, lifecycle, memory headroom.
+People can build or install EctoPad, supply their own Metroid Prime (USA,
+Rev 2) disc image, and play on iPhone, iPad, and Apple Silicon Mac, with
+complete corresponding source and credit to Metaforce and its authors.
 
-Full control surface: complete GameCube controls with a Prime-native touch
-design; GameController support; macOS keyboard/mouse. Game data: user-owned
-image validation + private staging + atomic activation, never bundling
-Nintendo assets. Diagnostics: SunPad-quality Share Diagnostic Log. Keep all
-docs current with dated evidence, separating proven / partially proven /
-Simulator-only / device-verified / blocked / not-yet-tested. Frequent focused
-commits; audit for prohibited content (game data, signing material).
+"Done" for this loop means Gates A–E are checked with dated evidence and Chris
+has the draft release in front of him. Gate F happens only on his word.
 
-Completion only when macOS/iPhone/iPad native builds work, Metaforce executes
-through Dawn/Metal, user-owned data validation/preparation works, Frigate +
-later areas are stable, core progression is not blocked by Apple-port bugs,
-touch/controller/handoff/lifecycle work, memory and performance are measured,
-no known Apple-port blockers remain, and release artifacts contain no
-prohibited data or secrets.
+## Ground rules
 
-## 2. STANDING MANDATE: SunPad parity (menus + touch controls)
+- **Repository rule (AGENTS.md): releases are paused.** No public release,
+  IPA, macOS build, or download link until this repository is marked Clear in
+  Chris' private release audit. Every artifact must pass
+  `python3 ~/.codex/release-gate/release_gate.py <artifact>`; a failure is a stop.
+- **docs/RELEASE_COMPLIANCE.md blockers** must all be resolved before any
+  public binary.
+- **Never commit game data, saves, keys, or signing material.** `ref/` stays
+  ignored. Run `scripts/audit-ios-package.sh` and
+  `scripts/check-release-boundary.sh`.
+- **Never uninstall EctoPad from a device to update it.** Install in place;
+  bundle ID stays `com.axiodl.Metaforce`. Back up the app container first when
+  it holds saves.
+- **Prefer the original code.** `patches/workspace/` is the captured,
+  device-tested EctoPad workspace. Add new fixes on top, then recapture the
+  patches from the workspace.
+- **Chris approves before anything public or irreversible.** PadMint rule:
+  run PadMint's `scripts/player-check.sh` before tagging and after publishing.
 
-The user has repeatedly and explicitly required: **the touch controls, the
-settings/menu overlays, and everything overlaid must be virtually identical to
-SunPad (`ref/sunpad`), and the implementation must REUSE SunPad's code
-directly (copy/port it) rather than reimplementing the same idea from
-scratch.** A prior agent's ImGui reimplementation was rejected as "bad" for
-this reason.
+## Where things are
 
-Rules that bind every turn:
-1. **Reference SunPad's code constantly.** Before designing or touching any
-   overlay, menu, settings, touch control, editor, or diagnostic UI, read the
-   corresponding SunPad file in `ref/sunpad/apple/` and port it.
-2. **Port, don't reinvent.** Copy `SunPadGameOverlay.{h,mm}`,
-   `SunPadSettings.{h,mm}`, `SunPadInputMixer.{h,mm}`, `SunPadInputState.h`,
-   `SunPadDiagnostics.{h,mm}` into the Metaforce iOS app and keep them as
-   close to upstream as possible. Only minimal glue may change (the input
-   boundary → aurora's pad layer; app-name strings; wiring stubs for actions
-   not yet implemented).
-3. **Keep the port in sync.** If SunPad changes, update the port. Track the
-   mapping in `docs/SUNPAD_PARITY.md` (create it) and keep it current.
-4. **The ••• menu** (Render Resolution, Aspect Ratio, FPS counter, Touch
-   Control Settings, Game Data & Saves, Share Diagnostic Log, Controller
-   Mapping) and the **Touch Control Settings panel** (opacity, size,
-   per-control size, hide-on-controller, modern C-stick) and the **layout
-   editor** (drag to reposition, per-control resize, reset) must match
-   SunPad's UI. Wire the actions to real engine behavior as features land;
-   never remove or restyle the menu.
-5. The UIKit overlay already ported lives in
-   `ref/metaforce/extern/aurora/lib/ios/` (SunPad files nearly verbatim) with
-   a thin bridge (`OverlayBridge.mm`) that attaches it to the SDL window and
-   feeds `aurora::touch::consume_ios_touch_state()` → the virtual GameCube
-   pad. **This is the model to follow for every future UI piece.**
+- `scripts/bootstrap-workspace.sh` builds `ref/metaforce` from exact commits
+  fetched from `chrissotraidis/ectopad-*` (private) plus public repos, then
+  applies `patches/workspace/*.patch`. Source history:
+  [SOURCE_RECOVERY.md](SOURCE_RECOVERY.md).
+- Builds: `scripts/build-macos.sh`; `scripts/build-padmint-ios.sh OUT.ipa`;
+  `scripts/build-padmint-macos.sh OUT.zip`. Device install:
+  `scripts/sign-install-device.sh <udid>` with `ECTOPAD_PROFILE` and
+  `ECTOPAD_IDENTITY`.
+- Disc image: `ref/Metroid Prime.iso` (verified `GM8E01`, SHA-1
+  `1a737910b55b59c6ad91be9e3e3c43517fd52efb`). Mac save backup:
+  `ref/_saves-backup-20261110/`.
+- Retired reconstruction (rebuilt from prose before the workspace patches were
+  found): `ref/metaforce-reconstruction-20261110`. Reference only.
+- Uncommitted attribution edits from an earlier session: `git stash` entry
+  "Uncommitted attribution edits…" and `ref/_attribution-edits-*`.
+- Devices: iPad Pro 12.9 (6th gen) `00008112-001D485114DBC01E`; iPhone 14
+  `00008110-001C2C641123A01E`. Both must be unlocked for `devicectl`.
 
-## 3. Mandatory review pass (start every turn here)
+## The loop (every turn)
 
-The prior agent's work is **not trustworthy until re-verified**. Every turn
-begins with an evidence-based audit:
-1. Read `docs/CURRENT_STATE.md`, then run
-   `git -C /Users/chrissotraidis/GitHub/ectopad status` — the ectopad repo must
-   stay clean except docs/ + patches/ (never commit `ref/`).
-2. Inspect the aurora working tree
-   (`ref/metaforce/extern/aurora`): `git status --short` and the diff vs the
-   pinned `5143394` — understand every uncommitted change.
-3. Treat KI-015 as fixed unless physical evidence contradicts it. Its root
-   cause was duplicate static-library
-   implementations: `ios_touch_stub.cpp` was compiled for iOS and linked before
-   `OverlayBridge.mm`, so the real bridge was never loaded. CMake now includes
-   the stub only for non-iOS builds. Current evidence:
-   `/tmp/ki015-overlay-fixed-2026-08-12.{png,log}`.
-4. Do not rebuild or rerun Simulator by default. The final-source macOS,
-   Simulator, and device builds plus current UIKit harness are recorded in
-   `CURRENT_STATE.md`. Rebuild only the target affected by a new change.
-5. Re-check every "Proven" claim in `docs/STATUS.md` before building on it.
+1. Orient: this checklist, `git status` here and in `ref/metaforce`.
+2. Take the first unchecked item in the lowest open gate.
+3. Make the smallest change that finishes it; rebuild only what it affects.
+4. Verify with evidence (build output, logs, screenshots, device readback).
+   Build or Simulator checks never count as device acceptance.
+5. Record the date and evidence here; update CURRENT_STATE/KNOWN_ISSUES when
+   behavior changes.
+6. Save: commit, push the branch; recapture `patches/workspace/` after source
+   changes.
+7. Ask Chris only for device unlocks, playtests, game-feel calls, license or
+   legal decisions, and approvals.
 
-## 4. Current state (2026-08-12, audited)
+## Gates
 
-The exact current state is maintained in `docs/CURRENT_STATE.md`; it supersedes
-the older snapshot below wherever the two differ. In particular, menu/editor/
-picker wiring now passes the current-build harness, the `•••` visibility guard
-is present, diagnostics and controller mapping are wired, and audio uses a
-measured 120 ms output-ready reserve rather than a render-frame pump.
+### Gate A: Mac plays again
 
-Proven (with dated evidence in `/tmp`):
-- Gate 1 macOS: build, Metal, title, full New Game → Frigate Orpheon gameplay
-  60 FPS, keyboard/mouse input, audio (amuse + soxr + streamed DSP/MIDI),
-  save/reload round trip. `docs/STATUS.md` has the detail.
-- iPad Simulator (only ONE simulator at a time; UDID
-  `D80E9862-C29A-4D69-B8E5-D81D396C17D5`): title, `--autostart` New Game flow,
-  Frigate gameplay, saves persisted, background/foreground lifecycle (after the
-  KI-013 aurora `DID_ENTER_BACKGROUND` fix), Dawn→Metal on "Apple iOS
-  simulator GPU".
-- **SunPad UIKit touch overlay ported** into
-  `ref/metaforce/extern/aurora/lib/ios/` (SunPadGameOverlay.mm + Settings +
-  InputMixer + InputState + Diagnostics, nearly verbatim) + `OverlayBridge.mm`
-  + wiring (cmake, aurora.cpp attach, pad.cpp consume, touch.hpp
-  `IosTouchState`). It **rendered identically to SunPad** (green A, red B,
-  gray X/Y, purple Z, gold C-stick, D-pad, L/R shoulders, START, ••• menu).
-- **iOS shutdown crash fixed** (crash report the user attached): exit hung in
-  `SDL_CloseAudioDevice` (audio stream destroyed before the device close
-  stalled the SDL audio thread), which prevented the normal teardown that
-  clears the gx texture cache → an XPC abort during static destruction. Fix:
-  reorder `aurora_audio_close` to close the device before destroying the
-  stream. Verified: `simctl terminate` returns 0 with no new crash report,
-  3×.
+- [x] Recovered sources build into `EctoPad.app` (2026-11-10; original
+      workspace + CMake 4 soxr policy fix; 5/5 controller checks).
+- [~] Launch with `scripts/run-macos.sh "ref/Metroid Prime.iso"`; reach title.
+      2026-11-10 (reconstruction build): Metal, amuse, frontend music with 0
+      underruns, first-run shader compile (`docs/evidence/2026-11-10-gate-a/`).
+      Repeat on the workspace build with Chris at the keyboard.
+- [ ] Load the existing 59% save; walk, shoot, scan, Morph Ball, visors;
+      music and effects audible; save and reload.
 
-Known open items:
-- **Simulator host touch forwarding is currently broken** (mouse clicks in the
-  device area stopped producing touches mid-session; the Simulator's
-  "Send Pointer to Device" state is stuck; clicks on the Simulator's own UI
-  work). This is a host/test issue, not app code — document and retest on a
-  fresh Simulator/device; the app-side input path (mixer → pad → game) is
-  SunPad's own code.
-- Virtual gamepad test hook (env `AURORA_VIRTUAL_GAMEPAD=1`, FIFO
-  `/tmp/aurora_vg_cmds` in `lib/input.cpp`) — verified 2026-08-12 after fixing
-  SDL3 invalid-ID handling and descriptor initialization. Start, analog Y, and
-  A reached the real frontend through SDL → Aurora → `PADRead`. Physical Apple
-  GameController hardware, hot-plug, rumble, and handoff remain untested.
-- Physical Files selection/import, finger and multitouch behavior, physical
-  Share Diagnostic Log export, physical controller behavior, physical-device
-  Gate 2/3 (needs user signing identity + hardware), controlled performance/
-  memory measurements, audible device audio, and later-area playthroughs.
+### Gate B: EctoPad's own changes restored
 
-## 5. Working process (keep)
+- [x] 2026-11-10: `patches/workspace/` (captured from the maintained
+      workspace in October) applies cleanly to the recovered pins; the
+      bootstrapped workspace matched the patch-applied trees file for file.
+      This restores the real touch controls, menu, audio session, overlay
+      recovery, readability, door/render work, and diagnostics. The earlier
+      prose rebuilds are retired.
+- [ ] Confirm on device during the Gate C playtest.
 
-- Mirror every `ref/metaforce`/aurora edit to `patches/` before committing
-  (convention: `patches/YYYY-MM-DD-<repo>-<change>.patch`, diffs against the
-  pinned commit; the aurora pin is `5143394`, metaforce `621ee0f`). Validate
-  patches apply in sequence on a clean worktree.
-- Keep `docs/` current with dated evidence: STATUS, IMPLEMENTATION_PLAN,
-  ARCHITECTURE, DEPENDENCIES, BUILDING, GAME_DATA, TESTING, PERFORMANCE,
-  KNOWN_ISSUES, LEGAL_AND_PROVENANCE, HANDOFF.
-- Frequent focused commits; audit staged files for prohibited content (game
-  data, saves, signing).
-- Run only ONE Simulator at a time; prefer incremental builds
-  (`cmake --build build/ios-sim -j8`); the iOS install step is
-  `simctl install build/ios-sim/Binaries/Metaforce.app` (the `install` target
-  compresses a huge dSYM — skip it).
+### Gate C: iPad and iPhone play again
 
-## 6. Next priorities (in order)
+- [x] `ref/sunpad` present (GPL license for packaging).
+- [ ] iOS build via `scripts/build-padmint-ios.sh` succeeds (version 0.1.4).
+- [ ] Back up the iPad app container (it now holds the copied disc image
+      from the reconstruction test), then install the workspace build in place.
+- [ ] Diagnostic log: no crash, audio route opened; rendering confirmed.
+- [ ] **Chris playtest on iPad:** touch controls (R hold, L/R latch), •••
+      menu, render scale and aspect, controller connect/reconnect, music and
+      sound, save at a station, quit, relaunch, load.
+- [ ] Same install and short smoke test on the iPhone.
+- [ ] Known 0.1.3 defects still documented; any new defect fixed or listed.
 
-1. Obtain a valid Apple Development identity/provisioning profile and connect
-   physical iPad/iPhone hardware; sign, install, and audit the exact arm64 app.
-2. Execute Gate 2 on hardware: Dawn→Metal launch/render and persistent SunPad
-   controls/`•••`, with diagnostics captured.
-3. Execute the focused physical Gate 3 checklist: production Files import,
-   real touch/multitouch/editor, Frigate controls, save/reload, lifecycle, and
-   audible 120 ms-reserve audio behavior.
-4. Physical GameController verification (Apple GCController via SDL): the
-   no-hardware SDL/Aurora/PAD path is proven; hardware discovery, reconnect,
-   rumble, and touch/controller handoff still require a controller/device.
-5. Memory/performance measurements with competing CPU/GPU-heavy apps closed
-   and process/system load recorded; later-area playthroughs.
+### Gate D: rebuildable from scratch
 
-See `docs/CURRENT_STATE.md`, `docs/STATUS.md`, `docs/KNOWN_ISSUES.md`,
-`docs/IMPLEMENTATION_PLAN.md`, and `docs/HANDOFF.md` for the full trail.
+- [x] `scripts/bootstrap-workspace.sh` fetches from the `ectopad-*` mirrors
+      (2026-11-10); Metaforce's full 7,460-commit history is on
+      `ectopad-metaforce` `main`.
+- [ ] Recapture `patches/workspace/` after new fixes (soxr CMake policy).
+- [ ] From an empty `ref/`: bootstrap + Mac build + iOS build succeed.
+- [ ] Update DEPENDENCIES.md, BUILDING.md, LEGAL_AND_PROVENANCE.md for the
+      mirrors and recovery.
+
+### Gate E: ready to publish (everything except the switch)
+
+Blockers from docs/RELEASE_COMPLIANCE.md, updated 2026-11-10:
+
+- [ ] **zeus and kabufuda have no license.** Verified 2026-11-10: the pinned
+      trees contain no license file and no license commit. Options: replace
+      them with independently written or clearly licensed code, or obtain a
+      written grant. Needs Chris' decision.
+- [ ] **Chris chooses a license** for EctoPad's own patches, scripts, and docs.
+- [ ] Corresponding source: bootstrap + patches + mirrors at exact commits
+      (largely done via Gate D; publish the mirrors with the release).
+- [ ] soxr (LGPL-2.1) is statically linked: verified 2026-11-10, 78 soxr
+      symbols in the workspace Mac binary (voice resampler in SDLBackend.cpp).
+      Replace it with a compatibly licensed resampler or ship LGPL source and
+      relink materials.
+- [ ] Complete license/notice inventory from the final dependency graph.
+- [ ] Dawn builder paths: rebuild with path remapping or document.
+- [ ] Unsigned IPA and Mac zip built, audited (`audit-ios-package.sh`,
+      `release_gate.py`), reproduced byte-identically.
+- [ ] IP-law review of the release boundary (Chris).
+- [ ] README updated; draft GitHub release prepared, not published.
+- [ ] Chris marks the repository Clear in his release audit.
+
+### Gate F: public (needs Chris' go-ahead)
+
+- [ ] Make the source mirrors public, publish the release, verify downloads.
+- [ ] Optional PadMint un-pause with `player-check.sh` before and after.
