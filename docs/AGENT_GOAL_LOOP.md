@@ -94,7 +94,11 @@ has the draft release in front of him. Gate F happens only on his word.
       walked and mouse-looked to the save station, saved ("Game has been
       saved"), quit, relaunched: file select shows the new play time
       (0:00 to 2:13). Card backed up first (`ref/_saves-backup-20261110c`).
-      Morph Ball, scanning and visors still to check with Chris.
+      2026-11-10 (own zeus math library): Samus B loaded into Chozo Ruins with
+      correct HUD, radar and map; mouse look, walking, Power Beam shot (beam
+      effect drawn), Morph Ball in and out (third-person camera follows) all
+      worked; 0 errors, 0 audio underruns, card unchanged. Scanning and visors
+      still to check with Chris.
 
 ### Gate B: EctoPad's own changes restored
 
@@ -120,6 +124,13 @@ has the draft release in front of him. Gate F happens only on his word.
       visible with 5 items, overlay attached
       (`docs/evidence/2026-11-10-gate-c/ipad-runtime-workspace-0.1.4.log`).
       Rendering to be confirmed by eye in the playtest.
+- [x] Install the build with EctoPad's own zeus and kabufuda in place.
+      2026-11-10 17:03 JST: saves backed up with
+      `scripts/backup-device-saves.sh` (afcclient; `devicectl device copy`
+      hung for every app) to `ref/_ipad-backup-20261110b/` (identical to the
+      morning backup); installed in place; disc image (`game.iso`) and cards
+      intact; the new session reached title music with no errors and 0
+      underruns (`docs/evidence/2026-11-10-gate-c/ipad-runtime-own-zeus-kabufuda.log`).
 - [ ] **Chris playtest on iPad:** touch controls (R hold, L/R latch), •••
       menu, render scale and aspect, controller connect/reconnect, music and
       sound, save at a station, quit, relaunch, load.
@@ -153,7 +164,8 @@ Blockers from docs/RELEASE_COMPLIANCE.md, updated 2026-11-10:
       written from the declarations Metaforce calls; its probe output matches
       the original on 2,020 of 2,065 lines, the rest in functions the game
       does not use or edge cases (components/zeus/README.md). The full game
-      builds on it. Gameplay on it still to check (Mac and iPad).
+      builds on it. Mac gameplay on it verified (Gate A); iPad installed, its
+      playtest is Chris's.
 - [x] **Chris chooses a license** for EctoPad's own patches, scripts, and docs.
       2026-11-10: delegated; GPL-3.0-or-later (`LICENSE`).
 - [ ] Corresponding source: bootstrap + patches + mirrors at exact commits
