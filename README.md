@@ -475,6 +475,11 @@ contributors. Each component retains its own copyright and license. See
 [`docs/DEPENDENCIES.md`](docs/DEPENDENCIES.md) for the pinned inventory and
 license summary.
 
+EctoPad's own code, patches, scripts, and documentation are licensed under the
+GNU General Public License, version 3 or (at your option) any later version.
+See [`LICENSE`](LICENSE). The app already combines GPL-3.0-or-later code from
+SunPad, so the combined work is distributed under the same terms.
+
 ## Legal
 
 EctoPad is an unofficial, fan-made project. It is not affiliated with, endorsed

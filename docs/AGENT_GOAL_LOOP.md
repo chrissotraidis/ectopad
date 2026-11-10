@@ -77,12 +77,18 @@ has the draft release in front of him. Gate F happens only on his word.
 
 - [x] Recovered sources build into `EctoPad.app` (2026-11-10; original
       workspace + CMake 4 soxr policy fix; 5/5 controller checks).
-- [~] Launch with `scripts/run-macos.sh "ref/Metroid Prime.iso"`; reach title.
+- [x] Launch with `scripts/run-macos.sh "ref/Metroid Prime.iso"`; reach title.
+      2026-11-10 (workspace build): launched with `--warp 2 0` into Chozo
+      Ruins: world and HUD rendered, W walked through an opening door into the
+      next room, audio ran with 0 underruns, clean quit, saves unchanged
+      (`docs/evidence/2026-11-10-gate-a/warp-chozo-excerpt.log`; screenshots
+      kept out of the repo).
       2026-11-10 (reconstruction build): Metal, amuse, frontend music with 0
       underruns, first-run shader compile (`docs/evidence/2026-11-10-gate-a/`).
       Repeat on the workspace build with Chris at the keyboard.
 - [ ] Load the existing 59% save; walk, shoot, scan, Morph Ball, visors;
-      music and effects audible; save and reload.
+      music and effects audible; save and reload. (Warp starts with base
+      inventory, so Morph Ball and save/reload need the real save.)
 
 ### Gate B: EctoPad's own changes restored
 
@@ -133,11 +139,14 @@ has the draft release in front of him. Gate F happens only on his word.
 
 Blockers from docs/RELEASE_COMPLIANCE.md, updated 2026-11-10:
 
-- [ ] **zeus and kabufuda have no license.** Verified 2026-11-10: the pinned
+- [ ] **zeus and kabufuda have no license.** 2026-11-10: Chris chose
+      independent replacements (clean-room, from the API Metaforce uses and
+      public GameCube card-format documentation). Verified 2026-11-10: the pinned
       trees contain no license file and no license commit. Options: replace
       them with independently written or clearly licensed code, or obtain a
       written grant. Needs Chris' decision.
-- [ ] **Chris chooses a license** for EctoPad's own patches, scripts, and docs.
+- [x] **Chris chooses a license** for EctoPad's own patches, scripts, and docs.
+      2026-11-10: delegated; GPL-3.0-or-later (`LICENSE`).
 - [ ] Corresponding source: bootstrap + patches + mirrors at exact commits
       (largely done via Gate D; publish the mirrors with the release).
 - [ ] soxr (LGPL-2.1) is statically linked: verified 2026-11-10, 78 soxr

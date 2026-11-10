@@ -36,9 +36,10 @@ Status checked 2026-11-10 against the restored 0.1.4 build:
   [`AxioDL/kabufuda`](https://github.com/AxioDL/kabufuda) revision `9493afc`. No
   repository-wide license file or authoritative grant was found in the pinned
   tree or its visible history.
-- [ ] Have the copyright holder select a root license for EctoPad-owned patches,
-  scripts, integration code, and documentation. Do not infer or apply a license
-  automatically.
+- [x] Have the copyright holder select a root license for EctoPad-owned patches,
+  scripts, integration code, and documentation. 2026-11-10: Chris delegated the
+  choice; EctoPad-owned work is GPL-3.0-or-later (`LICENSE`), consistent with
+  the GPL-3.0-or-later SunPad code the app combines.
 - [ ] Assemble exact corresponding source for the final binary: every pinned
   upstream tree, submodule, vendored dependency, EctoPad patch, generated source
   needed for the build, and the scripts and configuration needed to rebuild it.
