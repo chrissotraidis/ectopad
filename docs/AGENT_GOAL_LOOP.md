@@ -4,7 +4,9 @@ Last updated: 2026-11-10
 
 This is the standing work loop for getting EctoPad playable again after the
 upstream sources went private, and then preparing a public release. Work on
-branch `codex/restore-0.1.4` (based on `origin/main`).
+branch `codex/restore-0.1.4` (based on `origin/main`); draft PR
+https://github.com/chrissotraidis/ectopad/pull/10. A draft GitHub release with
+binaries waits for the release-audit Clear (AGENTS.md).
 
 ## Goal
 
