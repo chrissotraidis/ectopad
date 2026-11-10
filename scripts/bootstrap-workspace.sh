@@ -17,7 +17,9 @@ root="$(cd "$(dirname "$0")/.." && pwd)"
 ref="$root/ref/metaforce"
 patches="$root/patches/workspace"
 marker="$ref/.ectopad-workspace"
-want="$(cat "$patches"/*.patch | shasum -a 256 | cut -d' ' -f1)"
+# The marker covers the patches and EctoPad's own components, so changing
+# either one asks for a fresh workspace.
+want="$({ cat "$patches"/*.patch; cd "$root" && find components -type f -print0 | sort -z | xargs -0 shasum -a 256; } | shasum -a 256 | cut -d' ' -f1)"
 
 # EctoPad's touch shell comes from SunPad (GPL-3.0); its license ships in the app.
 if [ ! -f "$root/ref/sunpad/LICENSE" ]; then
@@ -47,10 +49,15 @@ fetch() { # directory url commit
 echo "EctoPad: fetching Metaforce and its components"
 mirror="https://github.com/chrissotraidis/ectopad"
 fetch "$ref" "$mirror-metaforce.git" 621ee0fed3fdd5fccbbdadbce33343f29dce071c
-for component in zeus kabufuda jbus musyx libjpeg-turbo; do
+for component in zeus jbus musyx libjpeg-turbo; do
   git -C "$ref" config "submodule.extern/$component.url" "$mirror-$component.git"
 done
+# kabufuda is replaced by EctoPad's own memory-card library (components/kabufuda):
+# AxioDL's kabufuda carries no license.
+git -C "$ref" config submodule.extern/kabufuda.update none
 git -C "$ref" submodule update -q --init --recursive
+mkdir -p "$ref/extern/kabufuda"
+cp -R "$root/components/kabufuda/." "$ref/extern/kabufuda/"
 
 ext="$ref/extern"
 fetch "$ext/amuse" "$mirror-amuse.git" ad9bc96af472dae03fde215163446bdec80be67f
@@ -67,7 +74,7 @@ apply() { # directory patch
   fi
 }
 apply "$ref" metaforce
-for component in aurora kabufuda nod amuse athena logvisor lzokay soxr; do
+for component in aurora nod amuse athena logvisor lzokay soxr; do
   apply "$ext/$component" "$component"
 done
 

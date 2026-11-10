@@ -17,14 +17,17 @@ only the fetch locations moved:
 | Component | Fetched from | Pinned revision |
 | --- | --- | --- |
 | metaforce | `chrissotraidis/ectopad-metaforce` (full upstream history) | `621ee0f` |
-| zeus, kabufuda, jbus, musyx, libjpeg-turbo | `chrissotraidis/ectopad-<name>` (submodule URL overrides) | Metaforce's gitlinks |
+| zeus, jbus, musyx, libjpeg-turbo | `chrissotraidis/ectopad-<name>` (submodule URL overrides) | Metaforce's gitlinks |
+| kabufuda (memory cards) | EctoPad's own `components/kabufuda`, copied in at bootstrap | this repository |
 | amuse, logvisor, lzokay | `chrissotraidis/ectopad-<name>` | `ad9bc96`, `208a8c1`, `db2df1f` |
 | aurora, nod, fixNES, spdlog | their public upstreams (Metaforce's submodules) | Metaforce's gitlinks |
 | athena, soxr | encounter/athena, chirlu/soxr (public) | `6adba82`, `945b592` |
 
-**License gaps:** the pinned `zeus` and `kabufuda` trees contain no license
-file (verified 2026-11-10). They are fine for private builds but block public
-redistribution; see [RELEASE_COMPLIANCE.md](RELEASE_COMPLIANCE.md).
+**License gaps:** the pinned `zeus` tree contains no license file (verified
+2026-11-10: none in its 354-commit history). That blocks public redistribution;
+see [RELEASE_COMPLIANCE.md](RELEASE_COMPLIANCE.md). AxioDL's `kabufuda` had
+the same gap (none in its 107 commits) and is replaced by EctoPad's own
+GPL-3.0-or-later memory-card library in `components/kabufuda`.
 
 The `ectopad-*` repositories stay private until the public release.
 
@@ -48,7 +51,7 @@ references.
 | `extern/aurora` | `514339438178ef2bed1b14e5149d90ece0c6e0cc` | Encounter/aurora; graphics + app layer |
 | `extern/fixNES` | `156fcaca9f4cd9c23d423737994c45cfb05d16ca` | NES emulation component |
 | `extern/jbus` | `7932b0a9b99e3461489b29ba3433f4c4256eb0f6` | CPU/JIT? (verify) |
-| `extern/kabufuda` | `9493afc8ff961ee04193038046308411904b8137` | Memory-card support; no repository-wide license file found at this pin |
+| `extern/kabufuda` | `9493afc8ff961ee04193038046308411904b8137` | Not used since 2026-11-10: replaced by `components/kabufuda` (no license existed at this pin) |
 | `extern/libjpeg-turbo` | `3d2da99c69d000c6351f6d2390b694f800e5ef4d` | JPEG decode (`heads/thp` branch) |
 | `extern/musyx` | `37e8ecd4e6503e90b97ea81cd7d669357861d501` | GameCube audio library reimplementation |
 | `extern/nod` | `0ab72ade73a3aacf967741daee0bd088271f2075` | Disc image reading (encounter/nod) |
@@ -106,7 +109,7 @@ All five build for macOS ARM64, iOS Simulator ARM64, and iPhoneOS ARM64
 | aurora | See `ref/aurora/LICENSE` |
 | nod | MIT (encounter/nod) |
 | zeus | **NOASSERTION**; no repository-wide license file found at pin `d64e9f5` |
-| kabufuda | **NOASSERTION**; no repository-wide license file found at pin `9493afc` |
+| memory-card library (`components/kabufuda`) | GPL-3.0-or-later (EctoPad's own; replaces AxioDL's unlicensed kabufuda) |
 | spdlog | MIT |
 | amuse (vendored for in-game audio) | MIT (AxioDL/amuse), pin `ad9bc96` |
 | athena (vendored, amuse dep) | MIT (encounter/athena), pin `6adba82` |

@@ -86,9 +86,15 @@ has the draft release in front of him. Gate F happens only on his word.
       2026-11-10 (reconstruction build): Metal, amuse, frontend music with 0
       underruns, first-run shader compile (`docs/evidence/2026-11-10-gate-a/`).
       Repeat on the workspace build with Chris at the keyboard.
-- [ ] Load the existing 59% save; walk, shoot, scan, Morph Ball, visors;
+- [~] Load the existing 59% save; walk, shoot, scan, Morph Ball, visors;
       music and effects audible; save and reload. (Warp starts with base
       inventory, so Morph Ball and save/reload need the real save.)
+      2026-11-10 (with EctoPad's own memory-card library): file select lists
+      Samus A and Samus B 59%; Samus B loaded into Chozo Ruins with the HUD,
+      walked and mouse-looked to the save station, saved ("Game has been
+      saved"), quit, relaunched: file select shows the new play time
+      (0:00 to 2:13). Card backed up first (`ref/_saves-backup-20261110c`).
+      Morph Ball, scanning and visors still to check with Chris.
 
 ### Gate B: EctoPad's own changes restored
 
@@ -139,12 +145,11 @@ has the draft release in front of him. Gate F happens only on his word.
 
 Blockers from docs/RELEASE_COMPLIANCE.md, updated 2026-11-10:
 
-- [ ] **zeus and kabufuda have no license.** 2026-11-10: Chris chose
-      independent replacements (clean-room, from the API Metaforce uses and
-      public GameCube card-format documentation). Verified 2026-11-10: the pinned
-      trees contain no license file and no license commit. Options: replace
-      them with independently written or clearly licensed code, or obtain a
-      written grant. Needs Chris' decision.
+- [~] **zeus and kabufuda have no license.** 2026-11-10: Chris chose
+      independent replacements. Verified: neither history ever had a license.
+      kabufuda: done. `components/kabufuda` (GPL-3.0-or-later) replaces it;
+      round-trip tests pass, real cards read identically to AxioDL's reader,
+      and a Mac save-station save reloads. zeus: still to write.
 - [x] **Chris chooses a license** for EctoPad's own patches, scripts, and docs.
       2026-11-10: delegated; GPL-3.0-or-later (`LICENSE`).
 - [ ] Corresponding source: bootstrap + patches + mirrors at exact commits
@@ -159,7 +164,7 @@ Blockers from docs/RELEASE_COMPLIANCE.md, updated 2026-11-10:
       (all permissive). 2026-11-10: `scripts/collect-licenses.sh` bundles
       every license text (153 files incl. all Rust crates and Dawn's license
       from its source commit) into the IPA (`Licenses/`) and Mac app
-      (`Contents/Resources/Licenses`). Only zeus and kabufuda are recorded as
+      (`Contents/Resources/Licenses`). Only zeus is recorded as
       MISSING, because no license exists.
 - [ ] Dawn builder paths: 241 `/Users/runner/work/dawn-build/...` strings come
       from the prebuilt Dawn (non-local CI paths, allowed by the package

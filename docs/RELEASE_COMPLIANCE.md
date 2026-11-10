@@ -24,7 +24,7 @@ Status checked 2026-11-10 against the restored 0.1.4 build:
 - License texts: `scripts/collect-licenses.sh` now bundles the texts of every
   linked component, including the 57 Rust crates in nod and Dawn's license from
   the commit its prebuilt package was built from (`google/dawn` `13abc3b`), in
-  the IPA and Mac app. zeus and kabufuda are recorded as missing.
+  the IPA and Mac app. zeus is recorded as missing (kabufuda is replaced).
 - Reproducible builds: two fresh IPA builds at different checkout paths were
   byte-identical (`ZERO_AR_DATE=1`, `-oso_prefix`, fixed file times).
 
@@ -32,10 +32,11 @@ Status checked 2026-11-10 against the restored 0.1.4 build:
   [`AxioDL/zeus`](https://github.com/AxioDL/zeus) revision `d64e9f5`. No
   repository-wide license file or authoritative grant was found in the pinned
   tree or its visible history.
-- [ ] Resolve the redistribution status of pinned
+- [x] Resolve the redistribution status of pinned
   [`AxioDL/kabufuda`](https://github.com/AxioDL/kabufuda) revision `9493afc`. No
-  repository-wide license file or authoritative grant was found in the pinned
-  tree or its visible history.
+  license exists in its history. 2026-11-10: replaced by EctoPad's own
+  GPL-3.0-or-later memory-card library (`components/kabufuda`), checked against
+  real cards and an in-game save/reload on the Mac.
 - [x] Have the copyright holder select a root license for EctoPad-owned patches,
   scripts, integration code, and documentation. 2026-11-10: Chris delegated the
   choice; EctoPad-owned work is GPL-3.0-or-later (`LICENSE`), consistent with

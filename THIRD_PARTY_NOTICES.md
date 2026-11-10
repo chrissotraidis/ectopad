@@ -11,7 +11,7 @@ included.
 | SunPad-derived Apple application-shell code | GPL-3.0-or-later |
 | Aurora | MIT |
 | zeus | **NOASSERTION**; no repository-wide license file found at pinned revision `d64e9f5` |
-| kabufuda | **NOASSERTION**; no repository-wide license file found at pinned revision `9493afc` |
+| Memory-card library (`components/kabufuda`) | GPL-3.0-or-later; EctoPad's own code, replacing AxioDL's unlicensed kabufuda |
 | nod | MIT OR Apache-2.0 |
 | SDL3 | Zlib |
 | Dawn / Tint / WebGPU headers | BSD-3-Clause and Apache-2.0; see upstream notices |
@@ -38,9 +38,9 @@ additional Apple user experience, fixes, patch records, and validation in this
 repository, not to the upstream engine itself.
 
 No license is inferred merely because a repository is public or included as a
-Metaforce submodule. `zeus` and `kabufuda` must receive authoritative license
-clarification or be replaced before another binary is distributed. See
-`docs/RELEASE_COMPLIANCE.md`.
+Metaforce submodule. `zeus` must receive authoritative license clarification or
+be replaced before another binary is distributed; `kabufuda` has already been
+replaced by EctoPad's own memory-card library. See `docs/RELEASE_COMPLIANCE.md`.
 
 Metroid Prime, Nintendo, and GameCube names and game content belong to their
 respective rights holders. This project is not affiliated with or endorsed by

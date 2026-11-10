@@ -52,8 +52,10 @@ artifact, not a completed redistribution package.
 
 Public binary distribution remains blocked by all of the following:
 
-- the pinned `zeus` and `kabufuda` trees contain no repository-wide license
-  file or other authoritative redistribution grant found by the current audit;
+- the pinned `zeus` tree contains no license file or other authoritative
+  redistribution grant (none in its history). AxioDL's `kabufuda` had the same
+  gap and was replaced on 2026-11-10 by EctoPad's own GPL-3.0-or-later
+  memory-card library (`components/kabufuda`);
 - EctoPad-owned patches, scripts, and integration code do not yet have a root
   project license selected by their copyright holder;
 - the combined executable includes SunPad-derived GPL-3.0-or-later code, but
@@ -66,10 +68,11 @@ Public binary distribution remains blocked by all of the following:
 
 Progress on 2026-11-10 (restored 0.1.4, local only): the app no longer contains
 nod's embedded Wii common keys (blanked at bootstrap; the IPA and Mac zip pass
-`release_gate.py`); license texts for every linked component except zeus and
-kabufuda are bundled by `scripts/collect-licenses.sh`; and the IPA and Mac zip
-rebuild byte-identically from a fresh checkout. The zeus/kabufuda, project
-license, corresponding-source and soxr items above remain open.
+`release_gate.py`); license texts for every linked component except zeus are
+bundled by `scripts/collect-licenses.sh`; the IPA and Mac zip rebuild
+byte-identically from a fresh checkout; EctoPad's own work is GPL-3.0-or-later
+(`LICENSE`); and kabufuda is replaced by EctoPad's own library. The zeus,
+corresponding-source and soxr items above remain open.
 
 The pinned prebuilt Dawn library also embeds upstream GitHub Actions builder
 paths (`/Users/runner/work/dawn-build/...`) in diagnostic strings. Those paths

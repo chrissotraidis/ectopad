@@ -346,10 +346,9 @@ ignored until the release gates in
 There is no public IPA right now. The previous unsigned validation package was
 removed because the repository had not yet assembled the exact corresponding
 source and LGPL relink materials required for a binary release. The licensing
-status of the pinned
-[zeus](https://github.com/AxioDL/zeus) and
-[kabufuda](https://github.com/AxioDL/kabufuda) trees also needs authoritative
-clarification or clearly licensed replacements.
+status of the pinned [zeus](https://github.com/AxioDL/zeus) math library also
+needs authoritative clarification or a clearly licensed replacement. (The
+unlicensed kabufuda memory-card library has been replaced by EctoPad's own.)
 
 Help is welcome through an [EctoPad issue](https://github.com/chrissotraidis/ectopad/issues)
 or pull request. Useful contributions include source-backed license evidence,
