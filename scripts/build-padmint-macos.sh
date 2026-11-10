@@ -39,12 +39,28 @@ iconutil -c icns "$iconset" -o ref/metaforce/Runtime/platforms/macos/mainicon.ic
 
 preset=macos-default-relwithdebinfo
 echo "EctoPad: configuring and building the Mac app"
-(cd ref/metaforce && cmake --preset "$preset" -DMETAFORCE_BUNDLE_SHORT_VERSION="$version" && cmake --build --preset "$preset" --target metaforce --parallel "$jobs")
+# Players' Macs have no Homebrew, so the app must not link libraries from it:
+# hide Homebrew and /usr/local from CMake and pkg-config, which makes Aurora
+# build SDL3, FreeType, libpng and zstd from their pinned sources and link them
+# in. --fresh drops any cached system library paths from an earlier configure.
+empty_pkgconfig="$(mktemp -d "${TMPDIR:-/tmp}/ectopad-nopkgconfig.XXXXXX")"
+(cd ref/metaforce &&
+  PKG_CONFIG_LIBDIR="$empty_pkgconfig" PKG_CONFIG_PATH="" cmake --fresh --preset "$preset" \
+    -DMETAFORCE_BUNDLE_SHORT_VERSION="$version" \
+    "-DCMAKE_IGNORE_PREFIX_PATH=/opt/homebrew;/usr/local" \
+    -DAURORA_SDL3_PROVIDER=vendor &&
+  cmake --build --preset "$preset" --target metaforce --parallel "$jobs")
 
 app="$root/ref/metaforce/build/$preset/Binaries/EctoPad.app"
 binary="$app/Contents/MacOS/EctoPad"
 [[ -x "$binary" ]] || { echo "EctoPad Mac app not found: $app" >&2; exit 1; }
 [[ "$(file "$binary")" == *"Mach-O 64-bit executable arm64"* ]] || { echo "EctoPad is not a native arm64 app" >&2; exit 1; }
+foreign="$(otool -L "$binary" | tail -n +2 | awk '{print $1}' | grep -Ev '^(/System/|/usr/lib/|@rpath/|@executable_path/)' || true)"
+if [[ -n "$foreign" ]]; then
+  echo "EctoPad links libraries players will not have:" >&2
+  echo "$foreign" >&2
+  exit 1
+fi
 for pattern in '*.iso' '*.gcm' '*.ciso' '*.rvz' '*.wbfs' '*.gci' '*.mobileprovision' '*.p12' '*.cer' '*.key'; do
   forbidden="$(find "$app" -type f -iname "$pattern" -print -quit)"
   if [[ -n "$forbidden" ]]; then
