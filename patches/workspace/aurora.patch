@@ -1,3 +1,622 @@
+diff --git a/cmake/AuroraSDL3Provider.cmake b/cmake/AuroraSDL3Provider.cmake
+index f120a5d..5c15f8f 100644
+--- a/cmake/AuroraSDL3Provider.cmake
++++ b/cmake/AuroraSDL3Provider.cmake
+@@ -148,6 +148,16 @@ elseif (_aurora_sdl3_provider STREQUAL "vendor")
+   else ()
+     message(STATUS "aurora: Using existing SDL3")
+   endif ()
++  if (CMAKE_SYSTEM_NAME STREQUAL "iOS")
++    # Scene-owned window geometry and a single app instance (SDL3UIKitSceneGeometry.cmake).
++    # Applied to the populated tree so it holds whichever FetchContent_Declare(SDL) came first.
++    FetchContent_GetProperties(SDL)
++    if (NOT sdl_POPULATED)
++      message(FATAL_ERROR "aurora: iOS needs SDL3 from FetchContent(SDL) to apply the UIKit scene geometry patch")
++    endif ()
++    include("${CMAKE_CURRENT_LIST_DIR}/SDL3UIKitSceneGeometry.cmake")
++    sdl3_uikit_scene_geometry_patch("${sdl_SOURCE_DIR}")
++  endif ()
+   _aurora_sdl3_select_target()
+ 
+ else ()
+diff --git a/cmake/SDL3UIKitSceneGeometry.cmake b/cmake/SDL3UIKitSceneGeometry.cmake
+new file mode 100644
+index 0000000..bf34960
+--- /dev/null
++++ b/cmake/SDL3UIKitSceneGeometry.cmake
+@@ -0,0 +1,592 @@
++# SDL3 UIKit: take window geometry and orientation from the application's own
++# window scene, and run the application only in the scene it started in.
++#
++#  - SDL's scene delegate is installed only for application-role sessions, so
++#    an external display's scene keeps the system default (mirroring or an
++#    extended display).
++#  - SDLUIKitSceneDelegate records the application scene SDL starts in. Other
++#    scenes (a second window, or any scene that reaches SDL's delegate) no
++#    longer show a launch screen, call the application's main function again,
++#    or forward app lifecycle events.
++#  - The owner is cleared in sceneDidDisconnect:. A replacement application
++#    scene that connects afterwards adopts SDL's orphaned windows (main still
++#    runs once).
++#  - Window creation and the "active scene" fallback prefer that scene and never
++#    pick an external display's scene.
++#  - Display orientation comes from that scene's effectiveGeometry (iOS 16+)
++#    instead of UIApplication.statusBarOrientation, which reads as unknown in a
++#    scene-based app on iOS 27.
++#  - A window in a scene keeps its own bounds; the legacy status-bar
++#    width/height swap remains only for windows without a scene.
++#  - A geometry change of that scene refreshes the display orientation, the
++#    Metal layer scale and layout, so SDL sends its usual resize and pixel-size
++#    events. The game's render resolution is untouched.
++# tvOS, visionOS and non-scene paths are unchanged. The same edit applies to SDL
++# 3.4.4, 3.4.10 and 3.4.18, whose UIKit sources match apart from offsets.
++#
++# Each replacement is exact and idempotent: an already patched tree is left
++# alone, and a tree without the expected text stops the configure.
++#
++# Use: include() this file and call sdl3_uikit_scene_geometry_patch(<SDL source
++# dir>), or run cmake -DSDL_SOURCE_DIR=<dir> -P <this file>.
++
++function(_sdl3_uikit_scene_replace file old new)
++  file(READ "${file}" _content)
++  string(FIND "${_content}" "${new}" _already)
++  if (NOT _already EQUAL -1)
++    return()
++  endif ()
++  string(FIND "${_content}" "${old}" _anchor)
++  if (_anchor EQUAL -1)
++    message(FATAL_ERROR "SDL3 UIKit scene geometry patch does not apply to ${file}; review it for this SDL version")
++  endif ()
++  string(REPLACE "${old}" "${new}" _content "${_content}")
++  file(WRITE "${file}" "${_content}")
++endfunction()
++
++function(sdl3_uikit_scene_geometry_patch sdl_source_dir)
++  set(_uikit "${sdl_source_dir}/src/video/uikit")
++  if (NOT EXISTS "${_uikit}/SDL_uikitvideo.m")
++    message(FATAL_ERROR "SDL3 UIKit sources not found under ${sdl_source_dir}")
++  endif ()
++  _sdl3_uikit_scene_replace("${_uikit}/SDL_uikitappdelegate.m"
++[==[@end // SDLLaunchScreenController
++
++
++API_AVAILABLE(ios(13.0))
++@implementation SDLUIKitSceneDelegate
++{
++]==]
++[==[@end // SDLLaunchScreenController
++
++
++// Set once the application scene has started the application's main function.
++static bool scene_main_started;
++
++API_AVAILABLE(ios(13.0))
++@implementation SDLUIKitSceneDelegate
++{
++]==])
++  _sdl3_uikit_scene_replace("${_uikit}/SDL_uikitappdelegate.m"
++[==[    UIWindowScene *windowScene = (UIWindowScene *)scene;
++    windowScene.delegate = self;
++
++    NSBundle *bundle = [NSBundle mainBundle];
++
++#ifdef SDL_IPHONE_LAUNCHSCREEN
++]==]
++[==[    UIWindowScene *windowScene = (UIWindowScene *)scene;
++    windowScene.delegate = self;
++
++#ifndef SDL_PLATFORM_VISIONOS
++    /* The application runs in the first application scene. Any other scene, such
++     * as an external display's, must not show a launch screen or start the
++     * application a second time. */
++    if (![session.role isEqualToString:UIWindowSceneSessionRoleApplication]) {
++        return;
++    }
++    UIWindowScene *owner = UIKit_GetOwningWindowScene();
++    if (owner && owner != windowScene) {
++        return;
++    }
++    UIKit_SetOwningWindowScene(windowScene);
++    if (scene_main_started) {
++#ifndef SDL_PLATFORM_TVOS
++        if (!owner) {
++            // A replacement for a disconnected owning scene adopts SDL's windows.
++            UIKit_AdoptOwningScene(windowScene);
++        }
++#endif
++        return;
++    }
++    scene_main_started = true;
++#endif
++
++    NSBundle *bundle = [NSBundle mainBundle];
++
++#ifdef SDL_IPHONE_LAUNCHSCREEN
++]==])
++  _sdl3_uikit_scene_replace("${_uikit}/SDL_uikitappdelegate.m"
++[==[
++
++- (void)sceneDidBecomeActive:(UIScene *)scene
++{
++    SDL_OnApplicationDidEnterForeground();
++}
++
++- (void)sceneWillResignActive:(UIScene *)scene
++{
++    SDL_OnApplicationWillEnterBackground();
++}
++
++- (void)sceneWillEnterForeground:(UIScene *)scene
++{
++    SDL_OnApplicationWillEnterForeground();
++}
++
++- (void)sceneDidEnterBackground:(UIScene *)scene
++{
++    SDL_OnApplicationDidEnterBackground();
++}
++
++- (void)handleURL:(NSURL *)url
++{
++    const char *sourceApplicationCString = NULL;
++]==]
++[==[
++
++- (void)sceneDidBecomeActive:(UIScene *)scene
++{
++    if (UIKit_IsOwningScene(scene)) {
++        SDL_OnApplicationDidEnterForeground();
++    }
++}
++
++- (void)sceneWillResignActive:(UIScene *)scene
++{
++    if (UIKit_IsOwningScene(scene)) {
++        SDL_OnApplicationWillEnterBackground();
++    }
++}
++
++- (void)sceneWillEnterForeground:(UIScene *)scene
++{
++    if (UIKit_IsOwningScene(scene)) {
++        SDL_OnApplicationWillEnterForeground();
++    }
++}
++
++- (void)sceneDidEnterBackground:(UIScene *)scene
++{
++    if (UIKit_IsOwningScene(scene)) {
++        SDL_OnApplicationDidEnterBackground();
++    }
++}
++
++- (void)sceneDidDisconnect:(UIScene *)scene
++{
++    UIKit_OwningSceneDidDisconnect(scene);
++}
++
++#if !defined(SDL_PLATFORM_TVOS) && !defined(SDL_PLATFORM_VISIONOS)
++- (void)windowScene:(UIWindowScene *)windowScene didUpdateCoordinateSpace:(id<UICoordinateSpace>)previousCoordinateSpace interfaceOrientation:(UIInterfaceOrientation)previousInterfaceOrientation traitCollection:(UITraitCollection *)previousTraitCollection
++{
++    if (@available(iOS 26.0, *)) {
++        return; // windowScene:didUpdateEffectiveGeometry: reports the change
++    }
++    UIKit_OnWindowSceneGeometryChanged(windowScene);
++}
++
++- (void)windowScene:(UIWindowScene *)windowScene didUpdateEffectiveGeometry:(UIWindowSceneGeometry *)previousEffectiveGeometry API_AVAILABLE(ios(26.0))
++{
++    UIKit_OnWindowSceneGeometryChanged(windowScene);
++}
++#endif
++
++- (void)handleURL:(NSURL *)url
++{
++    const char *sourceApplicationCString = NULL;
++]==])
++  _sdl3_uikit_scene_replace("${_uikit}/SDL_uikitappdelegate.m"
++[==[{
++    // This doesn't appear to be called, but it needs to be implemented to signal that we support the UIScene life cycle
++    UISceneConfiguration *config = [[UISceneConfiguration alloc] initWithName:@"SDLSceneConfiguration" sessionRole:connectingSceneSession.role];
++    config.delegateClass = [SDLUIKitSceneDelegate class];
++    return config;
++}
++
++]==]
++[==[{
++    // This doesn't appear to be called, but it needs to be implemented to signal that we support the UIScene life cycle
++    UISceneConfiguration *config = [[UISceneConfiguration alloc] initWithName:@"SDLSceneConfiguration" sessionRole:connectingSceneSession.role];
++#ifndef SDL_PLATFORM_VISIONOS
++    /* Claim only application scenes. An external display's scene without an SDL
++     * window keeps the system default (mirroring or an extended display). */
++    if ([connectingSceneSession.role isEqualToString:UIWindowSceneSessionRoleApplication]) {
++        config.delegateClass = [SDLUIKitSceneDelegate class];
++    }
++#else
++    config.delegateClass = [SDLUIKitSceneDelegate class];
++#endif
++    return config;
++}
++
++]==])
++  _sdl3_uikit_scene_replace("${_uikit}/SDL_uikitmodes.m"
++[==[{
++#ifndef SDL_PLATFORM_TVOS
++    if (uiscreen == [UIScreen mainScreen]) {
++        return UIInterfaceOrientationIsLandscape([UIApplication sharedApplication].statusBarOrientation);
++    } else
++#endif // !SDL_PLATFORM_TVOS
++    {
++]==]
++[==[{
++#ifndef SDL_PLATFORM_TVOS
++    if (uiscreen == [UIScreen mainScreen]) {
++        return UIInterfaceOrientationIsLandscape(UIKit_GetInterfaceOrientation());
++    } else
++#endif // !SDL_PLATFORM_TVOS
++    {
++]==])
++  _sdl3_uikit_scene_replace("${_uikit}/SDL_uikitmodes.m"
++[==[#if !defined(SDL_PLATFORM_TVOS) && !defined(SDL_PLATFORM_VISIONOS)
++void SDL_OnApplicationDidChangeStatusBarOrientation(void)
++{
++    BOOL isLandscape = UIInterfaceOrientationIsLandscape([UIApplication sharedApplication].statusBarOrientation);
++    SDL_VideoDisplay *display = SDL_GetVideoDisplay(SDL_GetPrimaryDisplay());
++
++    if (display) {
++]==]
++[==[#if !defined(SDL_PLATFORM_TVOS) && !defined(SDL_PLATFORM_VISIONOS)
++void SDL_OnApplicationDidChangeStatusBarOrientation(void)
++{
++    UIInterfaceOrientation interfaceOrientation = UIKit_GetInterfaceOrientation();
++    BOOL isLandscape = UIInterfaceOrientationIsLandscape(interfaceOrientation);
++    SDL_VideoDisplay *display = SDL_GetVideoDisplay(SDL_GetPrimaryDisplay());
++
++    if (display) {
++]==])
++  _sdl3_uikit_scene_replace("${_uikit}/SDL_uikitmodes.m"
++[==[            }
++        }
++
++        switch ([UIApplication sharedApplication].statusBarOrientation) {
++        case UIInterfaceOrientationPortrait:
++            orientation = SDL_ORIENTATION_PORTRAIT;
++            break;
++]==]
++[==[            }
++        }
++
++        switch (interfaceOrientation) {
++        case UIInterfaceOrientationPortrait:
++            orientation = SDL_ORIENTATION_PORTRAIT;
++            break;
++]==])
++  _sdl3_uikit_scene_replace("${_uikit}/SDL_uikitvideo.h"
++[==[#endif
++
++extern API_AVAILABLE(ios(13.0)) UIWindowScene *UIKit_GetActiveWindowScene(void);
++
++extern void UIKit_SetGameControllerInteraction(bool enabled);
++extern void UIKit_SetViewGameControllerInteraction(UIView *view, bool enabled);
++]==]
++[==[#endif
++
++extern API_AVAILABLE(ios(13.0)) UIWindowScene *UIKit_GetActiveWindowScene(void);
++extern API_AVAILABLE(ios(13.0)) UIWindowScene *UIKit_GetOwningWindowScene(void);
++extern API_AVAILABLE(ios(13.0)) void UIKit_SetOwningWindowScene(UIWindowScene *scene);
++extern void UIKit_OwningSceneDidDisconnect(UIScene *scene);
++extern bool UIKit_IsOwningScene(UIScene *scene);
++#if !defined(SDL_PLATFORM_TVOS) && !defined(SDL_PLATFORM_VISIONOS)
++extern UIInterfaceOrientation UIKit_GetInterfaceOrientation(void);
++extern API_AVAILABLE(ios(13.0)) void UIKit_OnWindowSceneGeometryChanged(UIWindowScene *scene);
++extern API_AVAILABLE(ios(13.0)) void UIKit_AdoptOwningScene(UIWindowScene *scene);
++#endif
++
++extern void UIKit_SetGameControllerInteraction(bool enabled);
++extern void UIKit_SetViewGameControllerInteraction(UIView *view, bool enabled);
++]==])
++  _sdl3_uikit_scene_replace("${_uikit}/SDL_uikitvideo.m"
++[==[
++
++    /* The orientation flip doesn't make sense when the window is smaller
++     * than the screen (iPad Split View, for example). */
++    if (fullscreen && (landscape != (frame.size.width > frame.size.height))) {
++        float height = frame.size.width;
++        frame.size.width = frame.size.height;
++        frame.size.height = height;
++]==]
++[==[
++
++    /* The orientation flip doesn't make sense when the window is smaller
++     * than the screen (iPad Split View, for example). */
++    BOOL scene_window = NO;
++    if (@available(iOS 13.0, *)) {
++        /* A window in a scene is sized by that scene: its bounds already follow
++         * the scene's interface orientation and screen (including an external
++         * display), and the application-wide status bar orientation may belong
++         * to another scene or be unknown. */
++        scene_window = (data != nil && data.uiwindow.windowScene != nil);
++    }
++    if (!scene_window && fullscreen && (landscape != (frame.size.width > frame.size.height))) {
++        float height = frame.size.width;
++        frame.size.width = frame.size.height;
++        frame.size.height = height;
++]==])
++  _sdl3_uikit_scene_replace("${_uikit}/SDL_uikitvideo.m"
++[==[}
++#endif // SDL_PLATFORM_VISIONOS
++
++UIWindowScene *UIKit_GetActiveWindowScene(void)
++{
++    if (@available(iOS 13.0, tvOS 13.0, *)) {
++        NSSet<UIScene *> *connectedScenes = [UIApplication sharedApplication].connectedScenes;
++
++        // First, try to find an active foreground scene
++        for (UIScene *scene in connectedScenes) {
++            if ([scene isKindOfClass:[UIWindowScene class]]) {
++                UIWindowScene *windowScene = (UIWindowScene *)scene;
++                if (windowScene.activationState == UISceneActivationStateForegroundActive) {
++                    return windowScene;
++]==]
++[==[}
++#endif // SDL_PLATFORM_VISIONOS
++
++// The application scene SDL started in (see SDLUIKitSceneDelegate).
++static __weak UIWindowScene *UIKit_owning_scene API_AVAILABLE(ios(13.0));
++
++UIWindowScene *UIKit_GetOwningWindowScene(void)
++{
++    if (@available(iOS 13.0, tvOS 13.0, *)) {
++        return UIKit_owning_scene;
++    }
++    return nil;
++}
++
++void UIKit_SetOwningWindowScene(UIWindowScene *scene)
++{
++    if (@available(iOS 13.0, tvOS 13.0, *)) {
++        UIKit_owning_scene = scene;
++    }
++}
++
++void UIKit_OwningSceneDidDisconnect(UIScene *scene)
++{
++    /* UIKit can keep a disconnected scene object alive for seconds, so the weak
++     * reference alone does not clear it; a replacement scene then adopts SDL's windows. */
++    if (@available(iOS 13.0, tvOS 13.0, *)) {
++        if (scene == UIKit_owning_scene) {
++            UIKit_owning_scene = nil;
++        }
++    }
++}
++
++// Only an application scene can run the app; an external display's scene keeps the system default.
++static bool UIKit_IsApplicationScene(UIScene *scene)
++{
++#ifndef SDL_PLATFORM_VISIONOS
++    if (@available(iOS 13.0, tvOS 13.0, *)) {
++        return [scene.session.role isEqualToString:UIWindowSceneSessionRoleApplication];
++    }
++#endif
++    return true;
++}
++
++bool UIKit_IsOwningScene(UIScene *scene)
++{
++    if (@available(iOS 13.0, tvOS 13.0, *)) {
++        UIWindowScene *owner = UIKit_GetOwningWindowScene();
++        if (owner) {
++            return owner == scene;
++        }
++        return UIKit_IsApplicationScene(scene);
++    }
++    return true;
++}
++
++#if !defined(SDL_PLATFORM_TVOS) && !defined(SDL_PLATFORM_VISIONOS)
++UIInterfaceOrientation UIKit_GetInterfaceOrientation(void)
++{
++    if (@available(iOS 13.0, *)) {
++        UIWindowScene *scene = UIKit_GetActiveWindowScene();
++        if (scene) {
++            if (@available(iOS 16.0, *)) {
++                return scene.effectiveGeometry.interfaceOrientation;
++            }
++#pragma clang diagnostic push
++#pragma clang diagnostic ignored "-Wdeprecated-declarations"
++            return scene.interfaceOrientation;
++#pragma clang diagnostic pop
++        }
++    }
++    return [UIApplication sharedApplication].statusBarOrientation;
++}
++#endif
++
++UIWindowScene *UIKit_GetActiveWindowScene(void)
++{
++    if (@available(iOS 13.0, tvOS 13.0, *)) {
++        NSSet<UIScene *> *connectedScenes = [UIApplication sharedApplication].connectedScenes;
++
++        // Prefer the scene the application runs in over any other connected scene
++        UIWindowScene *owner = UIKit_GetOwningWindowScene();
++        if (owner) {
++            return owner;
++        }
++
++        // First, try to find an active foreground scene
++        for (UIScene *scene in connectedScenes) {
++            if ([scene isKindOfClass:[UIWindowScene class]] && UIKit_IsApplicationScene(scene)) {
++                UIWindowScene *windowScene = (UIWindowScene *)scene;
++                if (windowScene.activationState == UISceneActivationStateForegroundActive) {
++                    return windowScene;
++]==])
++  _sdl3_uikit_scene_replace("${_uikit}/SDL_uikitvideo.m"
++[==[
++
++        // If no active scene, return any foreground scene
++        for (UIScene *scene in connectedScenes) {
++            if ([scene isKindOfClass:[UIWindowScene class]]) {
++                UIWindowScene *windowScene = (UIWindowScene *)scene;
++                if (windowScene.activationState == UISceneActivationStateForegroundInactive) {
++                    return windowScene;
++]==]
++[==[
++
++        // If no active scene, return any foreground scene
++        for (UIScene *scene in connectedScenes) {
++            if ([scene isKindOfClass:[UIWindowScene class]] && UIKit_IsApplicationScene(scene)) {
++                UIWindowScene *windowScene = (UIWindowScene *)scene;
++                if (windowScene.activationState == UISceneActivationStateForegroundInactive) {
++                    return windowScene;
++]==])
++  _sdl3_uikit_scene_replace("${_uikit}/SDL_uikitvideo.m"
++[==[
++
++        // Last resort: return first window scene
++        for (UIScene *scene in connectedScenes) {
++            if ([scene isKindOfClass:[UIWindowScene class]]) {
++                return (UIWindowScene *)scene;
++            }
++        }
++]==]
++[==[
++
++        // Last resort: return first window scene
++        for (UIScene *scene in connectedScenes) {
++            if ([scene isKindOfClass:[UIWindowScene class]] && UIKit_IsApplicationScene(scene)) {
++                return (UIWindowScene *)scene;
++            }
++        }
++]==])
++  _sdl3_uikit_scene_replace("${_uikit}/SDL_uikitwindow.m"
++[==[    SDL_UIKitDisplayData *displaydata = (__bridge SDL_UIKitDisplayData *)display->internal;
++    SDL_uikitview *view;
++
++#ifdef SDL_PLATFORM_VISIONOS
++    CGRect frame = UIKit_ComputeViewFrame(window);
++#else
++    CGRect frame = UIKit_ComputeViewFrame(window, displaydata.uiscreen);
++#endif
++
++    int width = (int)frame.size.width;
++    int height = (int)frame.size.height;
++
++    SDL_UIKitWindowData *data = [[SDL_UIKitWindowData alloc] init];
++    if (!data) {
++        return SDL_OutOfMemory();
++]==]
++[==[    SDL_UIKitDisplayData *displaydata = (__bridge SDL_UIKitDisplayData *)display->internal;
++    SDL_uikitview *view;
++
++    SDL_UIKitWindowData *data = [[SDL_UIKitWindowData alloc] init];
++    if (!data) {
++        return SDL_OutOfMemory();
++]==])
++  _sdl3_uikit_scene_replace("${_uikit}/SDL_uikitwindow.m"
++[==[
++
++    data.uiwindow = uiwindow;
++
++#ifndef SDL_PLATFORM_VISIONOS
++    if (displaydata.uiscreen != [UIScreen mainScreen]) {
++        window->flags &= ~SDL_WINDOW_RESIZABLE;   // window is NEVER resizable
++]==]
++[==[
++
++    data.uiwindow = uiwindow;
++
++    // Compute the frame once the UIWindow is known, so a scene window uses its own bounds.
++#ifdef SDL_PLATFORM_VISIONOS
++    CGRect frame = UIKit_ComputeViewFrame(window);
++#else
++    CGRect frame = UIKit_ComputeViewFrame(window, displaydata.uiscreen);
++#endif
++
++    int width = (int)frame.size.width;
++    int height = (int)frame.size.height;
++
++#ifndef SDL_PLATFORM_VISIONOS
++    if (displaydata.uiscreen != [UIScreen mainScreen]) {
++        window->flags &= ~SDL_WINDOW_RESIZABLE;   // window is NEVER resizable
++]==])
++  _sdl3_uikit_scene_replace("${_uikit}/SDL_uikitwindow.m"
++[==[    }
++}
++
++#ifndef SDL_PLATFORM_TVOS
++NSUInteger
++UIKit_GetSupportedOrientations(SDL_Window *window)
++]==]
++[==[    }
++}
++
++#if !defined(SDL_PLATFORM_TVOS) && !defined(SDL_PLATFORM_VISIONOS)
++/* The application scene changed size, orientation or screen: bring the display
++ * orientation and each of its windows' layout and Metal scale up to date, so the
++ * usual resize and pixel-size events follow. */
++void UIKit_OnWindowSceneGeometryChanged(UIWindowScene *scene)
++{
++    @autoreleasepool {
++        SDL_VideoDevice *_this = SDL_GetVideoDevice();
++        SDL_Window *window;
++
++        if (!_this || scene != UIKit_GetOwningWindowScene()) {
++            return;
++        }
++
++        SDL_OnApplicationDidChangeStatusBarOrientation();
++
++        for (window = _this->windows; window; window = window->next) {
++            SDL_UIKitWindowData *data = (__bridge SDL_UIKitWindowData *)window->internal;
++            UIView *view = data.viewcontroller.view;
++            if (!data || data.uiwindow.windowScene != scene || !view) {
++                continue;
++            }
++            if ((window->flags & SDL_WINDOW_HIGH_PIXEL_DENSITY) && view.tag == SDL_METALVIEW_TAG) {
++                view.layer.contentsScale = data.uiwindow.screen.nativeScale;
++            }
++            [view setNeedsLayout];
++        }
++    }
++}
++
++/* iOS discarded the scene SDL started in and connected a new application scene:
++ * move SDL's orphaned windows onto it instead of leaving them blank. */
++void UIKit_AdoptOwningScene(UIWindowScene *scene)
++{
++    @autoreleasepool {
++        SDL_VideoDevice *_this = SDL_GetVideoDevice();
++        SDL_Window *window;
++
++        if (!_this) {
++            return;
++        }
++
++        for (window = _this->windows; window; window = window->next) {
++            SDL_UIKitWindowData *data = (__bridge SDL_UIKitWindowData *)window->internal;
++            if (!data || !data.uiwindow || data.uiwindow.windowScene != nil) {
++                continue;
++            }
++            data.uiwindow.windowScene = scene;
++            if (!(window->flags & SDL_WINDOW_HIDDEN)) {
++                [data.uiwindow makeKeyAndVisible];
++            }
++        }
++        UIKit_OnWindowSceneGeometryChanged(scene);
++    }
++}
++#endif
++
++#ifndef SDL_PLATFORM_TVOS
++NSUInteger
++UIKit_GetSupportedOrientations(SDL_Window *window)
++]==])
++  message(STATUS "SDL3 UIKit scene geometry patch checked: ${sdl_source_dir}")
++endfunction()
++
++if (CMAKE_SCRIPT_MODE_FILE STREQUAL CMAKE_CURRENT_LIST_FILE AND DEFINED SDL_SOURCE_DIR)
++  sdl3_uikit_scene_geometry_patch("${SDL_SOURCE_DIR}")
++endif ()
 diff --git a/cmake/aurora_core.cmake b/cmake/aurora_core.cmake
 index 774c52a..386afcc 100644
 --- a/cmake/aurora_core.cmake
@@ -132,10 +751,10 @@ index 0000000..7e7d0e6
 +#endif
 diff --git a/include/aurora/touch.hpp b/include/aurora/touch.hpp
 new file mode 100644
-index 0000000..a114768
+index 0000000..72c1a24
 --- /dev/null
 +++ b/include/aurora/touch.hpp
-@@ -0,0 +1,46 @@
+@@ -0,0 +1,54 @@
 +#pragma once
 +
 +#include <cstdint>
@@ -175,6 +794,14 @@ index 0000000..a114768
 +
 +/* Low-frequency persistent runtime breadcrumb used by native game systems. */
 +void log_ios_runtime_event(std::string_view event) noexcept;
++
++/* iOS: the controller set or player assignment changed; the overlay re-checks
++ * whether player 1 has a usable physical controller. No-op elsewhere. */
++void ios_controllers_changed() noexcept;
++
++/* Player 1, which the touch controls drive, has a usable physical controller
++ * (Aurora's controller slots; never a virtual or stick-less device). */
++bool touch_player_has_usable_controller() noexcept;
 +
 +/* iOS applies SunPad's persisted, deliberately narrow physical
 + * A/B/X/Y/right-shoulder -> GameCube A/B/X/Y/Z permutation. Other platforms
@@ -717,16 +1344,18 @@ index 02adbe1..227f35d 100644
    }
    if (g_useSdlRenderer) {
 diff --git a/lib/input.cpp b/lib/input.cpp
-index 20ac5f7..b954d71 100644
+index 20ac5f7..cc481fb 100644
 --- a/lib/input.cpp
 +++ b/lib/input.cpp
-@@ -1,4 +1,5 @@
+@@ -1,4 +1,7 @@
  #include "input.hpp"
 +#include "controller_slots.hpp"
++#include "touch_visibility.hpp"
++#include <aurora/touch.hpp>
  #include "device.hpp"
  #include "internal.hpp"
  
-@@ -333,6 +334,12 @@ void apply_port_preferences() noexcept {
+@@ -333,6 +336,12 @@ void apply_port_preferences() noexcept {
  } // namespace
  
  GameController* get_controller_for_player(uint32_t player) noexcept {
@@ -739,7 +1368,7 @@ index 20ac5f7..b954d71 100644
    for (auto& [which, controller] : g_GameControllers) {
      if (player_index(which) == player) {
        return &controller;
-@@ -370,7 +377,8 @@ Sint32 get_instance_for_player(uint32_t player) noexcept {
+@@ -370,7 +379,8 @@ Sint32 get_instance_for_player(uint32_t player) noexcept {
    return {};
  }
  
@@ -749,7 +1378,7 @@ index 20ac5f7..b954d71 100644
    auto* ctrl = SDL_OpenGamepad(which);
    if (ctrl != nullptr) {
      GameController controller;
-@@ -392,26 +400,126 @@ SDL_JoystickID add_controller(SDL_JoystickID which) noexcept {
+@@ -392,27 +402,129 @@ SDL_JoystickID add_controller(SDL_JoystickID which) noexcept {
      controller.m_hasRumble = SDL_GetBooleanProperty(props, SDL_PROP_GAMEPAD_CAP_RUMBLE_BOOLEAN, true);
      controller.m_hasRgbLed = SDL_GetBooleanProperty(props, SDL_PROP_GAMEPAD_CAP_RGB_LED_BOOLEAN, false);
      SDL_JoystickID instance = SDL_GetJoystickID(SDL_GetGamepadJoystick(ctrl));
@@ -881,25 +1510,75 @@ index 20ac5f7..b954d71 100644
 +               decision.playerSlot);
 +      changed = true;
 +    }
-+  }
+   }
 +  if (changed || std::string_view(reason) == "foreground-resume") {
 +    Log.info("Controller reconciliation '{}' complete: SDL current {}, tracked {}", reason, currentCount,
 +             g_GameControllers.size());
-   }
++  }
++  // Connect, disconnect, foreground return and slot changes all pass here.
++  touch::ios_controllers_changed();
  }
  
+ bool is_gamecube(Uint32 instance) noexcept {
+@@ -432,8 +544,33 @@ int32_t player_index(Uint32 instance) noexcept {
+ void set_player_index(Uint32 instance, Sint32 index) noexcept {
+   if (auto it = g_GameControllers.find(instance); it != g_GameControllers.end()) {
+     SDL_SetGamepadPlayerIndex(it->second.m_controller, index);
++    touch::ios_controllers_changed();
++  }
++}
++
++bool player_has_usable_physical_controller(const uint32_t player) noexcept {
++  for (const auto& [which, controller] : g_GameControllers) {
++    if (player_index(which) != static_cast<Sint32>(player)) {
++      continue;
++    }
++    SDL_Gamepad* pad = controller.m_controller;
++    return touch::usable_touch_port_controller({
++        .assigned = SDL_GamepadConnected(pad),
++        .isVirtual = SDL_IsJoystickVirtual(which),
++        .hasStick = SDL_GamepadHasAxis(pad, SDL_GAMEPAD_AXIS_LEFTX) && SDL_GamepadHasAxis(pad, SDL_GAMEPAD_AXIS_LEFTY),
++        .hasFaceButtons =
++            SDL_GamepadHasButton(pad, SDL_GAMEPAD_BUTTON_SOUTH) && SDL_GamepadHasButton(pad, SDL_GAMEPAD_BUTTON_EAST),
++    });
+   }
++  return false;
+ }
++} // namespace aurora::input
++
++namespace aurora::touch {
++bool touch_player_has_usable_controller() noexcept { return input::player_has_usable_physical_controller(0); }
++} // namespace aurora::touch
++
++namespace aurora::input {
+ 
+ std::string controller_name(Uint32 instance) noexcept {
+   if (auto it = g_GameControllers.find(instance); it != g_GameControllers.end()) {
+@@ -488,6 +625,8 @@ void persist_controller_for_player(uint32_t player, const GameController* contro
+     g_portPreferences[player].identity = {};
+   }
+   save_port_preferences();
++  // PADSetPortForIndex / PADClearPort: a port assignment changed (re-checked after it completes).
++  touch::ios_controllers_changed();
+ }
+ 
+ void initialize() noexcept {
 diff --git a/lib/input.hpp b/lib/input.hpp
-index 572ddee..1247955 100644
+index 572ddee..bc5a0e2 100644
 --- a/lib/input.hpp
 +++ b/lib/input.hpp
-@@ -48,6 +48,7 @@ GameController* get_controller_for_player(uint32_t player) noexcept;
+@@ -48,8 +48,11 @@ GameController* get_controller_for_player(uint32_t player) noexcept;
  Sint32 get_instance_for_player(uint32_t player) noexcept;
  SDL_JoystickID add_controller(SDL_JoystickID which) noexcept;
  void remove_controller(Uint32 instance) noexcept;
 +void reconcile_controllers(const char* reason) noexcept;
  Sint32 player_index(Uint32 instance) noexcept;
  void set_player_index(Uint32 instance, Sint32 index) noexcept;
++/* True when a usable physical (non-virtual) gamepad holds this player's port. */
++bool player_has_usable_physical_controller(uint32_t player) noexcept;
  std::string controller_name(Uint32 instance) noexcept;
+ bool is_gamecube(Uint32 instance) noexcept;
+ bool controller_has_rumble(Uint32 instance) noexcept;
 diff --git a/lib/ios/EctoPadAudioSession.mm b/lib/ios/EctoPadAudioSession.mm
 new file mode 100644
 index 0000000..a23bc64
@@ -1481,10 +2160,10 @@ index 0000000..5dd77a9
 +}
 diff --git a/lib/ios/OverlayBridge.mm b/lib/ios/OverlayBridge.mm
 new file mode 100644
-index 0000000..179035d
+index 0000000..6894bba
 --- /dev/null
 +++ b/lib/ios/OverlayBridge.mm
-@@ -0,0 +1,934 @@
+@@ -0,0 +1,950 @@
 +#include <aurora/touch.hpp>
 +
 +#import <Foundation/Foundation.h>
@@ -2004,7 +2683,7 @@ index 0000000..179035d
 +  UISlider* opacity = (UISlider*)FindView(g_overlay, @"Control opacity", nil);
 +  UISlider* allSizes = (UISlider*)FindView(g_overlay, @"Control size", nil);
 +  UISwitch* hide =
-+      (UISwitch*)FindView(g_overlay, @"Hide touch controls when controller connected", nil);
++      (UISwitch*)FindView(g_overlay, @"Auto-hide Touch Controls with Controller", nil);
 +  if (![render isKindOfClass:UISegmentedControl.class] ||
 +      ![opacity isKindOfClass:UISlider.class] ||
 +      ![allSizes isKindOfClass:UISlider.class] ||
@@ -2169,6 +2848,8 @@ index 0000000..179035d
 +  overlay.delegate = g_delegate;
 +  [hostView addSubview:overlay];
 +  g_overlay = overlay;
++  // A controller already connected before launch: evaluate player 1 now.
++  ios_controllers_changed();
 +  PublishControllerMapping(CurrentControllerMapping());
 +  [g_delegate applyEngineSettings];
 +  if (ProcessHasArgument(@"--metaforce-controller-mapping-ui-test")) {
@@ -2211,6 +2892,20 @@ index 0000000..179035d
 +  }];
 +
 +  return true;
++}
++
++void ios_controllers_changed() noexcept {
++  dispatch_async(dispatch_get_main_queue(), ^{
++    if (g_overlay == nil) {
++      return;
++    }
++#if TARGET_OS_SIMULATOR
++    // The Simulator presents the Mac keyboard as a controller; keep touch there.
++    g_overlay.touchPlayerHasController = NO;
++#else
++    g_overlay.touchPlayerHasController = touch_player_has_usable_controller();
++#endif
++  });
 +}
 +
 +void recover_ios_overlay(std::string_view reason) noexcept {
@@ -2776,10 +3471,10 @@ index 0000000..1f8faf5
 +}
 diff --git a/lib/ios/SunPadGameOverlay.h b/lib/ios/SunPadGameOverlay.h
 new file mode 100644
-index 0000000..dd9e4ac
+index 0000000..10b2ec5
 --- /dev/null
 +++ b/lib/ios/SunPadGameOverlay.h
-@@ -0,0 +1,42 @@
+@@ -0,0 +1,50 @@
 +#pragma once
 +
 +#import <UIKit/UIKit.h>
@@ -2816,6 +3511,14 @@ index 0000000..dd9e4ac
 +/* Hide the touch controls (e.g., a physical controller is connected). */
 +- (void)setTouchControlsHidden:(BOOL)hidden animated:(BOOL)animated;
 +
++/* Set by the bridge from Aurora's controller slots: player 1 has a usable
++ * physical controller. Re-evaluates the controls' visibility. */
++@property(nonatomic, assign) BOOL touchPlayerHasController;
++
++/* Show Touch Controls: back on screen and working with the controller still
++ * connected; turns "Auto-hide Touch Controls with Controller" off. */
++- (void)showTouchControls;
++
 +/* Applies persisted settings to the touch controls. */
 +- (void)applySettings;
 +
@@ -2824,11 +3527,13 @@ index 0000000..dd9e4ac
 +NS_ASSUME_NONNULL_END
 diff --git a/lib/ios/SunPadGameOverlay.mm b/lib/ios/SunPadGameOverlay.mm
 new file mode 100644
-index 0000000..d4a4264
+index 0000000..aa9c22c
 --- /dev/null
 +++ b/lib/ios/SunPadGameOverlay.mm
-@@ -0,0 +1,1694 @@
+@@ -0,0 +1,1708 @@
 +#import "SunPadGameOverlay.h"
++
++#include "../touch_visibility.hpp"
 +
 +#import "SunPadDiagnostics.h"
 +#import "SunPadInputMixer.h"
@@ -3208,7 +3913,7 @@ index 0000000..d4a4264
 +        [self buildTouchControls];
 +        [self buildSettingsPanel];
 +        [self applySettings];
-+        [self observeControllerConnection];
++        [self applyControllerVisibility];
 +    }
 +    return self;
 +}
@@ -3372,13 +4077,25 @@ index 0000000..d4a4264
 +        [weakSelf reportProblem];
 +    }];
 +
-+    return [UIMenu menuWithTitle:@"EctoPad" children:@[
++    NSMutableArray<UIMenuElement *> *rootItems = [NSMutableArray array];
++    if (_touchControlsHidden) {
++        // While a controller has hidden the touch controls, the first item
++        // brings them back (and turns auto-hide off).
++        [rootItems addObject:[UIAction actionWithTitle:@"Show Touch Controls"
++                                                 image:[UIImage systemImageNamed:@"hand.tap"]
++                                            identifier:nil handler:^(__kindof UIAction *action) {
++            (void)action;
++            [weakSelf showTouchControls];
++        }]];
++    }
++    [rootItems addObjectsFromArray:@[
 +        displayMenu,
 +        fpsAction,
 +        controlsMenu,
 +        dataMenu,
 +        reportProblemAction,
 +    ]];
++    return [UIMenu menuWithTitle:@"EctoPad" children:rootItems];
 +}
 +
 +- (void)reportProblem {
@@ -4052,7 +4769,7 @@ index 0000000..d4a4264
 +
 +    _hideControlsSwitch = [UISwitch new];
 +    _hideControlsSwitch.on = [SunPadSettings sharedSettings].hideTouchControlsWhenControllerConnected;
-+    _hideControlsSwitch.accessibilityLabel = @"Hide touch controls when controller connected";
++    _hideControlsSwitch.accessibilityLabel = @"Auto-hide Touch Controls with Controller";
 +    [_hideControlsSwitch addTarget:self action:@selector(hideChanged:)
 +                  forControlEvents:UIControlEventValueChanged];
 +
@@ -4075,7 +4792,7 @@ index 0000000..d4a4264
 +        [self settingsRowWithTitle:@"Render" control:_renderScaleControl],
 +        [self settingsRowWithTitle:@"Opacity" control:_opacitySlider],
 +        [self settingsRowWithTitle:@"All sizes" control:_sizeSlider],
-+        [self settingsRowWithTitle:@"Hide on controller" control:_hideControlsSwitch],
++        [self settingsRowWithTitle:@"Auto-hide with Controller" control:_hideControlsSwitch],
 +        [self settingsRowWithTitle:@"Move controls" control:_editLayoutSwitch],
 +        _resetLayoutButton,
 +    ]];
@@ -4490,34 +5207,34 @@ index 0000000..d4a4264
 +    }];
 +}
 +
-+- (void)applyControllerVisibility {
-+    BOOL controllerConnected = NO;
-+#if !TARGET_OS_SIMULATOR
-+    // Only real hardware controllers hide the touch controls; the Simulator
-+    // can report virtual controllers that would hide them during testing.
-+    for (GCController *controller in GCController.controllers) {
-+        if (controller.extendedGamepad != nil) {
-+            controllerConnected = YES;
-+            break;
-+        }
-+    }
-+#endif
-+    BOOL shouldHide = !_editingLayout && controllerConnected &&
-+        [SunPadSettings sharedSettings].hideTouchControlsWhenControllerConnected;
-+    [self setTouchControlsHidden:shouldHide animated:YES];
-+    if (controllerConnected)
-+        [self clearTouchInput];
++- (void)setTouchPlayerHasController:(BOOL)touchPlayerHasController {
++    _touchPlayerHasController = touchPlayerHasController;
++    [self applyControllerVisibility];
 +}
 +
-+- (void)observeControllerConnection {
-+    [[NSNotificationCenter defaultCenter] addObserver:self
-+                                             selector:@selector(applyControllerVisibility)
-+                                                 name:GCControllerDidConnectNotification
-+                                               object:nil];
-+    [[NSNotificationCenter defaultCenter] addObserver:self
-+                                             selector:@selector(applyControllerVisibility)
-+                                                 name:GCControllerDidDisconnectNotification
-+                                               object:nil];
++// Aurora's controller slots decide (via the bridge) whether player 1, which the
++// touch controls drive, has a usable physical controller.
++- (void)applyControllerVisibility {
++    const BOOL shouldHide = aurora::touch::touch_controls_hidden(
++        _touchPlayerHasController, [SunPadSettings sharedSettings].hideTouchControlsWhenControllerConnected,
++        _editingLayout);
++    if (shouldHide == _touchControlsHidden)
++        return;
++    if (shouldHide) {
++        // Nothing hidden may stay held: buttons, shoulder latches and both sticks.
++        [self clearTouchInput];
++    }
++    SunPadLog(@"touch controls %@ (player 1 controller=%d)", shouldHide ? @"hidden" : @"shown",
++              _touchPlayerHasController);
++    [self setTouchControlsHidden:shouldHide animated:YES];
++    [self refreshMenuButton];
++}
++
++- (void)showTouchControls {
++    SunPadSettings *settings = [SunPadSettings sharedSettings];
++    settings.hideTouchControlsWhenControllerConnected = NO;
++    [settings synchronize];
++    _hideControlsSwitch.on = NO;
 +    [self applyControllerVisibility];
 +}
 +
@@ -4919,10 +5636,10 @@ index 0000000..67bcf7c
 +@end
 diff --git a/lib/ios_touch_stub.cpp b/lib/ios_touch_stub.cpp
 new file mode 100644
-index 0000000..e8f9895
+index 0000000..3228faf
 --- /dev/null
 +++ b/lib/ios_touch_stub.cpp
-@@ -0,0 +1,19 @@
+@@ -0,0 +1,21 @@
 +#include <aurora/touch.hpp>
 +
 +namespace aurora::touch {
@@ -4940,7 +5657,43 @@ index 0000000..e8f9895
 +
 +void log_ios_runtime_event(std::string_view) noexcept {}
 +
++void ios_controllers_changed() noexcept {}
++
 +uint16_t map_ios_controller_face_buttons(const uint16_t buttons, uint16_t) noexcept { return buttons; }
++} // namespace aurora::touch
+diff --git a/lib/touch_visibility.hpp b/lib/touch_visibility.hpp
+new file mode 100644
+index 0000000..d6199d8
+--- /dev/null
++++ b/lib/touch_visibility.hpp
+@@ -0,0 +1,28 @@
++#pragma once
++
++namespace aurora::touch {
++
++/* The iOS touch controls drive player 1 (PADSetVirtualStatus(0, ...)). Only a
++ * usable physical controller on that port stands in for them: never an SDL
++ * virtual joystick (the app's own test pad), and never a profile without a
++ * movement stick and face buttons. A controller on another port does not count. */
++struct TouchPortController {
++  bool assigned = false;
++  bool isVirtual = false;
++  bool hasStick = false;
++  bool hasFaceButtons = false;
++};
++
++constexpr bool usable_touch_port_controller(const TouchPortController& controller) noexcept {
++  return controller.assigned && !controller.isVirtual && controller.hasStick && controller.hasFaceButtons;
++}
++
++/* "Auto-hide Touch Controls with Controller": hidden while such a controller is
++ * present and auto-hide is on. Show Touch Controls turns auto-hide off. Editing
++ * the layout always shows the controls so it stays possible and escapable. */
++constexpr bool touch_controls_hidden(const bool usableController, const bool autoHide,
++                                     const bool editingLayout) noexcept {
++  return usableController && autoHide && !editingLayout;
++}
++
 +} // namespace aurora::touch
 diff --git a/lib/window.cpp b/lib/window.cpp
 index 0d1a5c2..c2335dd 100644
@@ -5056,10 +5809,10 @@ index 51257ea..eac1286 100644
  void set_background_input(bool value);
  }; // namespace aurora::window
 diff --git a/tests/CMakeLists.txt b/tests/CMakeLists.txt
-index 43b2d61..0a89dfb 100644
+index 43b2d61..16b2c61 100644
 --- a/tests/CMakeLists.txt
 +++ b/tests/CMakeLists.txt
-@@ -106,3 +106,8 @@ target_include_directories(os_alloc_tests PRIVATE
+@@ -106,3 +106,13 @@ target_include_directories(os_alloc_tests PRIVATE
  target_compile_definitions(os_alloc_tests PRIVATE AURORA TARGET_PC)
  target_link_libraries(os_alloc_tests PRIVATE gtest gtest_main fmt::fmt)
  gtest_discover_tests(os_alloc_tests)
@@ -5068,6 +5821,11 @@ index 43b2d61..0a89dfb 100644
 +target_include_directories(controller_slots_tests PRIVATE ../lib)
 +target_link_libraries(controller_slots_tests PRIVATE gtest gtest_main)
 +gtest_discover_tests(controller_slots_tests)
++
++add_executable(touch_visibility_tests touch_visibility_test.cpp)
++target_include_directories(touch_visibility_tests PRIVATE ../lib)
++target_link_libraries(touch_visibility_tests PRIVATE gtest gtest_main)
++gtest_discover_tests(touch_visibility_tests)
 diff --git a/tests/controller_slots_test.cpp b/tests/controller_slots_test.cpp
 new file mode 100644
 index 0000000..b2f30ab
@@ -5244,3 +6002,90 @@ index 0167e11..d43858b 100644
    EXPECT_EQ(cfg.attnFn, GX_AF_SPEC);
  
    auto& state = g_gxState.colorChannelState[GX_COLOR1];
+diff --git a/tests/touch_visibility_test.cpp b/tests/touch_visibility_test.cpp
+new file mode 100644
+index 0000000..1ec8afa
+--- /dev/null
++++ b/tests/touch_visibility_test.cpp
+@@ -0,0 +1,81 @@
++#include "../lib/controller_slots.hpp"
++#include "../lib/touch_visibility.hpp"
++
++#include <gtest/gtest.h>
++
++#include <algorithm>
++
++namespace aurora::touch {
++namespace {
++
++using input::ControllerSlotSnapshot;
++using input::plan_controller_slots;
++
++constexpr TouchPortController kGamepad{.assigned = true, .isVirtual = false, .hasStick = true, .hasFaceButtons = true};
++constexpr bool kAutoHideDefault = true; // no saved preference
++
++// Player 1 (port 0) has a usable controller after Aurora plans the slots.
++bool player_one_has_controller(const std::vector<ControllerSlotSnapshot>& snapshots, const TouchPortController profile) {
++  const auto decisions = plan_controller_slots(snapshots, 4);
++  const bool onPortZero = std::ranges::any_of(
++      decisions, [](const auto& decision) { return !decision.remove && decision.playerSlot == 0; });
++  return onPortZero && usable_touch_port_controller(profile);
++}
++
++TEST(TouchVisibility, ControllerPresentBeforeLaunchHidesTouchByDefault) {
++  const bool controller = player_one_has_controller(
++      {{.instance = 7, .playerSlot = -1, .connected = true, .enumerated = true, .preserveSlot = false}}, kGamepad);
++  EXPECT_TRUE(touch_controls_hidden(controller, kAutoHideDefault, false));
++}
++
++TEST(TouchVisibility, DisconnectingTheOnlyControllerShowsTouch) {
++  const bool controller = player_one_has_controller(
++      {{.instance = 7, .playerSlot = 0, .connected = false, .enumerated = false, .preserveSlot = true}}, kGamepad);
++  EXPECT_FALSE(touch_controls_hidden(controller, kAutoHideDefault, false));
++}
++
++TEST(TouchVisibility, RemovingPlayerTwoKeepsPlayerOnesControllerHidingTouch) {
++  const bool controller = player_one_has_controller(
++      {
++          {.instance = 7, .playerSlot = 0, .connected = true, .enumerated = true, .preserveSlot = true},
++          {.instance = 9, .playerSlot = 1, .connected = false, .enumerated = false, .preserveSlot = true},
++      },
++      kGamepad);
++  EXPECT_TRUE(touch_controls_hidden(controller, kAutoHideDefault, false));
++}
++
++TEST(TouchVisibility, ControllerOwnedByAnotherPlayerDoesNotHideTouch) {
++  // Player 1's controller left; player 2's stays on its own port.
++  const bool controller = player_one_has_controller(
++      {
++          {.instance = 7, .playerSlot = 0, .connected = false, .enumerated = false, .preserveSlot = true},
++          {.instance = 9, .playerSlot = 1, .connected = true, .enumerated = true, .preserveSlot = true},
++      },
++      kGamepad);
++  EXPECT_FALSE(touch_controls_hidden(controller, kAutoHideDefault, false));
++}
++
++TEST(TouchVisibility, VirtualOrIncompleteControllersNeverHideTouch) {
++  const std::vector<ControllerSlotSnapshot> onPortZero{
++      {.instance = 7, .playerSlot = 0, .connected = true, .enumerated = true, .preserveSlot = true}};
++  auto virtualPad = kGamepad;
++  virtualPad.isVirtual = true;
++  auto menuOnly = kGamepad;
++  menuOnly.hasStick = false;
++  EXPECT_FALSE(touch_controls_hidden(player_one_has_controller(onPortZero, virtualPad), kAutoHideDefault, false));
++  EXPECT_FALSE(touch_controls_hidden(player_one_has_controller(onPortZero, menuOnly), kAutoHideDefault, false));
++}
++
++TEST(TouchVisibility, PreferenceAndShowApplyWithTheControllerStillConnected) {
++  const bool controller = player_one_has_controller(
++      {{.instance = 7, .playerSlot = 0, .connected = true, .enumerated = true, .preserveSlot = true}}, kGamepad);
++  // Show Touch Controls (or the switch turned off) sets auto-hide off: visible at once.
++  EXPECT_FALSE(touch_controls_hidden(controller, false, false));
++  // Turning auto-hide back on applies to the connected controller at once.
++  EXPECT_TRUE(touch_controls_hidden(controller, true, false));
++  // Editing the layout always shows the controls.
++  EXPECT_FALSE(touch_controls_hidden(controller, true, true));
++}
++
++} // namespace
++} // namespace aurora::touch
