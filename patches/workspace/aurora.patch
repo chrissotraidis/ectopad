@@ -1,8 +1,24 @@
 diff --git a/cmake/AuroraSDL3Provider.cmake b/cmake/AuroraSDL3Provider.cmake
-index f120a5d..5c15f8f 100644
+index f120a5d..d995f75 100644
 --- a/cmake/AuroraSDL3Provider.cmake
 +++ b/cmake/AuroraSDL3Provider.cmake
-@@ -148,6 +148,16 @@ elseif (_aurora_sdl3_provider STREQUAL "vendor")
+@@ -36,6 +36,15 @@ endfunction()
+ 
+ # ── Auto: resolve provider based on platform availability ──
+ set(_aurora_sdl3_provider "${AURORA_SDL3_PROVIDER}")
++# iOS builds SDL here so the UIKit scene geometry patch applies (SDL3UIKitSceneGeometry.cmake);
++# auto would otherwise accept an SDL3 package found on the Mac.
++if (CMAKE_SYSTEM_NAME STREQUAL "iOS")
++  if (_aurora_sdl3_provider STREQUAL "auto")
++    set(_aurora_sdl3_provider "vendor")
++  elseif (NOT _aurora_sdl3_provider STREQUAL "vendor")
++    message(FATAL_ERROR "aurora: iOS needs AURORA_SDL3_PROVIDER vendor or auto for the UIKit scene geometry patch")
++  endif ()
++endif ()
+ if (_aurora_sdl3_provider STREQUAL "auto")
+   # Prebuilt SDL3 packages are available for Windows (MSVC and MinGW)
+   if (WIN32)
+@@ -148,6 +157,16 @@ elseif (_aurora_sdl3_provider STREQUAL "vendor")
    else ()
      message(STATUS "aurora: Using existing SDL3")
    endif ()
@@ -3527,10 +3543,10 @@ index 0000000..10b2ec5
 +NS_ASSUME_NONNULL_END
 diff --git a/lib/ios/SunPadGameOverlay.mm b/lib/ios/SunPadGameOverlay.mm
 new file mode 100644
-index 0000000..aa9c22c
+index 0000000..6edc8aa
 --- /dev/null
 +++ b/lib/ios/SunPadGameOverlay.mm
-@@ -0,0 +1,1708 @@
+@@ -0,0 +1,1709 @@
 +#import "SunPadGameOverlay.h"
 +
 +#include "../touch_visibility.hpp"
@@ -4338,7 +4354,8 @@ index 0000000..aa9c22c
 +}
 +
 +- (void)stickChanged:(SunPadStickView *)stick x:(float)x y:(float)y {
-+    if (_editingLayout)
++    // A finger still down when a controller hides the controls must not drive them.
++    if (_editingLayout || _touchControlsHidden)
 +        return;
 +    int8_t xi = (int8_t)std::lround(x * 127.0f);
 +    int8_t yi = (int8_t)std::lround(y * 127.0f);
@@ -4354,7 +4371,7 @@ index 0000000..aa9c22c
 +}
 +
 +- (void)buttonDown:(SunPadGameButton *)button {
-+    if (_editingLayout)
++    if (_editingLayout || _touchControlsHidden)
 +        return;
 +    BOOL shoulder = button.inputMask == SunPadButtonL ||
 +                    button.inputMask == SunPadButtonR;
