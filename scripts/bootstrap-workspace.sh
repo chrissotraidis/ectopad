@@ -49,12 +49,14 @@ fetch() { # directory url commit
 echo "EctoPad: fetching Metaforce and its components"
 mirror="https://github.com/chrissotraidis/ectopad"
 fetch "$ref" "$mirror-metaforce.git" 621ee0fed3fdd5fccbbdadbce33343f29dce071c
-for component in jbus musyx libjpeg-turbo; do
+for component in jbus libjpeg-turbo; do
   git -C "$ref" config "submodule.extern/$component.url" "$mirror-$component.git"
 done
 # zeus (math) and kabufuda (memory cards) are replaced by EctoPad's own
 # libraries in components/: AxioDL's versions never carried a license.
-for component in zeus kabufuda; do
+# musyx, a decompilation of the GameCube MusyX library, is used only by its
+# own test program, so it is not fetched.
+for component in zeus kabufuda musyx; do
   git -C "$ref" config "submodule.extern/$component.update" none
 done
 git -C "$ref" submodule update -q --init --recursive

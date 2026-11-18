@@ -170522,7 +170522,7 @@ zR<OD}Tm}HpSy)90w%-gZs=%#rh;r9cFi3=9B@nK6L6j@Qa10E`!Zl<>xo)}uMx|>a
 K%D3-04E!HxR)=o@
 
 diff --git a/extern/CMakeLists.txt b/extern/CMakeLists.txt
-index f1872d0c60a378f800e7735e3162eb36aa5f8658..1756d7b690227cb965d4e1058aac5429747080dd 100644
+index f1872d0c..2c52f21e 100644
 --- a/extern/CMakeLists.txt
 +++ b/extern/CMakeLists.txt
 @@ -13,6 +13,20 @@ if (NOT TARGET spdlog)
@@ -170546,6 +170546,13 @@ index f1872d0c60a378f800e7735e3162eb36aa5f8658..1756d7b690227cb965d4e1058aac5429
  if (WIN32 AND NOT TARGET nowide)
    include(FetchContent)
    FetchContent_Declare(
+@@ -39,4 +53,5 @@ add_subdirectory(kabufuda EXCLUDE_FROM_ALL)
+ 
+ add_subdirectory(libjpeg-turbo EXCLUDE_FROM_ALL)
+ add_subdirectory(zeus EXCLUDE_FROM_ALL)
+-add_subdirectory(musyx EXCLUDE_FROM_ALL)
++# musyx (a decompilation of the GameCube MusyX library) is used only by its own
++# test program; EctoPad does not fetch or build it.
 diff --git a/imgui/CMakeLists.txt b/imgui/CMakeLists.txt
 index fb32ab720..9aa957aca 100644
 --- a/imgui/CMakeLists.txt
