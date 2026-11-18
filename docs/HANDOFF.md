@@ -1,5 +1,9 @@
 # Handoff
 
+> **2026-11-18: the current restart point is
+> [RESUME_2026-11-18.md](RESUME_2026-11-18.md).** The notes below are from
+> August 2026.
+
 Last updated: 2026-08-17
 
 ## Where things stand

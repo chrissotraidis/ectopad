@@ -1,0 +1,31 @@
+2026-11-10T08:03:54.400Z session start version=0.1.4 build=1 os=Version 27.2 (Build 24B119)
+2026-11-10T08:03:54.439Z engine settings renderScale=1 aspectMode=0
+2026-11-10T08:03:55.433Z audio session active route=HDMIOutput rate=48000 ioBufferMs=10.00 channels=2
+2026-11-10T08:03:55.475Z lifecycle notification=UIApplicationDidBecomeActiveNotification overlayWindow=1 superview=SDL_uikitmetalview hidden=0 alpha=1.00
+2026-11-10T08:03:55.507Z engine settings renderScale=1 aspectMode=0
+2026-11-10T08:03:55.508Z engine settings renderScale=1 aspectMode=0
+2026-11-10T08:03:55.508Z overlay recovery reason=UIApplicationDidBecomeActiveNotification reattached=0 oldHost=SDL_uikitmetalview host=SDL_uikitmetalview window=1 menu=1 controlsHidden=0
+2026-11-10T08:03:56.530Z menu visible=1 attached=1 frame={{1314, 12}, {40, 40}} menuItems=5
+2026-11-10T08:04:00.514Z audio pump supplied=682 available=5760 target=5760 underruns=0 peak=0.142 clipped=0
+2026-11-10T08:04:01.914Z audio sources frontend=0.142 amuse=0.000 stream=0.000 output=0.142 jumps=0/0/0 voices=0/0 streams=0
+2026-11-10T08:04:05.515Z audio pump supplied=682 available=5760 target=5760 underruns=0 peak=0.263 clipped=0
+2026-11-10T08:04:08.316Z audio sources frontend=0.263 amuse=0.000 stream=0.000 output=0.263 jumps=0/0/0 voices=0/0 streams=0
+2026-11-10T08:04:14.713Z audio sources frontend=0.343 amuse=0.000 stream=0.000 output=0.343 jumps=0/0/0 voices=0/0 streams=0
+2026-11-10T08:04:15.512Z audio pump supplied=683 available=5760 target=5760 underruns=0 peak=0.343 clipped=0
+2026-11-10T08:04:20.513Z audio pump supplied=683 available=5760 target=5760 underruns=0 peak=0.593 clipped=0
+2026-11-10T08:04:21.113Z audio sources frontend=0.593 amuse=0.000 stream=0.000 output=0.593 jumps=0/0/0 voices=0/0 streams=0
+2026-11-10T08:04:25.513Z audio pump supplied=683 available=5761 target=5760 underruns=0 peak=0.600 clipped=0
+2026-11-10T08:04:27.563Z audio sources frontend=0.600 amuse=0.000 stream=0.000 output=0.600 jumps=0/0/0 voices=0/0 streams=0
+2026-11-10T08:04:30.518Z audio pump supplied=683 available=5761 target=5760 underruns=0 peak=0.469 clipped=0
+2026-11-10T08:04:33.963Z audio sources frontend=0.571 amuse=0.000 stream=0.000 output=0.571 jumps=0/0/0 voices=0/0 streams=0
+2026-11-10T08:04:35.516Z audio pump supplied=683 available=5761 target=5760 underruns=0 peak=0.579 clipped=0
+2026-11-10T08:04:40.367Z audio sources frontend=0.579 amuse=0.000 stream=0.000 output=0.579 jumps=0/0/0 voices=0/0 streams=0
+2026-11-10T08:04:40.513Z audio pump supplied=682 available=5760 target=5760 underruns=0 peak=0.455 clipped=0
+2026-11-10T08:04:45.514Z audio pump supplied=682 available=5760 target=5760 underruns=0 peak=0.583 clipped=0
+2026-11-10T08:04:46.767Z audio sources frontend=0.583 amuse=0.000 stream=0.000 output=0.583 jumps=0/0/0 voices=0/0 streams=0
+2026-11-10T08:04:53.166Z audio sources frontend=0.609 amuse=0.000 stream=0.000 output=0.609 jumps=0/0/0 voices=0/0 streams=0
+2026-11-10T08:04:55.513Z audio pump supplied=683 available=5760 target=5760 underruns=0 peak=0.609 clipped=0
+2026-11-10T08:04:59.563Z audio sources frontend=0.570 amuse=0.000 stream=0.000 output=0.570 jumps=0/0/0 voices=0/0 streams=0
+2026-11-10T08:05:00.516Z audio pump supplied=683 available=5760 target=5760 underruns=0 peak=0.570 clipped=0
+2026-11-10T08:05:05.515Z audio pump supplied=683 available=5761 target=5760 underruns=0 peak=0.593 clipped=0
+2026-11-10T08:05:05.962Z audio sources frontend=0.593 amuse=0.000 stream=0.000 output=0.593 jumps=0/0/0 voices=0/0 streams=0

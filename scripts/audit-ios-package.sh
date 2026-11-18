@@ -20,7 +20,9 @@ for required in \
   Payload/Metaforce.app/LICENSE-Metaforce.txt \
   Payload/Metaforce.app/COPYING-GPL-3.0.txt \
   Payload/Metaforce.app/THIRD_PARTY_NOTICES.md \
-  Payload/Metaforce.app/INSTALL_IPA.md; do
+  Payload/Metaforce.app/INSTALL_IPA.md \
+  Payload/Metaforce.app/Licenses/Metaforce.txt \
+  Payload/Metaforce.app/Licenses/SunPad-GPL-3.0.txt; do
   grep -Fxq "$required" <<<"$entries" || fail "missing required entry: $required"
 done
 

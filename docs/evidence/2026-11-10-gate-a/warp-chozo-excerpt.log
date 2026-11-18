@@ -1,0 +1,4 @@
+[2026-11-10 14:29:23.010] [info] [aurora::gpu] Attempting to initialize Metal
+  API: Metal
+  Driver: Metal driver on macOS Version 26.6.2 (Build 25G83)
+[2026-11-10 14:29:23.512] [info] CAudioSys: amuse engine initialized (SDL backend, 32000 Hz)

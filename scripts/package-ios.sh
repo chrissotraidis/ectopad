@@ -30,6 +30,7 @@ cp "$ROOT/ref/metaforce/LICENSE" "$staged_app/LICENSE-Metaforce.txt"
 cp "$ROOT/ref/sunpad/LICENSE" "$staged_app/COPYING-GPL-3.0.txt"
 cp "$ROOT/THIRD_PARTY_NOTICES.md" "$staged_app/THIRD_PARTY_NOTICES.md"
 cp "$ROOT/docs/INSTALL_IPA.md" "$staged_app/INSTALL_IPA.md"
+"$ROOT/scripts/collect-licenses.sh" "$(dirname "$(dirname "$APP")")" "$staged_app/Licenses"
 xattr -cr "$package_root"
 
 find "$package_root/Payload" -exec touch -h -t 200001010000 {} +

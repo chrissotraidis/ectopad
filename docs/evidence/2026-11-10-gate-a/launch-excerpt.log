@@ -1,0 +1,8 @@
+[2026-11-10 11:57:35.387] [info] [aurora::gpu] Attempting to initialize Metal
+  API: Metal
+  Driver: Metal driver on macOS Version 26.6.2 (Build 25G83)
+[2026-11-10 11:57:38.051] [info] CAudioSys: amuse engine initialized (SDL backend, 32000 Hz)
+[2026-11-10 11:57:42.334] [info] CStaticAudioPlayer: opened 'Audio/frontend_1.rsf' (1973676 bytes, loop 416480-1973664)
+[2026-11-10 11:57:42.334] [info] CStaticAudioPlayer: opened 'Audio/frontend_2.rsf' (1636982 bytes, loop 273556-1636980)
+[2026-11-10 11:57:43.084] [info] [aurora::audio] Audio pump: 743 input frames supplied, availableOutputFrames=5293 targetOutputFrames=5292 underruns=0
+[2026-11-10 11:57:53.091] [info] [aurora::audio] Audio pump: 743 input frames supplied, availableOutputFrames=5293 targetOutputFrames=5292 underruns=0

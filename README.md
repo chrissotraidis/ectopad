@@ -16,10 +16,13 @@
   <a href="https://discord.gg/xwHfUD2bxW"><img alt="Join the EctoPad Discord" src="https://img.shields.io/badge/Discord-Join%20the%20community-5865F2?logo=discord&amp;logoColor=white"></a>
 </p>
 
-> [!IMPORTANT]
-> **EctoPad is paused.** AxioDL has made Metaforce and Zeus private until their own
-> public release, so EctoPad can't be built right now and PadMint lists it as paused.
-> EctoPad will be available again once that source is public.
+> [!NOTE]
+> **EctoPad 0.1.4 is being prepared.** AxioDL made Metaforce private in 2026.
+> EctoPad now fetches the exact Metaforce commits it was tested with from its
+> own mirrors, which become public with the 0.1.4 release, and replaces the two
+> AxioDL libraries that never had a license (zeus and kabufuda) with its own.
+> Until then the build steps below need access to those mirrors. You will need
+> your own Metroid Prime (USA, Rev 2) disc image.
 
 EctoPad is a downstream Apple integration of
 [Metaforce](https://github.com/AxioDL/metaforce), the native Metroid Prime
@@ -79,15 +82,15 @@ save, key, or signing material is included in this repository.
 
 | Option | Status | Details |
 |---|---|---|
-| Physical iPhone/iPad development build | **Playable release baseline with known visual defects** | EctoPad 0.1.3 builds, signs, installs in place, reaches gameplay, and preserves existing game data, saves, and settings. The first-door and black-geometry defects below are confirmed on both device classes. |
+| Physical iPhone/iPad development build | **Playable release baseline with known visual defects** | EctoPad 0.1.4 builds, signs, installs in place, reaches gameplay, and preserves existing game data, saves, and settings. The first-door and black-geometry defects below are confirmed on both device classes. |
 | HDMI external display | **Working** | Physical HDMI output has been tested successfully with the current iPad build. |
-| Local iPhone/iPad build | **Developer workflow available** | The current checkout needs pinned upstream repositories plus the maintained patch sequence. A clean one-command public bootstrap is still planned. |
+| Local iPhone/iPad build | **Available** | `scripts/bootstrap-workspace.sh` recreates the exact source tree from a fresh clone; `scripts/build-padmint-ios.sh` builds the app and an unsigned IPA to sign with your own Apple ID. |
 | iOS Simulator | **Engineering path available** | Useful for build, UI, import, and regression work; it does not replace physical-device audio, controller, thermal, or accessory testing. |
 | Apple Silicon macOS | **Playable development build** | The native `EctoPad.app` launches directly into the complete EctoPad/Metaforce runtime. Metal rendering, audio, existing memory-card loading, mouse/keyboard gameplay, visor switching, menus, and clean shutdown were accepted in a 59% Chozo Ruins save on 2026-08-17. |
 | Public IPA | **Not available** | The previously tracked unsigned validation IPA was removed while dependency licensing, corresponding-source, and relink requirements are resolved. Source builds remain available. |
 | TestFlight / App Store | **Not available** | No Apple-hosted distribution or App Store review has been completed. |
 
-The current 0.1.3 source/device build is the selected packaging baseline. It is
+The 0.1.4 source/device build is the selected packaging baseline. It is
 substantially playable, including the opening Frigate sections, native settings
 menu, render scaling, aspect-ratio selection, FPS counter, touch movement, and
 basic controller gameplay. That release decision does not mean the confirmed
@@ -165,9 +168,6 @@ accepted data flow. EctoPad never downloads game data.
 
 ## Getting started
 
-EctoPad is paused for now (see the notice at the top), so the steps below won't
-complete until Metaforce's source is public again.
-
 The easy way: open [PadMint](https://github.com/chrissotraidis/padmint/releases/latest) 0.5.5 or newer
 on an Apple Silicon Mac with Xcode, choose **Metroid Prime**, then **iPhone or iPad** or **This Mac**, and
 follow the page. PadMint builds EctoPad from this repository's latest release; you import your own disc
@@ -176,17 +176,23 @@ image inside EctoPad. To build it by hand instead, follow the steps below.
 You currently need:
 
 - an Apple Silicon Mac with Xcode and its command-line tools;
-- CMake 3.25 or newer, Ninja, Python 3, Rust with the required Apple targets,
-  and SDL3;
+- CMake 3.25 or newer, Ninja, Python 3, and Rust from rustup with the
+  `aarch64-apple-ios` target;
 - an Apple ID configured in Xcode only for physical iPhone/iPad signing;
-- the pinned upstream source trees and EctoPad patch sequence described in
-  [`docs/DEPENDENCIES.md`](docs/DEPENDENCIES.md); and
 - your own legally acquired supported Metroid Prime disc image.
+
+Fetch the exact pinned sources and apply EctoPad's changes once:
+
+```sh
+bash scripts/bootstrap-workspace.sh
+```
+
+It recreates the ignored `ref/metaforce` workspace at the commits listed in
+[`docs/DEPENDENCIES.md`](docs/DEPENDENCIES.md).
 
 ### macOS (Apple Silicon)
 
-With the pinned `ref/` workspace and EctoPad patches already present, build and
-verify the native Mac app with:
+Build and verify the native Mac app with:
 
 ```sh
 ./scripts/build-macos.sh
@@ -241,13 +247,10 @@ mouse and keyboard input.
 
 ### iPhone and iPad
 
-The high-level device build is:
+Build the app and an unsigned IPA:
 
 ```sh
-./scripts/sync-app-icon.sh
-cd ref/metaforce
-cmake --preset ios-default
-cmake --build --preset ios-default --target metaforce -j8
+bash scripts/build-padmint-ios.sh EctoPad.ipa
 ```
 
 The app is written to:
@@ -256,13 +259,12 @@ The app is written to:
 ref/metaforce/build/ios-default/Binaries/Metaforce.app
 ```
 
-Sign that source app with your own Apple Development identity, verify it with
-`codesign --verify --deep --strict`, and install it in place with
-`xcrun devicectl`. Never uninstall an existing copy merely to update it: doing
-so can destroy locally imported game data and saves.
+Sign it with your own Apple ID (PadMint, Sideloadly or AltStore do this), or
+sign the source app with your Apple Development identity and install it in
+place with `scripts/sign-install-device.sh`. Never uninstall an existing copy
+merely to update it: doing so can destroy locally imported game data and saves.
 
-The repository does not yet recreate the ignored `ref/` workspace from a fresh
-clone automatically. Follow [`docs/BUILDING.md`](docs/BUILDING.md) for the exact
+Follow [`docs/BUILDING.md`](docs/BUILDING.md) for the exact
 current build, signing, Simulator, and save-preserving device procedure. The
 tracked unsigned-package script is for local validation only; see
 [`docs/INSTALL_IPA.md`](docs/INSTALL_IPA.md) before using it.
@@ -343,20 +345,13 @@ ignored until the release gates in
 <details>
 <summary><strong>Where can I download the IPA?</strong></summary>
 
-There is no public IPA right now. The previous unsigned validation package was
-removed because the repository had not yet assembled the exact corresponding
-source and LGPL relink materials required for a binary release. The licensing
-status of the pinned
-[zeus](https://github.com/AxioDL/zeus) and
-[kabufuda](https://github.com/AxioDL/kabufuda) trees also needs authoritative
-clarification or clearly licensed replacements.
+There is no public IPA right now. The 0.1.4 release packages are built,
+reproducible and audited, and will be published together with the complete
+corresponding source. Until then you can build EctoPad yourself with PadMint or
+the steps above. (The unlicensed zeus math and kabufuda memory-card libraries
+have been replaced by EctoPad's own, in `components/`.)
 
-Help is welcome through an [EctoPad issue](https://github.com/chrissotraidis/ectopad/issues)
-or pull request. Useful contributions include source-backed license evidence,
-licensed replacement dependencies, a replacement for the statically linked
-[soxr](https://github.com/chirlu/soxr) path, and reproducible source/relink
-packaging. Please do not contact or pressure upstream maintainers on EctoPad's
-behalf.
+Please do not contact or pressure upstream maintainers on EctoPad's behalf.
 </details>
 
 <details>
@@ -468,12 +463,18 @@ EctoPad is an unofficial community project and is not affiliated with or
 endorsed by Nintendo, Retro Studios, or Metroid Prime's rights holders. Game
 names, trademarks, and content belong to their respective owners.
 
-EctoPad builds on Metaforce, Aurora, Dawn, SDL3, nod, kabufuda, amuse, athena,
-logvisor, musyx, zeus, soxr, SunPad's Apple application shell, and their
-contributors. Each component retains its own copyright and license. See
+EctoPad builds on Metaforce, Aurora, Dawn, SDL3, nod, amuse, athena, logvisor,
+soxr, SunPad's Apple application shell, and their contributors, and on
+the API of AxioDL's zeus and kabufuda, which EctoPad reimplements. Each
+component retains its own copyright and license. See
 [`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.md) and
 [`docs/DEPENDENCIES.md`](docs/DEPENDENCIES.md) for the pinned inventory and
 license summary.
+
+EctoPad's own code, patches, scripts, and documentation are licensed under the
+GNU General Public License, version 3 or (at your option) any later version.
+See [`LICENSE`](LICENSE). The app already combines GPL-3.0-or-later code from
+SunPad, so the combined work is distributed under the same terms.
 
 ## Legal
 

@@ -1,0 +1,21 @@
+2026-11-10T12:45:34.319Z session start version=0.1.4 build=1 os=Version 27.2 (Build 24B119)
+2026-11-10T12:45:34.350Z engine settings renderScale=1 aspectMode=0
+2026-11-10T12:45:34.548Z audio session active route=Speaker rate=48000 ioBufferMs=10.00 channels=2
+2026-11-10T12:45:34.618Z lifecycle notification=UIApplicationDidBecomeActiveNotification overlayWindow=1 superview=SDL_uikitmetalview hidden=0 alpha=1.00
+2026-11-10T12:45:34.623Z engine settings renderScale=1 aspectMode=0
+2026-11-10T12:45:34.623Z engine settings renderScale=1 aspectMode=0
+2026-11-10T12:45:34.624Z overlay recovery reason=UIApplicationDidBecomeActiveNotification reattached=0 oldHost=SDL_uikitmetalview host=SDL_uikitmetalview window=1 menu=1 controlsHidden=0
+2026-11-10T12:45:35.643Z menu visible=1 attached=1 frame={{745, 12}, {40, 40}} menuItems=5
+2026-11-10T12:45:39.655Z audio pump supplied=683 available=5761 target=5760 underruns=0 peak=0.142 clipped=0
+2026-11-10T12:45:41.066Z audio sources frontend=0.142 amuse=0.000 stream=0.000 output=0.142 jumps=0/0/0 voices=0/0 streams=0
+2026-11-10T12:45:44.653Z audio pump supplied=682 available=5760 target=5760 underruns=0 peak=0.263 clipped=0
+2026-11-10T12:45:47.466Z audio sources frontend=0.263 amuse=0.000 stream=0.000 output=0.263 jumps=0/0/0 voices=0/0 streams=0
+2026-11-10T12:45:53.936Z audio sources frontend=0.343 amuse=0.000 stream=0.000 output=0.343 jumps=0/0/0 voices=0/0 streams=0
+2026-11-10T12:45:59.649Z audio pump supplied=683 available=5760 target=5760 underruns=0 peak=0.593 clipped=0
+2026-11-10T12:46:00.349Z audio sources frontend=0.593 amuse=0.000 stream=0.000 output=0.593 jumps=0/0/0 voices=0/0 streams=0
+2026-11-10T12:46:04.644Z audio pump supplied=683 available=5760 target=5760 underruns=0 peak=0.600 clipped=0
+2026-11-10T12:46:06.748Z audio sources frontend=0.600 amuse=0.000 stream=0.000 output=0.600 jumps=0/0/0 voices=0/0 streams=0
+2026-11-10T12:46:09.654Z audio pump supplied=683 available=5761 target=5760 underruns=0 peak=0.469 clipped=0
+2026-11-10T12:46:13.142Z audio sources frontend=0.571 amuse=0.000 stream=0.000 output=0.571 jumps=0/0/0 voices=0/0 streams=0
+2026-11-10T12:46:14.662Z audio pump supplied=682 available=5760 target=5760 underruns=0 peak=0.579 clipped=0
+2026-11-10T12:46:19.554Z audio sources frontend=0.579 amuse=0.000 stream=0.000 output=0.579 jumps=0/0/0 voices=0/0 streams=0

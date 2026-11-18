@@ -1,0 +1,32 @@
+2026-11-10T03:26:24.072Z session start version=0.1.4 build=1 os=Version 27.2 (Build 24B119)
+2026-11-10T03:26:24.137Z engine settings renderScale=1 aspectMode=0
+2026-11-10T03:26:24.153Z engine settings renderScale=1 aspectMode=0
+2026-11-10T03:26:24.154Z engine settings renderScale=1 aspectMode=0
+2026-11-10T03:26:24.155Z overlay host attach reattach=0 old=SDL_uikitmetalview new=SDL_uikitmetalview window=1 menuWindow=1 menuHidden=0 touchHidden=0
+2026-11-10T03:26:26.678Z engine settings renderScale=1 aspectMode=0
+2026-11-10T03:26:26.679Z engine settings renderScale=1 aspectMode=0
+2026-11-10T03:26:26.679Z overlay host UIApplicationDidBecomeActiveNotification reattach=0 old=SDL_uikitmetalview new=SDL_uikitmetalview window=1 menuWindow=1 menuHidden=0 touchHidden=0
+2026-11-10T03:27:40.889Z session start version=0.1.4 build=1 os=Version 27.2 (Build 24B119)
+2026-11-10T03:27:40.924Z engine settings renderScale=1 aspectMode=0
+2026-11-10T03:27:40.924Z engine settings renderScale=1 aspectMode=0
+2026-11-10T03:27:40.925Z engine settings renderScale=1 aspectMode=0
+2026-11-10T03:27:40.927Z overlay host attach reattach=0 old=SDL_uikitmetalview new=SDL_uikitmetalview window=1 menuWindow=1 menuHidden=0 touchHidden=0
+2026-11-10T03:27:41.047Z audio session route=Speaker(Speaker) rate=48000 requested=32000 buffer=0.0100 channels=2
+2026-11-10T03:27:41.194Z engine settings renderScale=1 aspectMode=0
+2026-11-10T03:27:41.195Z engine settings renderScale=1 aspectMode=0
+2026-11-10T03:27:41.197Z overlay host UIApplicationDidBecomeActiveNotification reattach=0 old=SDL_uikitmetalview new=SDL_uikitmetalview window=1 menuWindow=1 menuHidden=0 touchHidden=0
+2026-11-10T04:02:19.103Z session start version=0.1.4 build=1 os=Version 27.2 (Build 24B119)
+2026-11-10T04:02:19.139Z engine settings renderScale=1 aspectMode=0
+2026-11-10T04:02:19.292Z audio session active route=Speaker rate=48000 ioBufferMs=10.00 channels=2
+2026-11-10T04:02:19.419Z lifecycle notification=UIApplicationDidBecomeActiveNotification overlayWindow=1 superview=SDL_uikitmetalview hidden=0 alpha=1.00
+2026-11-10T04:02:19.438Z engine settings renderScale=1 aspectMode=0
+2026-11-10T04:02:19.439Z engine settings renderScale=1 aspectMode=0
+2026-11-10T04:02:19.440Z overlay recovery reason=UIApplicationDidBecomeActiveNotification reattached=0 oldHost=SDL_uikitmetalview host=SDL_uikitmetalview window=1 menu=1 controlsHidden=0
+2026-11-10T04:02:20.443Z menu visible=1 attached=1 frame={{1314, 12}, {40, 40}} menuItems=5
+2026-11-10T04:02:24.431Z audio pump supplied=683 available=5760 target=5760 underruns=0 peak=0.142 clipped=0
+2026-11-10T04:02:25.865Z audio sources frontend=0.142 amuse=0.000 stream=0.000 output=0.142 jumps=0/0/0 voices=0/0 streams=0
+2026-11-10T04:02:29.430Z audio pump supplied=683 available=5761 target=5760 underruns=0 peak=0.263 clipped=0
+2026-11-10T04:02:32.329Z audio sources frontend=0.263 amuse=0.000 stream=0.000 output=0.263 jumps=0/0/0 voices=0/0 streams=0
+2026-11-10T04:02:34.428Z audio pump supplied=683 available=5761 target=5760 underruns=0 peak=0.343 clipped=0
+2026-11-10T04:02:38.949Z audio sources frontend=0.343 amuse=0.000 stream=0.000 output=0.343 jumps=0/0/0 voices=0/0 streams=0
+2026-11-10T04:02:44.428Z audio pump supplied=682 available=5760 target=5760 underruns=0 peak=0.593 clipped=0
