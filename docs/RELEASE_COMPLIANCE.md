@@ -1,6 +1,6 @@
 # Public binary release gate
 
-Last updated: 2026-11-10
+Last updated: 2026-11-18
 
 EctoPad currently distributes source and documentation only. No IPA, TestFlight,
 App Store, or AltStore PAL release is approved.
@@ -42,9 +42,20 @@ Status checked 2026-11-10 against the restored 0.1.4 build:
   scripts, integration code, and documentation. 2026-11-10: Chris delegated the
   choice; EctoPad-owned work is GPL-3.0-or-later (`LICENSE`), consistent with
   the GPL-3.0-or-later SunPad code the app combines.
-- [ ] Assemble exact corresponding source for the final binary: every pinned
+- [~] Assemble exact corresponding source for the final binary: every pinned
   upstream tree, submodule, vendored dependency, EctoPad patch, generated source
   needed for the build, and the scripts and configuration needed to rebuild it.
+  2026-11-18: `scripts/bootstrap-workspace.sh` at the release tag fetches every
+  tree at an exact commit and applies `patches/workspace/`; a fresh worktree
+  rebuilds the release packages from it. Remaining step, at publication: make
+  these mirrors public (license checked 2026-11-18 at the pinned commits):
+  `ectopad-metaforce` (MIT), `ectopad-amuse` (MIT), `ectopad-logvisor`
+  (MIT), `ectopad-lzokay` (MIT), `ectopad-jbus` (MIT), `ectopad-musyx`
+  (MIT), `ectopad-libjpeg-turbo` (BSD-3-Clause/IJG), `ectopad-aurora` (MIT;
+  not fetched by the bootstrap, kept for reference). **Never make
+  `ectopad-zeus` or `ectopad-kabufuda` public**: they hold AxioDL's
+  unlicensed originals, which the build no longer uses. The other trees
+  (aurora, nod, fixNES, spdlog, athena, soxr, SunPad) are already public.
 - [~] Replace the statically linked
   [`soxr`](https://github.com/chirlu/soxr) path with a clearly compatible
   alternative, or provide its LGPL-2.1-or-later text, exact source, relinkable
@@ -57,10 +68,18 @@ Status checked 2026-11-10 against the restored 0.1.4 build:
   `patches/workspace/soxr.patch`, so anyone can rebuild the app with a
   modified soxr. soxr's license text ships in the app. Confirm in the IP-law
   review.
-- [ ] Generate and bundle the complete license and copyright notice inventory
-  from the actual final dependency graph.
-- [ ] Rebuild Dawn with path remapping or use a scrubbed package so release
-  diagnostics do not embed upstream CI source paths.
+- [x] Generate and bundle the complete license and copyright notice inventory
+  from the actual final dependency graph. 2026-11-10:
+  `scripts/collect-licenses.sh` bundles every linked component's license
+  (including the Rust crates and Dawn) in the IPA and Mac app, none missing.
+- [x] Dawn CI paths. 2026-11-18: accepted and documented. The prebuilt Dawn
+  package contains about 241 `/Users/runner/work/dawn-build/...` strings from
+  the public CI machine that built it. They are file names in assertion
+  messages, contain no personal or secret data, are allowed by
+  `audit-ios-package.sh`, and the packages pass `release_gate.py` with
+  them. Dawn's license and source commit (`google/dawn` `13abc3b`) ship in
+  the app. Rebuilding Dawn from source (`AURORA_DAWN_PROVIDER=vendor`) stays
+  optional.
 - [ ] Produce the final unsigned package and source/relink bundle together;
   audit ZIP safety, architecture, platform, notices, prohibited data, signing
   material, exact hashes, and reproducibility.
