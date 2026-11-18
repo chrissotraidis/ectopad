@@ -1,8 +1,8 @@
 diff --git a/CMakeLists.txt b/CMakeLists.txt
-index 38e03be..7a541d9 100644
+index 38e03be..0c3c721 100644
 --- a/CMakeLists.txt
 +++ b/CMakeLists.txt
-@@ -51,6 +51,21 @@ corrosion_import_crate(
+@@ -51,6 +51,36 @@ corrosion_import_crate(
      ${NOD_IMPORT_ARGS}
  )
  
@@ -19,6 +19,21 @@ index 38e03be..7a541d9 100644
 +        corrosion_add_target_rustflags(nod_ffi
 +            "--remap-path-prefix=$ENV{HOME}/.cargo=cargo")
 +    endif()
++endif()
++
++# Rust puts weak copies of compiler helpers (__udivti3, __powidf2, ...) in
++# every static library, and Apple's system library exports the same helpers.
++# The linker picks one or the other depending on timing, so identical sources
++# could link differently. Removing Rust's copies leaves the system's only.
++if (APPLE)
++    function(nod_drop_rust_compiler_builtins)
++        add_custom_command(TARGET _cargo-build_nod_ffi POST_BUILD
++            COMMAND sh -c "m=$(\"$0\" t \"$2\" | grep '^compiler_builtins-' || true); [ -z \"$m\" ] || \"$0\" d \"$2\" $m; \"$1\" \"$2\""
++                "${CMAKE_AR}" "${CMAKE_RANLIB}" "${CMAKE_CURRENT_BINARY_DIR}/libnod_ffi.a"
++            VERBATIM)
++    endfunction()
++    # Corrosion copies the library at the end of this directory; run after it.
++    cmake_language(DEFER CALL nod_drop_rust_compiler_builtins)
 +endif()
 +
  if (NOD_COMPRESS_BZIP2)

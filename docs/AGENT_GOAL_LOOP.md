@@ -1,6 +1,6 @@
 # EctoPad Goal Loop: back online, then public
 
-Last updated: 2026-11-10
+Last updated: 2026-11-18
 
 This is the standing work loop for getting EctoPad playable again after the
 upstream sources went private, and then preparing a public release. Work on
@@ -99,6 +99,13 @@ has the draft release in front of him. Gate F happens only on his word.
       effect drawn), Morph Ball in and out (third-person camera follows) all
       worked; 0 errors, 0 audio underruns, card unchanged. Scanning and visors
       still to check with Chris.
+      2026-11-18 (the release Mac zip itself, unzipped and launched with
+      `--warp 2 0`): HUD, arm cannon, radar and minimap drawn; E switched to
+      the Scan Visor (label and scan frame drawn), firing returned to the
+      Combat Visor as in the original, and a Power Beam shot opened the blue
+      door. 0 errors, 0 underruns, both memory cards byte-identical to the
+      backup taken first (`ref/_saves-backup-20261118`). No scannable object
+      was in view, so a full scan readout is still unchecked.
 
 ### Gate B: EctoPad's own changes restored
 
@@ -119,11 +126,21 @@ has the draft release in front of him. Gate F happens only on his word.
       from the reconstruction test), then install the workspace build in place.
       2026-11-10: cards, prefs, log saved to `ref/_ipad-backup-20261110/`;
       installed in place; disc image and cards preserved.
-- [~] Diagnostic log: no crash, audio route opened; rendering confirmed.
+- [x] Diagnostic log: no crash, audio route opened; rendering confirmed.
       2026-11-10: title music playing (0 underruns, 0 clipped), ••• menu
       visible with 5 items, overlay attached
       (`docs/evidence/2026-11-10-gate-c/ipad-runtime-workspace-0.1.4.log`).
-      Rendering to be confirmed by eye in the playtest.
+      2026-11-18, seen through QuickTime mirroring of the installed 0.1.4
+      build (own zeus and kabufuda): the title screen fills the display with
+      the touch controls and ••• button; launched with `--warp 2 0`, Chozo
+      Ruins renders with world geometry, energy bar, radar, minimap and door
+      shield correct and no black walls in view. The built-in
+      `--metaforce-sunpad-interaction-test` passed its touch, settings,
+      layout-editor and Files-picker phases and restored the settings; its
+      folder phase reports 64 only because it still expects the old
+      "Metaforce Folder" title (the app shows "EctoPad Folder"). 0 audio
+      underruns. Screenshots and console log kept out of the repo
+      (`ref/_evidence-20261118/`).
 - [x] Install the build with EctoPad's own zeus and kabufuda in place.
       2026-11-10 17:03 JST: saves backed up with
       `scripts/backup-device-saves.sh` (afcclient; `devicectl device copy`
@@ -145,7 +162,10 @@ has the draft release in front of him. Gate F happens only on his word.
       (`docs/evidence/2026-11-10-gate-c/iphone-runtime-own-zeus-kabufuda.log`).
       Screen not captured (developer disk image not mounted). Still to do by
       Chris: look at the screen, touch controls, start or load a game.
-- [ ] Known 0.1.3 defects still documented; any new defect fixed or listed.
+- [x] Known 0.1.3 defects still documented; any new defect fixed or listed.
+      2026-11-18: README "Known limitations", KNOWN_ISSUES.md (KI-003,
+      KI-022, KI-023) and the 0.1.4 release notes list them; no new defect
+      found on the iPad today.
 
 ### Gate D: rebuildable from scratch
 
