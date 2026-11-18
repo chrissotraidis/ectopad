@@ -27,7 +27,7 @@ copy SunPad-GPL-3.0 "$root/ref/sunpad/LICENSE"
 copy Aurora "$m/extern/aurora/LICENSE"
 copy nod-MIT "$m/extern/nod/LICENSE-MIT"
 copy nod-Apache-2.0 "$m/extern/nod/LICENSE-APACHE"
-for c in amuse athena logvisor lzokay jbus musyx fixNES spdlog; do copy "$c" "$m/extern/$c/LICENSE"; done
+for c in amuse athena logvisor lzokay jbus fixNES spdlog; do copy "$c" "$m/extern/$c/LICENSE"; done
 copy athena-libyaml "$m/extern/athena/extern/yaml/LICENSE"
 copy athena-zlib-README "$m/extern/athena/extern/zlib/README"
 copy libjpeg-turbo-IJG-README "$m/extern/libjpeg-turbo/README"

@@ -17,11 +17,12 @@
 </p>
 
 > [!NOTE]
-> **EctoPad 0.1.4 builds again.** AxioDL made Metaforce private in 2026. EctoPad
-> now fetches the exact Metaforce commits it was tested with from its own
-> mirrors, and replaces the two AxioDL libraries that never had a license
-> (zeus and kabufuda) with its own. You still need your own Metroid Prime
-> (USA, Rev 2) disc image.
+> **EctoPad 0.1.4 is being prepared.** AxioDL made Metaforce private in 2026.
+> EctoPad now fetches the exact Metaforce commits it was tested with from its
+> own mirrors, which become public with the 0.1.4 release, and replaces the two
+> AxioDL libraries that never had a license (zeus and kabufuda) with its own.
+> Until then the build steps below need access to those mirrors. You will need
+> your own Metroid Prime (USA, Rev 2) disc image.
 
 EctoPad is a downstream Apple integration of
 [Metaforce](https://github.com/AxioDL/metaforce), the native Metroid Prime
@@ -463,7 +464,7 @@ endorsed by Nintendo, Retro Studios, or Metroid Prime's rights holders. Game
 names, trademarks, and content belong to their respective owners.
 
 EctoPad builds on Metaforce, Aurora, Dawn, SDL3, nod, amuse, athena, logvisor,
-musyx, soxr, SunPad's Apple application shell, and their contributors, and on
+soxr, SunPad's Apple application shell, and their contributors, and on
 the API of AxioDL's zeus and kabufuda, which EctoPad reimplements. Each
 component retains its own copyright and license. See
 [`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.md) and

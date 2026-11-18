@@ -1,5 +1,7 @@
 # EctoPad Goal Loop: back online, then public
 
+> **Paused 2026-11-18. Start with [RESUME_2026-11-18.md](RESUME_2026-11-18.md).**
+
 Last updated: 2026-11-18
 
 This is the standing work loop for getting EctoPad playable again after the
@@ -260,6 +262,16 @@ Blockers from docs/RELEASE_COMPLIANCE.md, updated 2026-11-10:
       release builds must start from a fresh build folder. Local release
       candidates in /tmp/ectopad-release: that Mac zip and the IPA
       `5b2623c7…`.
+      2026-11-18: the real cause of the occasional mismatch (also on the Mac)
+      was the linker choosing between Rust's weak compiler helpers in
+      libnod_ffi.a and libSystem's; nod.patch now strips Rust's copies. At
+      `2c8b44b`, two fresh workspaces built in parallel: IPA `5b2623c7…`
+      both times, Mac zip `8a1d01f9…` both times, all gates pass. musyx was
+      then dropped, which changes the license bundle: final hashes to be
+      rebuilt (RESUME_2026-11-18.md).
+- [ ] Source package passes `release_gate.py`. 2026-11-18: FAIL on 18
+      address-named Metaforce functions (provenance decision for Chris, see
+      RELEASE_COMPLIANCE.md).
 - [ ] IP-law review of the release boundary (Chris).
 - [ ] README updated; draft GitHub release prepared, not published.
 - [ ] Chris marks the repository Clear in his release audit.

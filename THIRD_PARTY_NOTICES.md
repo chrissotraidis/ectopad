@@ -15,7 +15,7 @@ included.
 | nod | MIT OR Apache-2.0 |
 | SDL3 | Zlib |
 | Dawn / Tint / WebGPU headers | BSD-3-Clause and Apache-2.0; see upstream notices |
-| amuse, athena, logvisor, lzokay, musyx, jbus, fixNES | MIT |
+| amuse, athena, logvisor, lzokay, jbus, fixNES | MIT |
 | soxr | LGPL-2.1-or-later |
 | libjpeg-turbo | BSD-3-Clause and IJG |
 | spdlog, fmt, ImGui, Tracy, xxHash | permissive upstream licenses |

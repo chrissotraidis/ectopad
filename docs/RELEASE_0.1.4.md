@@ -32,14 +32,14 @@ audio blip can play when a game starts. See docs/KNOWN_ISSUES.md.
 | --- | --- | --- |
 | EctoPad-0.1.4-unsigned.ipa | see AGENT_GOAL_LOOP.md Gate E | recorded at build |
 | EctoPad-0.1.4-macos.zip | see AGENT_GOAL_LOOP.md Gate E | recorded at build |
-| EctoPad-0.1.4-source.tar.gz | bootstrapped workspace, no build output | recorded at build |
+| EctoPad-0.1.4-source.zip | bootstrapped workspace, no build output | recorded at build |
 
 ## Publishing steps (in order, after Clear)
 
-1. Rebuild from the tagged commit in a fresh worktree and confirm the hashes
+1. Decide the Metaforce provenance question (RELEASE_COMPLIANCE.md). Rebuild from the tagged commit in a fresh worktree and confirm the hashes
    above. Run `python3 ~/.codex/release-gate/release_gate.py` on every file.
 2. Make the source mirrors public, as listed in RELEASE_COMPLIANCE.md.
-   Keep `ectopad-zeus` and `ectopad-kabufuda` private.
+   Keep `ectopad-zeus`, `ectopad-kabufuda` and `ectopad-musyx` private.
 3. From a clean clone on another path, run `scripts/bootstrap-workspace.sh`
    without GitHub credentials to prove the public sources are complete.
 4. PadMint: run `scripts/player-check.sh` from PadMint's `main` with this

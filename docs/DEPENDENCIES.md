@@ -17,7 +17,8 @@ only the fetch locations moved:
 | Component | Fetched from | Pinned revision |
 | --- | --- | --- |
 | metaforce | `chrissotraidis/ectopad-metaforce` (full upstream history) | `621ee0f` |
-| jbus, musyx, libjpeg-turbo | `chrissotraidis/ectopad-<name>` (submodule URL overrides) | Metaforce's gitlinks |
+| jbus, libjpeg-turbo | `chrissotraidis/ectopad-<name>` (submodule URL overrides) | Metaforce's gitlinks |
+| musyx | not fetched (2026-11-18): a decompilation of the MusyX library, used only by its own test | — |
 | zeus (math), kabufuda (memory cards) | EctoPad's own `components/zeus`, `components/kabufuda`, copied in at bootstrap | this repository |
 | amuse, logvisor, lzokay | `chrissotraidis/ectopad-<name>` | `ad9bc96`, `208a8c1`, `db2df1f` |
 | aurora, nod, fixNES, spdlog | their public upstreams (Metaforce's submodules) | Metaforce's gitlinks |
@@ -53,7 +54,7 @@ references.
 | `extern/jbus` | `7932b0a9b99e3461489b29ba3433f4c4256eb0f6` | CPU/JIT? (verify) |
 | `extern/kabufuda` | `9493afc8ff961ee04193038046308411904b8137` | Not used since 2026-11-10: replaced by `components/kabufuda` (no license existed at this pin) |
 | `extern/libjpeg-turbo` | `3d2da99c69d000c6351f6d2390b694f800e5ef4d` | JPEG decode (`heads/thp` branch) |
-| `extern/musyx` | `37e8ecd4e6503e90b97ea81cd7d669357861d501` | GameCube audio library reimplementation |
+| `extern/musyx` | `37e8ecd4e6503e90b97ea81cd7d669357861d501` | Not fetched since 2026-11-18 (decompiled MusyX; only its own test used it) |
 | `extern/nod` | `0ab72ade73a3aacf967741daee0bd088271f2075` | Disc image reading (encounter/nod) |
 | `extern/spdlog` | `48bcf39a661a13be22666ac64db8a7f886f2637e` | Logging |
 | `extern/zeus` | `d64e9f502a07c808596c5112bfd46bf0a0d8138e` | Not used since 2026-11-10: replaced by `components/zeus` (no license existed at this pin) |

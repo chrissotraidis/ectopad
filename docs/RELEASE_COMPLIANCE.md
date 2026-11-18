@@ -50,12 +50,24 @@ Status checked 2026-11-10 against the restored 0.1.4 build:
   rebuilds the release packages from it. Remaining step, at publication: make
   these mirrors public (license checked 2026-11-18 at the pinned commits):
   `ectopad-metaforce` (MIT), `ectopad-amuse` (MIT), `ectopad-logvisor`
-  (MIT), `ectopad-lzokay` (MIT), `ectopad-jbus` (MIT), `ectopad-musyx`
-  (MIT), `ectopad-libjpeg-turbo` (BSD-3-Clause/IJG), `ectopad-aurora` (MIT;
+  (MIT), `ectopad-lzokay` (MIT), `ectopad-jbus` (MIT),
+  `ectopad-libjpeg-turbo` (BSD-3-Clause/IJG), `ectopad-aurora` (MIT;
   not fetched by the bootstrap, kept for reference). **Never make
   `ectopad-zeus` or `ectopad-kabufuda` public**: they hold AxioDL's
-  unlicensed originals, which the build no longer uses. The other trees
+  unlicensed originals, which the build no longer uses. Keep
+  `ectopad-musyx` private too: it is a decompilation of the MusyX library,
+  and since 2026-11-18 the bootstrap no longer fetches it. The other trees
   (aurora, nod, fixNES, spdlog, athena, soxr, SunPad) are already public.
+- [ ] **Source provenance (release-gate FAIL, 2026-11-18).** The complete
+  source package (bootstrapped workspace as a ZIP) fails `release_gate.py`:
+  18 address-named definitions in Metaforce (`sub_8019ebf0` and similar in
+  CIceSheegoth, CDrone, CDroneLaser, CFlaahgra, COmegaPirate, CStateManager),
+  next to offset-named fields throughout. Metaforce was rewritten with code
+  from the PrimeDecomp decompilation, so this is the engine's provenance, not
+  a few stray files. The binaries pass only because names are stripped. Do not
+  rename functions to pass the gate. Needs Chris' provenance decision in the
+  release audit before any public source or binary. (musyx's 31 findings were
+  removed by not fetching it.)
 - [~] Replace the statically linked
   [`soxr`](https://github.com/chirlu/soxr) path with a clearly compatible
   alternative, or provide its LGPL-2.1-or-later text, exact source, relinkable
