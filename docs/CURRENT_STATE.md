@@ -1,5 +1,9 @@
 # Authoritative current state
 
+> **EctoPad is paused until further notice** (since 20 November 2026). There
+> are no builds, downloads or support. This page is kept as a record; see the
+> [README](../README.md).
+
 Last audited: 2026-08-18 after the public-package release-boundary review
 
 This is the canonical starting point for future work. When older dated evidence

@@ -1,5 +1,9 @@
 # EctoPad technical debt
 
+> **EctoPad is paused until further notice** (since 20 November 2026). There
+> are no builds, downloads or support. This page is kept as a record; see the
+> [README](../README.md).
+
 Updated 2026-08-17 after the physical first-door and black-world-geometry
 reproduction. Build, signing, install, PID, and container readback are evidence,
 not hands-on acceptance.

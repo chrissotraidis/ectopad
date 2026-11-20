@@ -1,5 +1,9 @@
 # Binary release status
 
+> **EctoPad is paused until further notice** (since 20 November 2026). There
+> are no builds, downloads or support. This page is kept as a record; see the
+> [README](../README.md).
+
 No EctoPad IPA is currently distributed from this repository.
 
 The previously tracked EctoPad 0.1.3 unsigned IPA and checksum were removed

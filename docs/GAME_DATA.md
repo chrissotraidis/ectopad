@@ -1,5 +1,9 @@
 # Game Data
 
+> **EctoPad is paused until further notice** (since 20 November 2026). There
+> are no builds, downloads or support. This page is kept as a record; see the
+> [README](../README.md).
+
 Last updated: 2026-08-12
 
 ## Supported disc

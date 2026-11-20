@@ -1,6 +1,11 @@
 # EctoPad Goal Loop: back online, then public
 
-> **Paused 2026-11-18. Start with [RESUME_2026-11-18.md](RESUME_2026-11-18.md).**
+> **EctoPad is paused until further notice** (since 20 November 2026). There
+> are no builds, downloads or support. This page is kept as a record; see the
+> [README](../README.md).
+
+> **Stopped 2026-11-20: EctoPad is paused and will not be released. Start with
+> [RESUME_2026-11-18.md](RESUME_2026-11-18.md).**
 
 Last updated: 2026-11-18
 
