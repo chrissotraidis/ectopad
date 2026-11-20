@@ -134,6 +134,9 @@ The prioritized defect list and dated evidence live in
 
 ### Reporting a useful visual defect
 
+EctoPad is paused, so reports are not being worked on. For the record, this is
+how the diagnostics were meant to be used:
+
 Open `••• → Report a Problem` immediately after the problem. Export the
 diagnostic log and attach it to the linked GitHub report. Include the Apple
 device and OS version, approximate time, room, render scale/aspect mode, whether the app recently
