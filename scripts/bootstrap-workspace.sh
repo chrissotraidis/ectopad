@@ -47,7 +47,10 @@ fetch() { # directory url commit
 }
 
 echo "EctoPad: fetching Metaforce and its components"
-mirror="https://github.com/chrissotraidis/ectopad"
+# EctoPad's mirrors are private while EctoPad is paused. With your own copies
+# of the same commits, point ECTOPAD_SOURCE_BASE at them: it is used as
+# "$ECTOPAD_SOURCE_BASE-metaforce.git", "$ECTOPAD_SOURCE_BASE-amuse.git", ...
+mirror="${ECTOPAD_SOURCE_BASE:-https://github.com/chrissotraidis/ectopad}"
 fetch "$ref" "$mirror-metaforce.git" 621ee0fed3fdd5fccbbdadbce33343f29dce071c
 for component in jbus libjpeg-turbo; do
   git -C "$ref" config "submodule.extern/$component.url" "$mirror-$component.git"

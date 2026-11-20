@@ -1,5 +1,9 @@
 # Public binary release gate
 
+> **EctoPad is paused until further notice** (since 20 November 2026). There
+> are no builds, downloads or support. This page is kept as a record; see the
+> [README](../README.md).
+
 Last updated: 2026-11-18
 
 EctoPad currently distributes source and documentation only. No IPA, TestFlight,

@@ -1,7 +1,11 @@
 # EctoPad 0.1.4 release
 
-Prepared 2026-11-18. Nothing here is published until Chris marks the
-repository Clear in his release audit (AGENTS.md).
+> **EctoPad is paused until further notice** (since 20 November 2026). There
+> are no builds, downloads or support. This page is kept as a record; see the
+> [README](../README.md).
+
+Prepared 2026-11-18. **On hold indefinitely since 2026-11-20:** EctoPad is
+paused and nothing here will be published (RESUME_2026-11-18.md).
 
 ## Release notes (draft)
 

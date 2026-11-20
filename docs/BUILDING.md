@@ -1,5 +1,9 @@
 # Building
 
+> **EctoPad is paused until further notice** (since 20 November 2026). There
+> are no builds, downloads or support. This page is kept as a record; see the
+> [README](../README.md).
+
 Last updated: 2026-11-10
 
 ## Quick start (2026-11-10)
@@ -15,8 +19,9 @@ ECTOPAD_PROFILE=<profile> ECTOPAD_IDENTITY=<sha1> \
 ```
 
 The bootstrap fetches Metaforce and the AxioDL components from EctoPad's
-`chrissotraidis/ectopad-*` mirrors (see [SOURCE_RECOVERY.md](SOURCE_RECOVERY.md))
-and blanks nod's Wii common keys. Tested with CMake 4.4 and rustup Rust with
+`chrissotraidis/ectopad-*` mirrors (see [SOURCE_RECOVERY.md](SOURCE_RECOVERY.md);
+private while EctoPad is paused, override with `ECTOPAD_SOURCE_BASE`) and
+blanks nod's Wii common keys. Tested with CMake 4.4 and rustup Rust with
 the `aarch64-apple-ios` target. Release builds should start from a fresh
 `build/` folder: the iOS toolchain appends flags on every reconfigure. The
 build scripts set `ZERO_AR_DATE=1`, and two fresh builds at different paths

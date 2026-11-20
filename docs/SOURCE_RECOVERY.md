@@ -1,5 +1,9 @@
 # Source recovery (November 2026)
 
+> **EctoPad is paused until further notice** (since 20 November 2026). There
+> are no builds, downloads or support. This page is kept as a record; see the
+> [README](../README.md).
+
 AxioDL made the Metaforce engine and several of its libraries private on
 GitHub by October 2026. Metaforce and amuse had been published under the MIT
 license, and the licenses granted for those published revisions still apply.

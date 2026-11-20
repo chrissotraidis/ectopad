@@ -32,9 +32,27 @@ repository.
 |---|---|
 | Public IPA | **Not available** |
 | PadMint build | Not available |
-| Building from this repository | Not possible while Metaforce is private |
+| Building from source | Only with your own copies of the sources (below) |
 
 There is no public IPA right now, and none is planned while EctoPad is paused.
+
+## Building from source
+
+This is unsupported, and no help is offered. You need an Apple Silicon Mac with
+Xcode, CMake, Ninja and Rust from rustup, your own Metroid Prime (USA, Rev 2)
+disc image, and your own copies of the exact source commits listed in
+[docs/DEPENDENCIES.md](docs/DEPENDENCIES.md). EctoPad's source mirrors are
+private. Point the bootstrap at your copies and build:
+
+```sh
+ECTOPAD_SOURCE_BASE=https://example.com/yours/ectopad bash scripts/bootstrap-workspace.sh
+bash scripts/build-padmint-ios.sh EctoPad.ipa    # or scripts/build-padmint-macos.sh EctoPad.zip
+```
+
+The bootstrap fetches `$ECTOPAD_SOURCE_BASE-metaforce.git`,
+`-amuse.git`, `-logvisor.git`, `-lzokay.git`, `-jbus.git` and
+`-libjpeg-turbo.git` at the pinned commits. [docs/BUILDING.md](docs/BUILDING.md)
+has the details.
 
 ## What's in this repository
 

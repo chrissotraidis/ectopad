@@ -1,5 +1,9 @@
 # Dependencies
 
+> **EctoPad is paused until further notice** (since 20 November 2026). There
+> are no builds, downloads or support. This page is kept as a record; see the
+> [README](../README.md).
+
 Last updated: 2026-11-10
 
 ## Where the sources come from now
@@ -30,7 +34,7 @@ they could not be redistributed. EctoPad replaces both with its own
 GPL-3.0-or-later libraries in `components/`; see each folder's README for
 how they were written and checked.
 
-The `ectopad-*` repositories stay private until the public release.
+The `ectopad-*` repositories are private while EctoPad is paused. With your own copies of the same commits, set `ECTOPAD_SOURCE_BASE` (see the README).
 
 ## Reference repositories (cloned into `ref/`) — August 2026 inventory
 
